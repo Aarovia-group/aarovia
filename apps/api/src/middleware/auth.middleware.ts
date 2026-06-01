@@ -18,8 +18,13 @@ export const authenticate = async (req: AuthRequest, res: Response, next: NextFu
       return res.status(401).json({ success: false, message: 'No token provided' })
     }
 
+    const jwtSecret = process.env.JWT_SECRET || process.env.SUPABASE_JWT_SECRET || process.env.aarovia_SUPABASE_JWT_SECRET
+    if (!jwtSecret) {
+      throw new Error('JWT secret is not configured')
+    }
+
     const token = authHeader.split(' ')[1]
-    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as { id: string }
+    const decoded = jwt.verify(token, jwtSecret) as { id: string }
 
     const user = await prisma.user.findUnique({
       where: { id: decoded.id },

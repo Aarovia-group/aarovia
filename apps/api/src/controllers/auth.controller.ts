@@ -4,8 +4,17 @@ import jwt from 'jsonwebtoken'
 import prisma from '../utils/prisma'
 import { AuthRequest } from '../middleware/auth.middleware'
 
+const getJwtSecret = () => {
+  return process.env.JWT_SECRET || process.env.SUPABASE_JWT_SECRET || process.env.aarovia_SUPABASE_JWT_SECRET
+}
+
 const generateToken = (id: string) => {
-  return jwt.sign({ id }, process.env.JWT_SECRET!, {
+  const jwtSecret = getJwtSecret()
+  if (!jwtSecret) {
+    throw new Error('JWT secret is not configured')
+  }
+
+  return jwt.sign({ id }, jwtSecret, {
     expiresIn: process.env.JWT_EXPIRES_IN || '7d',
   } as jwt.SignOptions)
 }

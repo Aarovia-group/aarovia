@@ -32,14 +32,21 @@ dotenv.config()
 const app = express()
 const PORT = process.env.PORT || 5000
 
+// Trust reverse proxy headers (required for Vercel / proxy deployments)
+app.set('trust proxy', 1)
+
 // Security middleware
 app.use(helmet())
 const frontendOrigins = process.env.NODE_ENV === 'production'
-  ? [process.env.FRONTEND_URL || 'https://crm.aarovia.co.in']
+  ? [process.env.FRONTEND_URL || 'https://crm.aarovia.co.in', 'https://web-aarovia.vercel.app']
   : ['http://localhost:3000', 'http://localhost:3001']
 app.use(cors({
   origin: frontendOrigins,
   credentials: true,
+  methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  preflightContinue: false,
+  optionsSuccessStatus: 204,
 }))
 
 // Rate limiting
@@ -91,10 +98,5 @@ app.use('/api/upload', uploadRoutes)
 // Error handling
 app.use(notFound)
 app.use(errorHandler)
-
-app.listen(PORT, () => {
-  console.log(`🚀 Aarovia CRM API running on port ${PORT}`)
-  console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`)
-})
 
 export default app
