@@ -158,6 +158,7 @@ npm run dev
 # Or individually:
 # API  → http://localhost:5000
 # Web  → http://localhost:3000
+ - Run `npm run build --workspace=apps/web` to test production build locally
 ```
 
 ---
@@ -364,5 +365,6 @@ For technical issues or feature requests:
 ---
 
 © 2024 Aarovia Real Estates. All rights reserved.
-#   a a r o v i a c r m  
+#   a a r o v i a c r m 
+ 
  

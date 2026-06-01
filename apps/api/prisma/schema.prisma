@@ -1,0 +1,550 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  SUPER_ADMIN
+  ADMIN
+  SALES_MANAGER
+  SALES_EXECUTIVE
+  TELECALLER
+  ACCOUNTS
+  CRM_TEAM
+  POST_SALES
+}
+
+enum LeadStatus {
+  NEW
+  FOLLOWUP
+  INTERESTED
+  QUALIFIED
+  SITE_VISIT_FIXED
+  SITE_VISIT_DONE
+  OPPORTUNITY
+  OPPORTUNITY_FOLLOW
+  OPPORTUNITY_INTERESTED
+  OPPORTUNITY_NOT_INTERESTED
+  OPPORTUNITY_CLOSED
+  BOOKED
+}
+
+enum LeadSource {
+  MAGICBRICKS
+  FACEBOOK
+  META_ADS
+  GOOGLE_ADS
+  ACRES_99
+  WEBSITE
+  DIRECT_CALL
+  WALK_IN
+  REFERRAL
+  WHATSAPP
+}
+
+enum PropertyType {
+  VILLA
+  APARTMENT
+  PLOT
+  FARMLAND
+  COMMERCIAL
+}
+
+enum InventoryStatus {
+  AVAILABLE
+  BLOCKED
+  SOLD
+  RESERVED
+}
+
+enum QuotationStatus {
+  DRAFT
+  SHARED
+  NEGOTIATION
+  APPROVED
+  CONVERTED
+}
+
+enum AgreementStatus {
+  PENDING
+  INITIATED
+  IN_PROGRESS
+  COMPLETED
+  REGISTERED
+}
+
+enum InvoiceStatus {
+  DRAFT
+  SENT
+  PAID
+  PARTIAL_PAID
+  OVERDUE
+}
+
+enum NotificationChannel {
+  EMAIL
+  WHATSAPP
+  IN_APP
+}
+
+enum DocumentCategory {
+  AGREEMENT
+  PAN_CARD
+  AADHAAR
+  PAYMENT_RECEIPT
+  QUOTATION
+  BROCHURE
+  OTHER
+}
+
+model User {
+  id             String    @id @default(cuid())
+  name           String
+  email          String    @unique
+  phone          String?
+  password       String
+  role           Role      @default(SALES_EXECUTIVE)
+  isActive       Boolean   @default(true)
+  avatar         String?
+  lastLogin      DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  assignedLeads  Lead[]    @relation("AssignedLeads")
+  createdLeads   Lead[]    @relation("CreatedLeads")
+  activities     Activity[]
+  callLogs       CallLog[]
+  tasks          Task[]
+  notifications  Notification[]
+  loginHistory   LoginHistory[]
+  quotations     Quotation[]
+
+  @@map("users")
+}
+
+model Project {
+  id              String    @id @default(cuid())
+  name            String
+  description     String?
+  location        String
+  city            String
+  state           String
+  reraNumber      String?
+  totalUnits      Int       @default(0)
+  availableUnits  Int       @default(0)
+  minPrice        Float?
+  maxPrice        Float?
+  propertyTypes   String[]
+  amenities       String[]
+  brochureUrl     String?
+  sitemapUrl      String?
+  images          String[]
+  isActive        Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  inventory       Inventory[]
+  leads           Lead[]
+  quotations      Quotation[]
+  emailTemplates  EmailTemplate[]
+
+  @@map("projects")
+}
+
+model Lead {
+  id               String      @id @default(cuid())
+  name             String
+  mobile           String
+  email            String?
+  budget           Float?
+  city             String?
+  source           LeadSource  @default(WEBSITE)
+  status           LeadStatus  @default(NEW)
+  propertyType     PropertyType?
+  remarks          String?
+  tags             String[]
+  score            Int         @default(0)
+  nextFollowupDate DateTime?
+  isActive         Boolean     @default(true)
+  isDuplicate      Boolean     @default(false)
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  projectId        String?
+  project          Project?    @relation(fields: [projectId], references: [id])
+  assignedToId     String?
+  assignedTo       User?       @relation("AssignedLeads", fields: [assignedToId], references: [id])
+  createdById      String?
+  createdBy        User?       @relation("CreatedLeads", fields: [createdById], references: [id])
+
+  activities       Activity[]
+  callLogs         CallLog[]
+  tasks            Task[]
+  quotations       Quotation[]
+  siteVisits       SiteVisit[]
+  booking          Booking?
+  emailLogs        EmailLog[]
+  whatsappLogs     WhatsappLog[]
+  notes            Note[]
+
+  @@map("leads")
+}
+
+model Activity {
+  id          String    @id @default(cuid())
+  type        String
+  description String
+  metadata    Json?
+  createdAt   DateTime  @default(now())
+
+  leadId      String?
+  lead        Lead?     @relation(fields: [leadId], references: [id])
+  userId      String?
+  user        User?     @relation(fields: [userId], references: [id])
+
+  @@map("activities")
+}
+
+model CallLog {
+  id          String    @id @default(cuid())
+  duration    Int?
+  outcome     String?
+  notes       String?
+  recordingUrl String?
+  calledAt    DateTime  @default(now())
+
+  leadId      String
+  lead        Lead      @relation(fields: [leadId], references: [id])
+  userId      String
+  user        User      @relation(fields: [userId], references: [id])
+
+  @@map("call_logs")
+}
+
+model Note {
+  id          String    @id @default(cuid())
+  content     String
+  createdAt   DateTime  @default(now())
+
+  leadId      String
+  lead        Lead      @relation(fields: [leadId], references: [id])
+
+  @@map("notes")
+}
+
+model Task {
+  id          String    @id @default(cuid())
+  title       String
+  description String?
+  dueDate     DateTime
+  isCompleted Boolean   @default(false)
+  priority    String    @default("MEDIUM")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  leadId      String?
+  lead        Lead?     @relation(fields: [leadId], references: [id])
+  userId      String
+  user        User      @relation(fields: [userId], references: [id])
+
+  @@map("tasks")
+}
+
+model Inventory {
+  id            String          @id @default(cuid())
+  unitNumber    String
+  tower         String?
+  floor         Int?
+  area          Float
+  facing        String?
+  baseRate      Float
+  finalRate     Float?
+  status        InventoryStatus @default(AVAILABLE)
+  propertyType  PropertyType
+  bedrooms      Int?
+  bathrooms     Int?
+  floorPlanUrl  String?
+  notes         String?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  projectId     String
+  project       Project         @relation(fields: [projectId], references: [id])
+  customerId    String?
+  customer      Customer?       @relation(fields: [customerId], references: [id])
+  quotations    Quotation[]
+  booking       Booking?
+
+  @@unique([projectId, unitNumber])
+  @@map("inventory")
+}
+
+model Customer {
+  id              String    @id @default(cuid())
+  name            String
+  email           String?
+  mobile          String
+  alternatePhone  String?
+  panNumber       String?
+  aadhaarNumber   String?
+  address         String?
+  city            String?
+  state           String?
+  pincode         String?
+  isKycVerified   Boolean   @default(false)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  bookings        Booking[]
+  documents       Document[]
+  inventory       Inventory[]
+  payments        Payment[]
+
+  @@map("customers")
+}
+
+model Quotation {
+  id                String          @id @default(cuid())
+  quotationNumber   String          @unique
+  status            QuotationStatus @default(DRAFT)
+  propertyType      PropertyType
+  baseRate          Float
+  area              Float
+  baseAmount        Float
+  floorRise         Float           @default(0)
+  plcCharges        Float           @default(0)
+  maintenanceCharges Float          @default(0)
+  parkingCharges    Float           @default(0)
+  clubhouseCharges  Float           @default(0)
+  legalCharges      Float           @default(0)
+  gstRate           Float           @default(5)
+  gstAmount         Float           @default(0)
+  discount          Float           @default(0)
+  totalAmount       Float
+  bookingAmount     Float           @default(0)
+  validUntil        DateTime?
+  notes             String?
+  pdfUrl            String?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  leadId            String?
+  lead              Lead?           @relation(fields: [leadId], references: [id])
+  inventoryId       String?
+  inventory         Inventory?      @relation(fields: [inventoryId], references: [id])
+  projectId         String?
+  project           Project?        @relation(fields: [projectId], references: [id])
+  createdById       String?
+  createdBy         User?           @relation(fields: [createdById], references: [id])
+  booking           Booking?
+
+  paymentMilestones PaymentMilestone[]
+
+  @@map("quotations")
+}
+
+model PaymentMilestone {
+  id            String    @id @default(cuid())
+  name          String
+  percentage    Float
+  amount        Float
+  dueDate       DateTime?
+  isPaid        Boolean   @default(false)
+  paidDate      DateTime?
+
+  quotationId   String
+  quotation     Quotation @relation(fields: [quotationId], references: [id])
+  bookingId     String?
+  booking       Booking?  @relation(fields: [bookingId], references: [id])
+
+  @@map("payment_milestones")
+}
+
+model Booking {
+  id              String          @id @default(cuid())
+  bookingNumber   String          @unique
+  bookingDate     DateTime        @default(now())
+  agreementStatus AgreementStatus @default(PENDING)
+  totalAmount     Float
+  collectedAmount Float           @default(0)
+  dueAmount       Float
+  agreementUrl    String?
+  notes           String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  leadId          String          @unique
+  lead            Lead            @relation(fields: [leadId], references: [id])
+  customerId      String
+  customer        Customer        @relation(fields: [customerId], references: [id])
+  inventoryId     String          @unique
+  inventory       Inventory       @relation(fields: [inventoryId], references: [id])
+  quotationId     String?         @unique
+  quotation       Quotation?      @relation(fields: [quotationId], references: [id])
+
+  invoices        Invoice[]
+  payments        Payment[]
+  milestones      PaymentMilestone[]
+  documents       Document[]
+  siteVisits      SiteVisit[]
+
+  @@map("bookings")
+}
+
+model Invoice {
+  id              String        @id @default(cuid())
+  invoiceNumber   String        @unique
+  status          InvoiceStatus @default(DRAFT)
+  amount          Float
+  gstAmount       Float         @default(0)
+  totalAmount     Float
+  dueDate         DateTime?
+  paidDate        DateTime?
+  pdfUrl          String?
+  notes           String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  bookingId       String
+  booking         Booking       @relation(fields: [bookingId], references: [id])
+
+  @@map("invoices")
+}
+
+model Payment {
+  id              String    @id @default(cuid())
+  amount          Float
+  paymentDate     DateTime  @default(now())
+  paymentMode     String
+  transactionId   String?
+  receiptUrl      String?
+  notes           String?
+  createdAt       DateTime  @default(now())
+
+  bookingId       String
+  booking         Booking   @relation(fields: [bookingId], references: [id])
+  customerId      String
+  customer        Customer  @relation(fields: [customerId], references: [id])
+
+  @@map("payments")
+}
+
+model SiteVisit {
+  id          String    @id @default(cuid())
+  scheduledAt DateTime
+  visitedAt   DateTime?
+  feedback    String?
+  isCompleted Boolean   @default(false)
+  notes       String?
+  createdAt   DateTime  @default(now())
+
+  leadId      String
+  lead        Lead      @relation(fields: [leadId], references: [id])
+  bookingId   String?
+  booking     Booking?  @relation(fields: [bookingId], references: [id])
+
+  @@map("site_visits")
+}
+
+model Document {
+  id          String           @id @default(cuid())
+  name        String
+  category    DocumentCategory
+  url         String
+  size        Int?
+  mimeType    String?
+  version     Int              @default(1)
+  createdAt   DateTime         @default(now())
+
+  customerId  String?
+  customer    Customer?        @relation(fields: [customerId], references: [id])
+  bookingId   String?
+  booking     Booking?         @relation(fields: [bookingId], references: [id])
+
+  @@map("documents")
+}
+
+model EmailTemplate {
+  id          String    @id @default(cuid())
+  name        String
+  subject     String
+  body        String
+  propertyType PropertyType?
+  variables   String[]
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+
+  projectId   String?
+  project     Project?  @relation(fields: [projectId], references: [id])
+
+  @@map("email_templates")
+}
+
+model EmailLog {
+  id          String    @id @default(cuid())
+  to          String
+  subject     String
+  status      String    @default("SENT")
+  openedAt    DateTime?
+  createdAt   DateTime  @default(now())
+
+  leadId      String?
+  lead        Lead?     @relation(fields: [leadId], references: [id])
+
+  @@map("email_logs")
+}
+
+model WhatsappLog {
+  id          String    @id @default(cuid())
+  to          String
+  message     String
+  status      String    @default("SENT")
+  createdAt   DateTime  @default(now())
+
+  leadId      String?
+  lead        Lead?     @relation(fields: [leadId], references: [id])
+
+  @@map("whatsapp_logs")
+}
+
+model Notification {
+  id          String              @id @default(cuid())
+  title       String
+  message     String
+  channel     NotificationChannel @default(IN_APP)
+  isRead      Boolean             @default(false)
+  metadata    Json?
+  createdAt   DateTime            @default(now())
+
+  userId      String
+  user        User                @relation(fields: [userId], references: [id])
+
+  @@map("notifications")
+}
+
+model LoginHistory {
+  id          String    @id @default(cuid())
+  ipAddress   String?
+  userAgent   String?
+  device      String?
+  loginAt     DateTime  @default(now())
+
+  userId      String
+  user        User      @relation(fields: [userId], references: [id])
+
+  @@map("login_history")
+}
+
+model Settings {
+  id          String    @id @default(cuid())
+  key         String    @unique
+  value       String
+  group       String    @default("general")
+  updatedAt   DateTime  @updatedAt
+
+  @@map("settings")
+}
