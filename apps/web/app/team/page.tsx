@@ -6,7 +6,7 @@ import { AppLayout } from '@/components/layout/AppLayout'
 import { Button, Card, Table, Tr, Td, SearchInput, EmptyState, Modal } from '@/components/ui/index'
 import { formatDate, formatRelativeTime, USER_ROLES } from '@/lib/utils'
 import { toast } from '@/components/ui/toaster'
-import { UsersRound, Plus, CheckCircle, XCircle, Key } from 'lucide-react'
+import { UsersRound, Plus, Edit2, CheckCircle, XCircle, Key } from 'lucide-react'
 import api from '@/lib/api'
 import { useForm } from 'react-hook-form'
 
@@ -26,6 +26,7 @@ export default function TeamPage() {
   const [search, setSearch] = useState('')
   const [roleFilter, setRoleFilter] = useState('')
   const [showCreate, setShowCreate] = useState(false)
+  const [editUser, setEditUser] = useState<any>(null)
   const [resetUser, setResetUser] = useState<any>(null)
 
   const { data, isLoading } = useQuery({
@@ -44,19 +45,21 @@ export default function TeamPage() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['users'] }),
   })
 
+  const updateUserMutation = useMutation({
+    mutationFn: ({ id, ...data }: any) => api.put(`/api/users/${id}`, data),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['users'] }),
+    onError: () => toast.error('Failed to update user'),
+  })
+
   const resetPasswordMutation = useMutation({
     mutationFn: ({ id, newPassword }: any) => api.patch(`/api/users/${id}/reset-password`, { newPassword }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['users'] })
-      setResetUser(null)
-      resetReset()
-      toast.success('Password reset successfully')
-    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['users'] }),
     onError: (e: any) => toast.error(e.response?.data?.message || 'Failed to reset password'),
   })
 
   const users = data?.data?.data || []
   const { register, handleSubmit, reset } = useForm()
+  const { register: registerEdit, handleSubmit: handleEditSubmit, watch: watchEdit, formState: { errors: editErrors }, reset: resetEdit } = useForm<{ name: string; phone: string; role: string; newPassword: string; confirmPassword: string }>()
   const { register: registerReset, handleSubmit: handleResetSubmit, reset: resetReset, watch, formState: { errors: resetErrors } } = useForm<{ newPassword: string; confirmPassword: string }>()
 
   const roleSummary = USER_ROLES.map(r => ({
@@ -126,13 +129,22 @@ export default function TeamPage() {
               <Td className="text-xs text-slate">{u.lastLogin ? formatRelativeTime(u.lastLogin) : 'Never'}</Td>
               <Td className="text-xs text-slate">{formatDate(u.createdAt)}</Td>
               <Td>
-                <button
-                  onClick={() => setResetUser(u)}
-                  className="p-1.5 text-slate hover:text-gold hover:bg-navy-light rounded transition-colors"
-                  title="Reset password"
-                >
-                  <Key className="w-3.5 h-3.5" />
-                </button>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => { resetEdit(); setEditUser(u) }}
+                    className="p-1.5 text-slate hover:text-gold hover:bg-navy-light rounded transition-colors"
+                    title="Edit user"
+                  >
+                    <Edit2 className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onClick={() => setResetUser(u)}
+                    className="p-1.5 text-slate hover:text-gold hover:bg-navy-light rounded transition-colors"
+                    title="Reset password"
+                  >
+                    <Key className="w-3.5 h-3.5" />
+                  </button>
+                </div>
               </Td>
             </Tr>
           ))}
@@ -168,6 +180,80 @@ export default function TeamPage() {
           <Button type="submit" loading={createMutation.isPending} className="w-full">Add Team Member</Button>
         </form>
       </Modal>
+
+      {/* Edit User Modal */}
+      {editUser && (
+        <Modal open={!!editUser} onClose={() => { setEditUser(null); resetEdit() }} title={`Edit — ${editUser.name}`} size="sm">
+          <form onSubmit={handleEditSubmit(async (d) => {
+            try {
+              // Update user info
+              await updateUserMutation.mutateAsync({ id: editUser.id, name: d.name, phone: d.phone, role: d.role })
+              
+              // Reset password if provided and matches
+              if (d.newPassword && d.newPassword === d.confirmPassword) {
+                await resetPasswordMutation.mutateAsync({ id: editUser.id, newPassword: d.newPassword })
+              }
+              
+              setEditUser(null)
+              resetEdit()
+              toast.success('User updated successfully')
+            } catch (err) {
+              // Error already handled by mutation
+            }
+          })} className="space-y-4">
+            <div>
+              <label className="block text-xs font-medium text-slate-light mb-1.5">Full Name</label>
+              <input {...registerEdit('name')} defaultValue={editUser.name} className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-gold/50" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-light mb-1.5">Phone</label>
+              <input {...registerEdit('phone')} defaultValue={editUser.phone} className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-gold/50" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-light mb-1.5">Role</label>
+              <select {...registerEdit('role')} defaultValue={editUser.role} className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-gold/50">
+                {USER_ROLES.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
+              </select>
+            </div>
+            
+            <div className="border-t border-navy-border pt-4 mt-4">
+              <h3 className="text-xs font-medium text-slate-light mb-3">Reset Password (Optional)</h3>
+              <div>
+                <label className="block text-xs font-medium text-slate-light mb-1.5">New Password</label>
+                <input
+                  {...registerEdit('newPassword', { minLength: { value: 8, message: 'Password must be at least 8 characters' } })}
+                  type="password"
+                  placeholder="Leave empty to keep current password"
+                  className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white placeholder:text-slate/40 focus:outline-none focus:ring-1 focus:ring-gold/50"
+                />
+                {editErrors.newPassword && (
+                  <p className="text-[11px] text-red-400 mt-1">{editErrors.newPassword.message}</p>
+                )}
+              </div>
+              <div className="mt-3">
+                <label className="block text-xs font-medium text-slate-light mb-1.5">Confirm Password</label>
+                <input
+                  {...registerEdit('confirmPassword', {
+                    validate: (value) => {
+                      const newPwd = watchEdit('newPassword')
+                      if (newPwd && value !== newPwd) return 'Passwords do not match'
+                      return true
+                    }
+                  })}
+                  type="password"
+                  placeholder="Confirm new password"
+                  className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white placeholder:text-slate/40 focus:outline-none focus:ring-1 focus:ring-gold/50"
+                />
+                {editErrors.confirmPassword && (
+                  <p className="text-[11px] text-red-400 mt-1">{editErrors.confirmPassword.message}</p>
+                )}
+              </div>
+            </div>
+            
+            <Button type="submit" loading={updateUserMutation.isPending || resetPasswordMutation.isPending} className="w-full">Save Changes</Button>
+          </form>
+        </Modal>
+      )}
 
       {/* Edit User Modal */}
       {resetUser && (
