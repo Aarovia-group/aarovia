@@ -92,11 +92,11 @@ export function Sidebar({
         onClick={onMobileClose}
       />
       <aside className={cn(
-        'fixed inset-y-0 left-0 z-30 transform w-64 bg-navy-mid border-r border-navy-border flex flex-col h-[100vh] overflow-hidden transition-transform duration-200 md:static md:translate-x-0 md:w-[220px]',
+        'fixed inset-y-0 left-0 z-30 transform w-[220px] min-w-[220px] bg-[#12243E] border-r border-[#2A4070] flex flex-col h-screen overflow-hidden transition-transform duration-200 md:static md:translate-x-0',
         mobileOpen ? 'translate-x-0' : '-translate-x-full'
       )}>
         {/* Logo */}
-        <div className="px-4 py-4 border-b border-navy-border flex items-center justify-between gap-3 flex-shrink-0">
+        <div className="px-4 py-4 border-b border-[#2A4070] flex items-center justify-between gap-3 flex-shrink-0">
           <Link href="/dashboard" className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-lg gold-gradient flex items-center justify-center flex-shrink-0">
               <span className="font-display font-bold text-navy text-sm">A</span>
@@ -118,7 +118,10 @@ export function Sidebar({
         </div>
 
       {/* Navigation */}
-      <nav className="flex-1 min-h-0 py-2 overflow-y-auto scrollbar-hide">
+      <nav
+        className="flex-1 overflow-y-scroll py-2"
+        style={{ scrollbarWidth: 'thin', scrollbarColor: '#C9A84C #1E3559' }}
+      >
         {navItems.map((section: any) => {
           if (section.roles && !section.roles.includes(user?.role || '')) return null
           return (
