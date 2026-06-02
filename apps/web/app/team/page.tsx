@@ -6,7 +6,7 @@ import { AppLayout } from '@/components/layout/AppLayout'
 import { Button, Card, Table, Tr, Td, SearchInput, EmptyState, Modal } from '@/components/ui/index'
 import { formatDate, formatRelativeTime, USER_ROLES } from '@/lib/utils'
 import { toast } from '@/components/ui/toaster'
-import { UsersRound, Plus, Edit2, CheckCircle, XCircle, Key } from 'lucide-react'
+import { UsersRound, Plus, Edit2, CheckCircle, XCircle, Key, Trash2 } from 'lucide-react'
 import api from '@/lib/api'
 import { useForm } from 'react-hook-form'
 
@@ -55,6 +55,15 @@ export default function TeamPage() {
     mutationFn: ({ id, newPassword }: any) => api.patch(`/api/users/${id}/reset-password`, { newPassword }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['users'] }),
     onError: (e: any) => toast.error(e.response?.data?.message || 'Failed to reset password'),
+  })
+
+  const deleteUserMutation = useMutation({
+    mutationFn: (id: string) => api.delete(`/api/users/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] })
+      toast.success('User deleted successfully')
+    },
+    onError: (e: any) => toast.error(e.response?.data?.message || 'Failed to delete user'),
   })
 
   const users = data?.data?.data || []
@@ -119,11 +128,15 @@ export default function TeamPage() {
               <Td className="text-xs text-slate">{u.phone || '—'}</Td>
               <Td>
                 <button
-                  onClick={() => toggleActiveMutation.mutate({ id: u.id, isActive: !u.isActive })}
+                  onClick={() => {
+                    if (confirm(`Are you sure you want to ${u.isActive ? 'deactivate' : 'activate'} this user?`)) {
+                      toggleActiveMutation.mutate({ id: u.id, isActive: !u.isActive })
+                    }
+                  }}
                   className={`flex items-center gap-1 text-xs font-medium transition-colors ${u.isActive ? 'text-green-400 hover:text-red-400' : 'text-red-400 hover:text-green-400'}`}
                 >
                   {u.isActive ? <CheckCircle className="w-3.5 h-3.5" /> : <XCircle className="w-3.5 h-3.5" />}
-                  {u.isActive ? 'Active' : 'Inactive'}
+                  {u.isActive ? 'Deactivate' : 'Activate'}
                 </button>
               </Td>
               <Td className="text-xs text-slate">{u.lastLogin ? formatRelativeTime(u.lastLogin) : 'Never'}</Td>
@@ -143,6 +156,17 @@ export default function TeamPage() {
                     title="Reset password"
                   >
                     <Key className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (confirm('Are you sure you want to delete this user?')) {
+                        deleteUserMutation.mutate(u.id)
+                      }
+                    }}
+                    className="p-1.5 text-slate hover:text-red-400 hover:bg-red-500/10 rounded transition-colors"
+                    title="Delete user"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 </div>
               </Td>
@@ -185,12 +209,18 @@ export default function TeamPage() {
       {editUser && (
         <Modal open={!!editUser} onClose={() => { setEditUser(null); resetEdit() }} title={`Edit — ${editUser.name}`} size="sm">
           <form onSubmit={handleEditSubmit(async (d) => {
+            // Check password match if newPassword is provided
+            if (d.newPassword && d.newPassword !== d.confirmPassword) {
+              alert('Passwords do not match')
+              return
+            }
+            
             try {
               // Update user info
               await updateUserMutation.mutateAsync({ id: editUser.id, name: d.name, phone: d.phone, role: d.role })
               
-              // Reset password if provided and matches
-              if (d.newPassword && d.newPassword === d.confirmPassword) {
+              // Reset password if provided
+              if (d.newPassword) {
                 await resetPasswordMutation.mutateAsync({ id: editUser.id, newPassword: d.newPassword })
               }
               
@@ -216,37 +246,25 @@ export default function TeamPage() {
               </select>
             </div>
             
-            <div className="border-t border-navy-border pt-4 mt-4">
-              <h3 className="text-xs font-medium text-slate-light mb-3">Reset Password (Optional)</h3>
-              <div>
-                <label className="block text-xs font-medium text-slate-light mb-1.5">New Password</label>
-                <input
-                  {...registerEdit('newPassword', { minLength: { value: 8, message: 'Password must be at least 8 characters' } })}
-                  type="password"
-                  placeholder="Leave empty to keep current password"
-                  className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white placeholder:text-slate/40 focus:outline-none focus:ring-1 focus:ring-gold/50"
+            <div style={{borderTop:'1px solid #2A4070', marginTop:'16px', paddingTop:'16px'}}>
+              <p style={{color:'#8BA3C4', fontSize:'11px', marginBottom:'12px'}}>RESET PASSWORD (OPTIONAL)</p>
+              <div style={{marginBottom:'12px'}}>
+                <label style={{color:'#B8CAE0', fontSize:'12px', display:'block', marginBottom:'6px'}}>New Password</label>
+                <input 
+                  {...registerEdit('newPassword')} 
+                  type="password" 
+                  placeholder="Leave blank to keep current password"
+                  style={{width:'100%', background:'#0A1628', border:'1px solid #2A4070', borderRadius:'8px', padding:'8px 12px', color:'white', fontSize:'14px'}}
                 />
-                {editErrors.newPassword && (
-                  <p className="text-[11px] text-red-400 mt-1">{editErrors.newPassword.message}</p>
-                )}
               </div>
-              <div className="mt-3">
-                <label className="block text-xs font-medium text-slate-light mb-1.5">Confirm Password</label>
-                <input
-                  {...registerEdit('confirmPassword', {
-                    validate: (value) => {
-                      const newPwd = watchEdit('newPassword')
-                      if (newPwd && value !== newPwd) return 'Passwords do not match'
-                      return true
-                    }
-                  })}
-                  type="password"
+              <div>
+                <label style={{color:'#B8CAE0', fontSize:'12px', display:'block', marginBottom:'6px'}}>Confirm New Password</label>
+                <input 
+                  {...registerEdit('confirmPassword')} 
+                  type="password" 
                   placeholder="Confirm new password"
-                  className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white placeholder:text-slate/40 focus:outline-none focus:ring-1 focus:ring-gold/50"
+                  style={{width:'100%', background:'#0A1628', border:'1px solid #2A4070', borderRadius:'8px', padding:'8px 12px', color:'white', fontSize:'14px'}}
                 />
-                {editErrors.confirmPassword && (
-                  <p className="text-[11px] text-red-400 mt-1">{editErrors.confirmPassword.message}</p>
-                )}
               </div>
             </div>
             
