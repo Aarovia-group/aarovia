@@ -18,43 +18,46 @@ interface AppLayoutProps {
 export function AppLayout({ children, title, subtitle, actions }: AppLayoutProps) {
   const { isAuthenticated, setAuth } = useAuthStore()
   const router = useRouter()
-  const [mounted, setMounted] = useState(false)
-  const [checking, setChecking] = useState(true)
+  const [ready, setReady] = useState(false)
 
   useEffect(() => {
-    setMounted(true)
+    // Restore auth from localStorage on every page load
+    const token = localStorage.getItem('crm_token')
+    const userStr = localStorage.getItem('crm_user')
+    const isAuth = localStorage.getItem('crm_auth')
 
-    // Check backup localStorage on mount
-    try {
-      const token = localStorage.getItem('crm_token')
-      const userStr = localStorage.getItem('crm_user')
-
-      if (token && userStr && !isAuthenticated) {
+    if (token && userStr && isAuth === 'true') {
+      try {
         const user = JSON.parse(userStr)
         setAuth(user, token)
+        setReady(true)
+      } catch {
+        localStorage.removeItem('crm_token')
+        localStorage.removeItem('crm_user')
+        localStorage.removeItem('crm_auth')
+        router.push('/auth/login')
       }
-    } catch {}
-
-    setChecking(false)
+    } else {
+      router.push('/auth/login')
+    }
   }, [])
 
   useEffect(() => {
-    if (mounted && !checking && !isAuthenticated) {
+    if (ready && !isAuthenticated) {
       router.push('/auth/login')
     }
-  }, [mounted, checking, isAuthenticated, router])
+  }, [ready, isAuthenticated])
 
   const { data: notifData } = useQuery({
     queryKey: ['notifications-count'],
     queryFn: () => notificationApi.getAll({ isRead: false, limit: 1 }),
     refetchInterval: 30000,
-    enabled: isAuthenticated && mounted,
+    enabled: isAuthenticated && ready,
   })
 
   const unreadCount = notifData?.data?.meta?.unreadCount || 0
 
-  // Show loading while checking auth
-  if (!mounted || checking) {
+  if (!ready || !isAuthenticated) {
     return (
       <div className="min-h-screen bg-[#0A1628] flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
@@ -66,8 +69,6 @@ export function AppLayout({ children, title, subtitle, actions }: AppLayoutProps
       </div>
     )
   }
-
-  if (!isAuthenticated) return null
 
   return (
     <div className="flex h-screen bg-navy overflow-hidden">

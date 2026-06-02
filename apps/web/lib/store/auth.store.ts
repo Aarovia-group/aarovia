@@ -1,7 +1,4 @@
-'use client'
-
 import { create } from 'zustand'
-import { persist, createJSONStorage } from 'zustand/middleware'
 
 interface User {
   id: string
@@ -21,43 +18,32 @@ interface AuthState {
   updateUser: (user: Partial<User>) => void
 }
 
-export const useAuthStore = create<AuthState>()(
-  persist(
-    (set) => ({
-      user: null,
-      token: null,
-      isAuthenticated: false,
+export const useAuthStore = create<AuthState>((set) => ({
+  user: null,
+  token: null,
+  isAuthenticated: false,
 
-      setAuth: (user: User, token: string) => {
-        // Also save to localStorage directly as backup
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('crm_token', token)
-          localStorage.setItem('crm_user', JSON.stringify(user))
-        }
-        set({ user, token, isAuthenticated: true })
-      },
-
-      clearAuth: () => {
-        if (typeof window !== 'undefined') {
-          localStorage.removeItem('crm_token')
-          localStorage.removeItem('crm_user')
-        }
-        set({ user: null, token: null, isAuthenticated: false })
-      },
-
-      updateUser: (userData: Partial<User>) =>
-        set((state) => ({
-          user: state.user ? { ...state.user, ...userData } : null,
-        })),
-    }),
-    {
-      name: 'aarovia-auth',
-      storage: createJSONStorage(() => localStorage),
-      partialize: (state) => ({
-        user: state.user,
-        token: state.token,
-        isAuthenticated: state.isAuthenticated,
-      }),
+  setAuth: (user: User, token: string) => {
+    // Save directly to localStorage
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('crm_token', token)
+      localStorage.setItem('crm_user', JSON.stringify(user))
+      localStorage.setItem('crm_auth', 'true')
     }
-  )
-)
+    set({ user, token, isAuthenticated: true })
+  },
+
+  clearAuth: () => {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('crm_token')
+      localStorage.removeItem('crm_user')
+      localStorage.removeItem('crm_auth')
+    }
+    set({ user: null, token: null, isAuthenticated: false })
+  },
+
+  updateUser: (userData: Partial<User>) =>
+    set((state) => ({
+      user: state.user ? { ...state.user, ...userData } : null,
+    })),
+}))
