@@ -66,6 +66,23 @@ export const updateUser = async (req: AuthRequest, res: Response) => {
 export const resetUserPassword = async (req: AuthRequest, res: Response) => {
   try {
     const { newPassword } = req.body
+    if (!newPassword || typeof newPassword !== 'string') {
+      return res.status(400).json({ success: false, message: 'New password is required' })
+    }
+
+    const passwordRules = [
+      { test: /.{8,}/, message: 'Password must be at least 8 characters long' },
+      { test: /[A-Z]/, message: 'Password must contain at least one uppercase letter' },
+      { test: /[a-z]/, message: 'Password must contain at least one lowercase letter' },
+      { test: /[0-9]/, message: 'Password must contain at least one number' },
+      { test: /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/, message: 'Password must contain at least one special character' },
+    ]
+
+    const failedRule = passwordRules.find((rule) => !rule.test.test(newPassword))
+    if (failedRule) {
+      return res.status(400).json({ success: false, message: failedRule.message })
+    }
+
     const hashedPassword = await bcrypt.hash(newPassword, 12)
     await prisma.user.update({ where: { id: req.params.id }, data: { password: hashedPassword } })
     res.json({ success: true, message: 'Password reset successfully' })

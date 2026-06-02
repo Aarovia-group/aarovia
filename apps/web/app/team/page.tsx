@@ -61,7 +61,7 @@ export default function TeamPage() {
       toast.success('Password reset successfully')
       setEditUser(null)
     },
-    onError: () => toast.error('Failed to reset password'),
+    onError: (e: any) => toast.error(e.response?.data?.message || 'Failed to reset password'),
   })
 
   const deleteMutation = useMutation({
@@ -76,12 +76,16 @@ export default function TeamPage() {
 
   const toggleActiveMutation = useMutation({
     mutationFn: ({ id, isActive }: any) => api.put(`/api/users/${id}`, { isActive }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['users'] }),
+    onSuccess: (_, variables: any) => {
+      queryClient.invalidateQueries({ queryKey: ['users'] })
+      toast.success(variables.isActive ? 'User activated successfully' : 'User deactivated successfully')
+    },
+    onError: () => toast.error('Failed to update user status'),
   })
 
   const users = data?.data?.data || []
   const { register: registerCreate, handleSubmit: handleCreate, reset: resetCreate } = useForm()
-  const { register: registerEdit, handleSubmit: handleEditSubmit } = useForm()
+  const { register: registerEdit, handleSubmit: handleEditSubmit, watch: watchEdit, reset: resetEdit } = useForm<{ name: string; phone: string; role: string; newPassword: string; confirmPassword: string }>()
 
   const roleSummary = USER_ROLES.map(r => ({
     ...r,
@@ -90,22 +94,23 @@ export default function TeamPage() {
 
   const onCreateSubmit = (d: any) => createMutation.mutate(d)
 
-  const onEditSubmit = async (d: any) => {
-    setPwError('')
-    await updateMutation.mutateAsync({ id: editUser.id, name: d.name, phone: d.phone, role: d.role })
-    if (d.newPassword) {
-      if (d.newPassword !== d.confirmPassword) {
-        setPwError('Passwords do not match')
-        return
-      }
-      if (d.newPassword.length < 8) {
-        setPwError('Password must be at least 8 characters')
-        return
-      }
-      await resetPasswordMutation.mutateAsync({ id: editUser.id, newPassword: d.newPassword })
-    } else {
-      setEditUser(null)
-    }
+  const validatePassword = (password: string) => {
+    if (!password) return ''
+    if (password.length < 8) return 'Password must be at least 8 characters'
+    if (!/[A-Z]/.test(password)) return 'Password must contain at least one uppercase letter'
+    if (!/[a-z]/.test(password)) return 'Password must contain at least one lowercase letter'
+    if (!/[0-9]/.test(password)) return 'Password must contain at least one number'
+    if (!/[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(password)) return 'Password must contain at least one special character'
+    return ''
+  }
+
+  const getPasswordStrength = (password: string) => {
+    if (!password) return { label: '', color: 'bg-transparent' }
+    const score = [/[A-Z]/, /[a-z]/, /[0-9]/, /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/, /.{12,}/].reduce((count, regex) => count + (regex.test(password) ? 1 : 0), 0)
+    if (score <= 2) return { label: 'Weak', color: 'bg-red-500' }
+    if (score === 3) return { label: 'Fair', color: 'bg-yellow-400' }
+    if (score === 4) return { label: 'Strong', color: 'bg-green-400' }
+    return { label: 'Very Strong', color: 'bg-emerald-500' }
   }
 
   const inp = "w-full bg-[#0A1628] border border-[#2A4070] rounded-lg px-3 py-2 text-sm text-white placeholder:text-[#8BA3C4]/50 focus:outline-none focus:ring-1 focus:ring-[#C9A84C]/50"
@@ -163,10 +168,18 @@ export default function TeamPage() {
               </Td>
               <Td className="text-xs text-[#8BA3C4]">{u.phone || '—'}</Td>
               <Td>
-                <button onClick={() => toggleActiveMutation.mutate({ id: u.id, isActive: !u.isActive })} className={`flex items-center gap-1 text-xs font-medium transition-colors ${u.isActive ? 'text-green-400 hover:text-red-400' : 'text-red-400 hover:text-green-400'}`}>
-                  {u.isActive ? <CheckCircle className="w-3.5 h-3.5" /> : <XCircle className="w-3.5 h-3.5" />}
-                  {u.isActive ? 'Active' : 'Inactive'}
-                </button>
+                <button
+                onClick={() => {
+                  const action = u.isActive ? 'deactivate' : 'activate'
+                  if (confirm(`Are you sure you want to ${action} this user?`)) {
+                    toggleActiveMutation.mutate({ id: u.id, isActive: !u.isActive })
+                  }
+                }}
+                className={`flex items-center gap-1 text-xs font-medium transition-colors ${u.isActive ? 'text-green-400 hover:text-red-400' : 'text-red-400 hover:text-green-400'}`}
+              >
+                {u.isActive ? <CheckCircle className="w-3.5 h-3.5" /> : <XCircle className="w-3.5 h-3.5" />}
+                {u.isActive ? 'Deactivate' : 'Activate'}
+              </button>
               </Td>
               <Td className="text-xs text-[#8BA3C4]">{u.lastLogin ? formatRelativeTime(u.lastLogin) : 'Never'}</Td>
               <Td className="text-xs text-[#8BA3C4]">{formatDate(u.createdAt)}</Td>
@@ -221,7 +234,18 @@ export default function TeamPage() {
                 Reset Password (leave blank to keep current)
               </p>
               <div className="space-y-3">
-                <div><label className={lbl}>New Password</label><input {...registerEdit('newPassword')} type="password" placeholder="Min 8 characters" className={inp} /></div>
+                <div>
+                  <label className={lbl}>New Password</label>
+                  <input {...registerEdit('newPassword')} type="password" placeholder="Min 8 characters" className={inp} />
+                  {watchEdit('newPassword') && (
+                    <div className="mt-2">
+                      <div className="h-2 rounded-full bg-[#1E3559] overflow-hidden">
+                        <div className={`${getPasswordStrength(watchEdit('newPassword')).color} h-2 rounded-full`} style={{ width: `${Math.min(100, watchEdit('newPassword').length * 8)}%` }} />
+                      </div>
+                      <p className="text-[11px] text-[#8BA3C4] mt-1">Strength: {getPasswordStrength(watchEdit('newPassword')).label}</p>
+                    </div>
+                  )}
+                </div>
                 <div><label className={lbl}>Confirm New Password</label><input {...registerEdit('confirmPassword')} type="password" placeholder="Confirm new password" className={inp} /></div>
                 {pwError && <p className="text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">⚠️ {pwError}</p>}
               </div>

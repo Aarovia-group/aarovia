@@ -16,7 +16,7 @@ const navItems = [
     label: 'Main',
     items: [
       { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-      { href: '/leads', icon: Users, label: 'Lead Management', badge: 'notifications' },
+      { href: '/leads', icon: Users, label: 'Lead Management' },
       { href: '/customers', icon: UserCheck, label: 'Customers' },
       { href: '/inventory', icon: Building2, label: 'Inventory' },
       { href: '/quotations', icon: FileText, label: 'Quotations' },
@@ -65,10 +65,7 @@ export function Sidebar({ unreadNotifications = 0, mobileOpen, onMobileClose }: 
   }
 
   return (
-    <aside
-      className="w-[220px] min-w-[220px] bg-[#12243E] border-r border-[#2A4070] flex flex-col overflow-hidden"
-      style={{ height: '100vh' }}
-    >
+    <aside className="w-[220px] min-w-[220px] h-screen bg-[#12243E] border-r border-[#2A4070] flex flex-col overflow-hidden">
       {/* Logo - fixed top */}
       <div className="px-4 py-4 border-b border-[#2A4070] flex-shrink-0">
         <Link href="/dashboard" className="flex items-center gap-3">
