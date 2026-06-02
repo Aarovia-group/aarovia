@@ -71,7 +71,7 @@ export default function LeadsPage() {
     >
       {/* Filters */}
       <div className="flex gap-2 mb-4 flex-wrap">
-        <div className="flex-1 min-w-[200px]">
+        <div className="flex-1 min-w-0 sm:min-w-[200px]">
           <SearchInput value={search} onChange={setSearch} placeholder="Search leads by name, mobile, email..." />
         </div>
         <select
@@ -165,7 +165,7 @@ export default function LeadsPage() {
         /* Pipeline View */
         <div className="flex gap-3 overflow-x-auto pb-4 scrollbar-hide min-h-[500px]">
           {pipeline.map((col: any) => (
-            <div key={col.status} className="min-w-[200px] flex-shrink-0">
+            <div key={col.status} className="min-w-[180px] flex-shrink-0">
               <div className={`flex items-center justify-between px-3 py-2 rounded-lg mb-2 text-xs font-medium ${getLeadStatusColor(col.status)}`}>
                 <span>{getLeadStatusLabel(col.status)}</span>
                 <span className="bg-black/20 px-1.5 py-0.5 rounded-full">{col.count}</span>
@@ -193,7 +193,7 @@ export default function LeadsPage() {
       {/* Create Lead Modal */}
       <Modal open={showCreate} onClose={() => { setShowCreate(false); reset() }} title="Add New Lead" size="lg">
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-medium text-slate-light mb-1.5">Full Name *</label>
               <input {...register('name', { required: true })} placeholder="Lead name" className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white placeholder:text-slate/40 focus:outline-none focus:ring-1 focus:ring-gold/50 focus:border-gold/50" />

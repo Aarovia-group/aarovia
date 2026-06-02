@@ -43,7 +43,7 @@ export default function CollectionsPage() {
       }
     >
       {/* Summary */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 mb-5">
         <StatCard
           label="Total Collected"
           value={formatCurrency(totalCollected)}

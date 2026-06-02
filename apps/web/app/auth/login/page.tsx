@@ -1,5 +1,6 @@
 'use client'
 
+import axios from 'axios'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
@@ -34,7 +35,11 @@ export default function LoginPage() {
       router.push('/dashboard')
     } catch (err: any) {
       console.error('Login error:', err)
-      setError(err.response?.data?.message || err.message || 'Login failed. Please try again.')
+      if (axios.isAxiosError(err) && !err.response) {
+        setError('Unable to reach the API. Check your network or API URL and try again.')
+      } else {
+        setError(err.response?.data?.message || err.message || 'Login failed. Please try again.')
+      }
     }
   }
 

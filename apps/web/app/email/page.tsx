@@ -74,7 +74,7 @@ export default function EmailPage() {
       subtitle="Quick action email with project brochures and details"
     >
       {/* Tabs */}
-      <div className="flex gap-1 mb-5 bg-navy-mid border border-navy-border rounded-lg p-1 w-fit">
+      <div className="flex gap-1 mb-5 bg-navy-mid border border-navy-border rounded-lg p-1 w-full sm:w-fit overflow-x-auto scrollbar-hide">
         {[
           { key: 'compose', label: 'Compose & Send', icon: Send },
           { key: 'logs', label: 'Email History', icon: Mail },
@@ -99,9 +99,8 @@ export default function EmailPage() {
                   <CardTitle><Send className="w-4 h-4 text-gold" />Recipient Details</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs font-medium text-slate-light mb-1.5">Select Lead (optional)</label>
                       <select
                         {...register('leadId')}
                         className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-gold/50"

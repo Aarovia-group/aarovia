@@ -1,15 +1,5 @@
-import nodemailer from 'nodemailer'
 import prisma from '../utils/prisma'
-
-const createTransporter = () => {
-  return nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-      user: process.env.GMAIL_USER,
-      pass: process.env.GMAIL_APP_PASSWORD,
-    },
-  })
-}
+import { createTransporter } from '../utils/email'
 
 export const sendProjectDetails = async (req: any, res: any) => {
   try {
@@ -42,7 +32,7 @@ export const sendProjectDetails = async (req: any, res: any) => {
 
     const transporter = createTransporter()
     await transporter.sendMail({
-      from: `"${req.user?.name} | Aarovia Real Estates" <${process.env.GMAIL_USER}>`,
+      from: `"${req.user?.name} | Aarovia Real Estates" <${process.env.SMTP_USER || process.env.GMAIL_USER}>`,
       to: recipientEmail,
       subject: `${project?.name || 'Premium Property'} - Project Details from Aarovia Real Estates`,
       html: emailBody,
@@ -82,7 +72,7 @@ export const sendQuotationEmail = async (req: any, res: any) => {
 
     const transporter = createTransporter()
     await transporter.sendMail({
-      from: `"Aarovia Real Estates" <${process.env.GMAIL_USER}>`,
+      from: `"Aarovia Real Estates" <${process.env.SMTP_USER || process.env.GMAIL_USER}>`,
       to: recipientEmail,
       subject: `Quotation ${quotation.quotationNumber} - Aarovia Real Estates`,
       html: generateQuotationEmail(quotation),
@@ -154,7 +144,7 @@ const generateProjectEmail = (data: any) => `
     </div>` : ''}
   </div>
   <div style="background:#0A1628;padding:20px;text-align:center">
-    <p style="color:#8BA3C4;margin:0;font-size:13px">Aarovia Real Estates | crm.aarovia.co.in</p>
+    <p style="color:#8BA3C4;margin:0;font-size:13px">Aarovia Real Estates | aarovia.co.in</p>
     <p style="color:#555;margin:5px 0 0;font-size:12px">Best Regards, ${data.senderName}</p>
   </div>
 </div>
@@ -183,7 +173,7 @@ const generateQuotationEmail = (q: any) => `
     <p style="color:#666;font-size:13px">This quotation is valid until ${q.validUntil ? new Date(q.validUntil).toLocaleDateString('en-IN') : '30 days from date of issue'}.</p>
   </div>
   <div style="background:#0A1628;padding:15px;text-align:center">
-    <p style="color:#8BA3C4;margin:0;font-size:12px">Aarovia Real Estates | crm.aarovia.co.in</p>
+    <p style="color:#8BA3C4;margin:0;font-size:12px">Aarovia Real Estates | aarovia.co.in</p>
   </div>
 </div>
 </body>

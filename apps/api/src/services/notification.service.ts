@@ -1,5 +1,5 @@
 import prisma from '../utils/prisma'
-import nodemailer from 'nodemailer'
+import { createTransporter } from '../utils/email'
 import axios from 'axios'
 
 interface NotificationPayload {
@@ -55,16 +55,10 @@ export const sendEmailNotification = async (
   body: string
 ) => {
   try {
-    const transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        user: process.env.GMAIL_USER,
-        pass: process.env.GMAIL_APP_PASSWORD,
-      },
-    })
+    const transporter = createTransporter()
 
     await transporter.sendMail({
-      from: `"Aarovia CRM" <${process.env.GMAIL_USER}>`,
+      from: `"Aarovia CRM" <${process.env.SMTP_USER || process.env.GMAIL_USER}>`,
       to,
       subject,
       html: body,

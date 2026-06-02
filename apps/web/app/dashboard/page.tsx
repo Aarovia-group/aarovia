@@ -93,7 +93,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Stats Row 1 */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 mb-4">
         <StatCard label="Total Leads" value={stats?.totalLeads?.toLocaleString() || '—'} sub="All time" icon={<Users className="w-4 h-4" />} accentColor="gold" trend="up" trendValue={`${stats?.leadGrowth || 0}%`} />
         <StatCard label="New Today" value={stats?.newLeadsToday || '—'} sub="leads added" icon={<UserPlus className="w-4 h-4" />} accentColor="green" />
         <StatCard label="Site Visits" value={stats?.siteVisitsThisMonth || '—'} sub="this month" icon={<Calendar className="w-4 h-4" />} accentColor="blue" />
@@ -101,7 +101,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Stats Row 2 */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 mb-5">
         <StatCard label="Collections" value={formatCurrency(stats?.collectionsThisMonth || 0)} sub="this month" icon={<Coins className="w-4 h-4" />} accentColor="gold" />
         <StatCard label="Due Amount" value={formatCurrency(stats?.dueAmount || 0)} sub="outstanding" icon={<AlertCircle className="w-4 h-4" />} accentColor="red" />
         <StatCard label="Followups Due" value={stats?.followupsDue || '—'} sub="pending today" icon={<Clock className="w-4 h-4" />} accentColor="orange" />
@@ -227,7 +227,7 @@ export default function DashboardPage() {
           <Link href="/inventory"><span className="text-xs text-gold hover:text-gold-light cursor-pointer">View inventory →</span></Link>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
             {[
               { label: 'Available', value: stats?.inventoryAvailable || 0, color: 'bg-green-500', textColor: 'text-green-400' },
               { label: 'Sold', value: stats?.inventorySold || 0, color: 'bg-blue-500', textColor: 'text-blue-400' },

@@ -76,9 +76,9 @@ export default function SettingsPage() {
 
   return (
     <AppLayout title="Settings" subtitle="Configure your CRM preferences and integrations">
-      <div className="flex gap-5">
+      <div className="flex flex-col lg:flex-row gap-5">
         {/* Sidebar nav */}
-        <div className="w-48 flex-shrink-0">
+        <div className="w-full max-w-[220px] flex-shrink-0">
           <Card>
             <CardContent className="p-1.5">
               {TABS.map(tab => (
@@ -250,7 +250,7 @@ export default function SettingsPage() {
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-slate-light mb-1.5">CRM Domain</label>
-                    <input defaultValue="crm.aarovia.co.in" className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-gold/50" />
+                    <input defaultValue="aarovia.co.in" className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-gold/50" />
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-slate-light mb-3">Logo Upload</label>

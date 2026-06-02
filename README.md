@@ -16,6 +16,7 @@ Enterprise-grade Real Estate CRM platform built for Aarovia Real Estates.
 - [Environment Variables](#environment-variables)
 - [Database Setup](#database-setup)
 - [Deployment (Vercel)](#deployment-vercel)
+- [Deployment Guide](DEPLOYMENT.md)
 - [Default Credentials](#default-credentials)
 - [API Documentation](#api-documentation)
 - [User Roles & Permissions](#user-roles--permissions)
@@ -174,6 +175,11 @@ npm run dev
 | `JWT_EXPIRES_IN` | Token expiry (e.g. `7d`) | ✅ |
 | `GMAIL_USER` | Gmail address for SMTP | ✅ |
 | `GMAIL_APP_PASSWORD` | Gmail App Password | ✅ |
+| `SMTP_HOST` | SMTP hostname for alternate provider | Optional |
+| `SMTP_PORT` | SMTP port (usually 465 or 587) | Optional |
+| `SMTP_SECURE` | `true` if using SSL/TLS | Optional |
+| `SMTP_USER` | SMTP username / API key | Optional |
+| `SMTP_PASS` | SMTP password / API secret | Optional |
 | `WHATSAPP_PHONE_ID` | WhatsApp Phone Number ID | Optional |
 | `WHATSAPP_ACCESS_TOKEN` | Meta API access token | Optional |
 | `CLOUDINARY_CLOUD_NAME` | Cloudinary cloud name | Optional |
@@ -233,6 +239,8 @@ npm run db:studio
 
 ## 🚀 Deployment (Vercel)
 
+> For the full production deploy checklist, see [DEPLOYMENT.md](DEPLOYMENT.md).
+
 ### Step 1: Push to GitHub
 
 ```bash
@@ -250,6 +258,12 @@ git push -u origin main
 3. Set **Root Directory** to `apps/api`
 4. Add Environment Variables (all from `.env.example`)
 5. Deploy → Copy the API URL (e.g. `https://aarovia-api.vercel.app`)
+
+> Production API env notes:
+> - `FRONTEND_URL=https://crm.aarovia.co.in`
+> - `DATABASE_URL` should point to your production PostgreSQL instance
+> - `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS` are required for real SMTP providers
+> - If using Gmail, supply `GMAIL_USER` and `GMAIL_APP_PASSWORD`
 
 ### Step 3: Deploy Web to Vercel
 

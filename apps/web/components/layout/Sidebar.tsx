@@ -54,9 +54,17 @@ interface SidebarProps {
   unreadNotifications?: number
   pendingQuotations?: number
   newLeads?: number
+  mobileOpen?: boolean
+  onMobileClose?: () => void
 }
 
-export function Sidebar({ unreadNotifications = 0, pendingQuotations = 0, newLeads = 0 }: SidebarProps) {
+export function Sidebar({
+  unreadNotifications = 0,
+  pendingQuotations = 0,
+  newLeads = 0,
+  mobileOpen = false,
+  onMobileClose,
+}: SidebarProps) {
   const pathname = usePathname()
   const { user, clearAuth } = useAuthStore()
 
@@ -75,19 +83,39 @@ export function Sidebar({ unreadNotifications = 0, pendingQuotations = 0, newLea
   }
 
   return (
-    <aside className="w-[220px] min-w-[220px] bg-navy-mid border-r border-navy-border flex flex-col h-screen overflow-y-auto scrollbar-hide">
-      {/* Logo */}
-      <div className="px-4 py-5 border-b border-navy-border flex-shrink-0">
-        <Link href="/dashboard" className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg gold-gradient flex items-center justify-center flex-shrink-0">
-            <span className="font-display font-bold text-navy text-sm">A</span>
-          </div>
-          <div>
-            <div className="font-display text-sm font-semibold text-gold-light leading-tight">Aarovia</div>
-            <div className="text-[9px] text-slate uppercase tracking-[2px]">Real Estates</div>
-          </div>
-        </Link>
-      </div>
+    <>
+      <div
+        className={cn(
+          'fixed inset-0 z-20 bg-black/40 transition-opacity duration-200 md:hidden',
+          mobileOpen ? 'opacity-100 visible' : 'opacity-0 invisible'
+        )}
+        onClick={onMobileClose}
+      />
+      <aside className={cn(
+        'fixed inset-y-0 left-0 z-30 transform w-64 bg-navy-mid border-r border-navy-border flex flex-col h-screen overflow-y-auto scrollbar-hide transition-transform duration-200 md:static md:translate-x-0 md:w-[220px]',
+        mobileOpen ? 'translate-x-0' : '-translate-x-full'
+      )}>
+        {/* Logo */}
+        <div className="px-4 py-4 border-b border-navy-border flex items-center justify-between gap-3 flex-shrink-0">
+          <Link href="/dashboard" className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg gold-gradient flex items-center justify-center flex-shrink-0">
+              <span className="font-display font-bold text-navy text-sm">A</span>
+            </div>
+            <div>
+              <div className="font-display text-sm font-semibold text-gold-light leading-tight">Aarovia</div>
+              <div className="text-[9px] text-slate uppercase tracking-[2px]">Real Estates</div>
+            </div>
+          </Link>
+          {onMobileClose && (
+            <button
+              type="button"
+              onClick={onMobileClose}
+              className="md:hidden p-2 rounded-lg text-slate hover:text-gold hover:bg-gold/10 transition-colors"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          )}
+        </div>
 
       {/* Navigation */}
       <nav className="flex-1 py-2 overflow-y-auto scrollbar-hide">
@@ -152,5 +180,6 @@ export function Sidebar({ unreadNotifications = 0, pendingQuotations = 0, newLea
         </button>
       </div>
     </aside>
+    </>
   )
 }

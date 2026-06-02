@@ -174,7 +174,7 @@ export default function LeadDetailPage() {
         {/* Right: Timeline & Tabs */}
         <div className="lg:col-span-2 space-y-4">
           {/* Quick Stats */}
-          <div className="grid grid-cols-4 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
             {[
               { label: 'Activities', value: lead._count?.activities || 0, color: 'text-blue-400' },
               { label: 'Calls', value: lead._count?.callLogs || 0, color: 'text-orange-400' },

@@ -120,7 +120,7 @@ export default function QuotationDetailPage() {
               <span className={`text-[10px] px-2 py-0.5 rounded-full border font-medium ${STATUS_STYLES[q.status]}`}>{q.status}</span>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-2 gap-4 text-sm">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                 {[
                   { label: 'Lead / Customer', value: q.lead?.name || '—', icon: User },
                   { label: 'Project', value: q.project?.name || '—', icon: Building2 },

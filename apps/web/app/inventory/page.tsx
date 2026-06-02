@@ -70,7 +70,7 @@ export default function InventoryPage() {
       }
     >
       {/* Summary cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 mb-5">
         {[
           { label: 'Available', count: summary.available, color: 'text-green-400', dot: 'bg-green-500' },
           { label: 'Blocked', count: summary.blocked, color: 'text-orange-400', dot: 'bg-orange-500' },
@@ -88,7 +88,7 @@ export default function InventoryPage() {
 
       {/* Filters & View Toggle */}
       <div className="flex gap-2 mb-4 flex-wrap">
-        <div className="flex-1 min-w-[180px]">
+        <div className="flex-1 min-w-0 sm:min-w-[180px]">
           <SearchInput value={search} onChange={setSearch} placeholder="Search by unit, tower..." />
         </div>
         <select
@@ -173,7 +173,7 @@ export default function InventoryPage() {
       {selectedUnit && (
         <Modal open={!!selectedUnit} onClose={() => setSelectedUnit(null)} title={`Unit ${selectedUnit.unitNumber}`} size="sm">
           <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-3 text-sm">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
               {[
                 ['Tower', selectedUnit.tower || '—'],
                 ['Floor', selectedUnit.floor || '—'],
@@ -192,7 +192,7 @@ export default function InventoryPage() {
             </div>
             <div>
               <p className="text-xs font-medium text-slate-light mb-2">Change Status</p>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {['AVAILABLE', 'BLOCKED', 'RESERVED', 'SOLD'].map(s => (
                   <button
                     key={s}
@@ -212,7 +212,7 @@ export default function InventoryPage() {
       {/* Create Unit Modal */}
       <Modal open={showCreate} onClose={() => { setShowCreate(false); reset() }} title="Add Inventory Unit" size="lg">
         <form onSubmit={handleSubmit((d) => createMutation.mutate(d))} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-medium text-slate-light mb-1.5">Project *</label>
               <select {...register('projectId', { required: true })} className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-gold/50">

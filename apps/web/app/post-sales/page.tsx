@@ -56,7 +56,7 @@ export default function PostSalesPage() {
       subtitle="Agreement tracking, KYC & documentation management"
     >
       {/* Summary */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 mb-5">
         {[
           { label: 'Agreement Pending', count: summary.pending, color: 'text-slate', icon: Clock },
           { label: 'In Progress', count: summary.inProgress, color: 'text-yellow-400', icon: RefreshCw },
@@ -74,7 +74,7 @@ export default function PostSalesPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 mb-4 bg-navy-mid border border-navy-border rounded-lg p-1 w-fit">
+      <div className="flex gap-1 mb-4 bg-navy-mid border border-navy-border rounded-lg p-1 w-full sm:w-fit overflow-x-auto scrollbar-hide">
         <button
           onClick={() => setActiveTab('bookings')}
           className={`px-4 py-1.5 rounded-md text-xs font-medium transition-colors ${activeTab === 'bookings' ? 'bg-gold/20 text-gold' : 'text-slate hover:text-white'}`}
@@ -91,14 +91,14 @@ export default function PostSalesPage() {
 
       {activeTab === 'bookings' ? (
         <>
-          <div className="flex gap-2 mb-4">
-            <div className="flex-1 min-w-[200px]">
+          <div className="flex flex-col sm:flex-row gap-2 mb-4">
+            <div className="flex-1 min-w-0 sm:min-w-[200px]">
               <SearchInput value={search} onChange={setSearch} placeholder="Search bookings, customers..." />
             </div>
             <select
               value={agmtFilter}
               onChange={e => setAgmtFilter(e.target.value)}
-              className="bg-navy-mid border border-navy-border rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-gold/50"
+              className="w-full sm:w-auto bg-navy-mid border border-navy-border rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-gold/50"
             >
               <option value="">All Agreement Status</option>
               {Object.entries(AGMT_CONFIG).map(([k, v]) => (
@@ -192,7 +192,7 @@ export default function PostSalesPage() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-3 gap-3 mb-3 text-xs">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3 text-xs">
                     <div className="bg-navy rounded-lg p-2 text-center">
                       <p className="text-gold font-medium">{formatCurrency(b.totalAmount)}</p>
                       <p className="text-slate text-[9px] mt-0.5">Total</p>

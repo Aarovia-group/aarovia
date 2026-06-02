@@ -129,9 +129,8 @@ export default function NewBookingPage() {
                 <CardTitle><FileText className="w-4 h-4 text-gold" />Lead & Quotation</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-medium text-slate-light mb-1.5">Lead *</label>
                     <select {...register('leadId', { required: true })} className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-gold/50">
                       <option value="">Select lead</option>
                       {leads.map((l: any) => (
@@ -157,7 +156,7 @@ export default function NewBookingPage() {
                       <CheckCircle className="w-3.5 h-3.5 text-green-400" />
                       <p className="text-xs font-medium text-green-400">Quotation loaded: {q.quotationNumber}</p>
                     </div>
-                    <div className="grid grid-cols-3 gap-3 text-xs">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-xs">
                       <div><span className="text-slate">Type</span><p className="text-slate-light">{q.propertyType}</p></div>
                       <div><span className="text-slate">Area</span><p className="text-slate-light">{q.area} sq.ft</p></div>
                       <div><span className="text-slate">Total</span><p className="text-gold font-medium">{formatCurrency(q.totalAmount)}</p></div>
@@ -210,9 +209,8 @@ export default function NewBookingPage() {
                 </div>
 
                 {selectedInventory && (
-                  <div className="grid grid-cols-4 gap-3 text-xs">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
                     {[
-                      ['Tower', selectedInventory.tower || '—'],
                       ['Floor', selectedInventory.floor || '—'],
                       ['Area', `${selectedInventory.area} sq.ft`],
                       ['Value', formatCurrency(selectedInventory.baseRate * selectedInventory.area)],
@@ -233,9 +231,8 @@ export default function NewBookingPage() {
                 <CardTitle><BookOpen className="w-4 h-4 text-gold" />Booking Amount</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-medium text-slate-light mb-1.5">Total Sale Value (₹) *</label>
                     <div className="relative">
                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate text-xs">₹</span>
                       <input {...register('totalAmount', { required: true })} type="number" placeholder="Total amount" className="w-full bg-navy border border-navy-border rounded-lg pl-7 pr-3 py-2 text-sm text-white placeholder:text-slate/40 focus:outline-none focus:ring-1 focus:ring-gold/50" />

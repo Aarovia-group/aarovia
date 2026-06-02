@@ -81,7 +81,7 @@ export default function CreateInvoicePage() {
                 {/* Booking summary */}
                 <div className="bg-navy rounded-lg border border-navy-border p-4 mb-2">
                   <p className="text-[10px] text-slate uppercase tracking-wide mb-3">Booking Summary</p>
-                  <div className="grid grid-cols-2 gap-3 text-xs">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                     {[
                       ['Customer', b.customer?.name],
                       ['Unit', b.inventory?.unitNumber],

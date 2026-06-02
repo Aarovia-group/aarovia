@@ -132,7 +132,7 @@ export default function InventoryDetailPage() {
               </span>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-4 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                 {STATUS_LABELS.map(s => (
                   <button
                     key={s}
@@ -173,7 +173,7 @@ export default function InventoryDetailPage() {
                     <Button variant="secondary" size="sm">View Booking</Button>
                   </Link>
                 </div>
-                <div className="grid grid-cols-3 gap-3 text-xs">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
                   <div className="bg-navy rounded-lg p-2.5 border border-navy-border text-center">
                     <p className="text-gold font-medium">{formatCurrency(unit.booking.totalAmount)}</p>
                     <p className="text-slate text-[9px] mt-0.5">Total</p>

@@ -112,9 +112,8 @@ export default function EditQuotationPage() {
                     {PROPERTY_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
                   </select>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className={lbl}>Base Rate (₹/sq.ft)</label>
                     <div className="relative">
                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate text-xs">₹</span>
                       <input {...register('baseRate')} type="number" step="0.01" className={inpAmt} />
@@ -132,7 +131,7 @@ export default function EditQuotationPage() {
           <Card>
             <CardHeader><CardTitle>Additional Charges</CardTitle></CardHeader>
             <CardContent>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <ChargeField label="Floor Rise" name="floorRise" />
                 <ChargeField label="PLC Charges" name="plcCharges" />
                 <ChargeField label="Maintenance" name="maintenanceCharges" />
@@ -146,9 +145,8 @@ export default function EditQuotationPage() {
           <Card>
             <CardHeader><CardTitle>GST, Discount & Booking</CardTitle></CardHeader>
             <CardContent>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className={lbl}>GST Rate (%)</label>
                   <select {...register('gstRate')} className={sel}>
                     <option value="5">5% (Under Construction)</option>
                     <option value="12">12% (Ready to Move)</option>

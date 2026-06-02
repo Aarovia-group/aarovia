@@ -113,9 +113,8 @@ export default function NewInventoryPage() {
                 <CardTitle><Building2 className="w-4 h-4 text-gold" />Unit Identification</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className={lbl}>Project *</label>
                     <select {...register('projectId', { required: 'Project is required' })} className={sel}>
                       <option value="">Select project</option>
                       {projects.map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>)}
@@ -145,9 +144,8 @@ export default function NewInventoryPage() {
                 <CardTitle>Property Specifications</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className={lbl}>Property Type *</label>
                     <select {...register('propertyType', { required: true })} className={sel}>
                       {PROPERTY_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
                     </select>
@@ -196,9 +194,8 @@ export default function NewInventoryPage() {
                 <CardTitle>Pricing</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className={lbl}>Base Rate (₹/sq.ft) *</label>
                     <div className="relative">
                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate text-xs">₹</span>
                       <input {...register('baseRate', { required: 'Base rate is required' })} type="number" step="0.01" placeholder="Rate per sq.ft" className={`${inp} pl-7`} />

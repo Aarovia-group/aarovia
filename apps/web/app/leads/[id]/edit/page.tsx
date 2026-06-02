@@ -139,7 +139,7 @@ export default function LeadEditPage() {
                 <CardTitle><User className="w-4 h-4 text-gold" />Personal Information</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <Field label="Full Name" required error={errors.name?.message as string}>
                     <input {...register('name', { required: 'Name is required' })} className={inputClass} placeholder="Full name" />
                   </Field>
@@ -176,7 +176,7 @@ export default function LeadEditPage() {
                 <CardTitle>Lead Classification</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   <Field label="Lead Source" required error={errors.source?.message as string}>
                     <select {...register('source', { required: 'Source is required' })} className={selectClass}>
                       {LEAD_SOURCES.map(s => (

@@ -47,7 +47,7 @@ export default function ProfileSettingsPage() {
         </Link>
       }
     >
-      <div className="max-w-2xl space-y-5">
+      <div className="max-w-full space-y-5">
         {/* Avatar & Info */}
         <Card>
           <CardHeader>
@@ -67,7 +67,7 @@ export default function ProfileSettingsPage() {
               </div>
             </div>
             <form onSubmit={handleSubmit(d => profileMutation.mutate(d))} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-medium text-slate-light mb-1.5">Full Name</label>
                   <input {...register('name')} className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-gold/50" />
@@ -99,7 +99,7 @@ export default function ProfileSettingsPage() {
                 <label className="block text-xs font-medium text-slate-light mb-1.5">Current Password *</label>
                 <input {...regPw('currentPassword', { required: true })} type="password" placeholder="Your current password" className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white placeholder:text-slate/40 focus:outline-none focus:ring-1 focus:ring-gold/50" />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-medium text-slate-light mb-1.5">New Password *</label>
                   <input {...regPw('newPassword', { required: true, minLength: { value: 8, message: 'Min 8 characters' } })} type="password" placeholder="New password (min 8 chars)" className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white placeholder:text-slate/40 focus:outline-none focus:ring-1 focus:ring-gold/50" />

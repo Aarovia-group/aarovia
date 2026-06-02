@@ -38,7 +38,10 @@ app.set('trust proxy', 1)
 // Security middleware
 app.use(helmet())
 const frontendOrigins = process.env.NODE_ENV === 'production'
-  ? [process.env.FRONTEND_URL || 'https://crm.aarovia.co.in', 'https://web-aarovia.vercel.app']
+  ? [
+      ...(process.env.FRONTEND_URL ? process.env.FRONTEND_URL.split(',').map((url) => url.trim()) : ['https://aarovia.co.in', 'https://www.aarovia.co.in']),
+      'https://web-aarovia.vercel.app',
+    ]
   : ['http://localhost:3000', 'http://localhost:3001']
 app.use(cors({
   origin: frontendOrigins,

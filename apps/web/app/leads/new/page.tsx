@@ -114,9 +114,8 @@ export default function NewLeadPage() {
                 <CardTitle><UserPlus className="w-4 h-4 text-gold" />Contact Information</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className={labelClass}>Full Name *</label>
                     <input {...register('name', { required: 'Name is required' })} placeholder="Lead's full name" className={inputClass} />
                     {errors.name && <p className={errorClass}>{errors.name.message as string}</p>}
                   </div>
@@ -143,9 +142,8 @@ export default function NewLeadPage() {
                 <CardTitle>Lead Details</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className={labelClass}>Lead Source *</label>
                     <select {...register('source', { required: true })} className={selectClass}>
                       {LEAD_SOURCES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
                     </select>

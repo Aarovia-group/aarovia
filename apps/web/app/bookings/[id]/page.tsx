@@ -104,7 +104,7 @@ export default function BookingDetailPage() {
               <CardTitle><Coins className="w-4 h-4 text-gold" />Collection Overview</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-3 gap-4 mb-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
                 <div className="bg-navy rounded-lg p-3 border border-navy-border text-center">
                   <p className="text-xl font-display font-semibold text-gold">{formatCurrency(b.totalAmount)}</p>
                   <p className="text-[10px] text-slate mt-1">Total Amount</p>

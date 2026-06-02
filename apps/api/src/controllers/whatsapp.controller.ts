@@ -43,7 +43,7 @@ Thank you for your interest in *${project?.name || 'our premium properties'}*!
 
 📞 Our team will reach out to you shortly with complete details.
 
-*Aarovia Real Estates* | crm.aarovia.co.in`
+*Aarovia Real Estates* | aarovia.co.in`
 
     await sendWhatsAppMessage(phone, message)
 
@@ -118,7 +118,7 @@ This is a payment reminder from *Aarovia Real Estates*.
 
 Please ensure timely payment to avoid any late charges.
 
-For payment details, contact us at crm.aarovia.co.in
+For payment details, contact us at aarovia.co.in
 
 Thank you! 🙏
 *Aarovia Real Estates*`

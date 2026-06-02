@@ -52,7 +52,7 @@ export default function InvoicesPage() {
       }
     >
       <div className="flex gap-2 mb-4 flex-wrap">
-        <div className="flex-1 min-w-[200px]">
+        <div className="flex-1 min-w-0 sm:min-w-[200px]">
           <SearchInput value={search} onChange={setSearch} placeholder="Search invoices..." />
         </div>
         <select

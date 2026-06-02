@@ -86,7 +86,7 @@ export default function WhatsAppPage() {
       title="WhatsApp Messaging"
       subtitle="Send messages via WhatsApp Cloud API"
     >
-      <div className="flex gap-1 mb-5 bg-navy-mid border border-navy-border rounded-lg p-1 w-fit">
+      <div className="flex gap-1 mb-5 bg-navy-mid border border-navy-border rounded-lg p-1 w-full sm:w-fit overflow-x-auto scrollbar-hide">
         {[
           { key: 'send', label: 'Send Message', icon: Send },
           { key: 'logs', label: 'Message Logs', icon: MessageSquare },

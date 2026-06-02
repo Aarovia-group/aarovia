@@ -167,9 +167,8 @@ export default function NewQuotationPage() {
                 <CardTitle><FileText className="w-4 h-4 text-gold" />Quotation Details</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-medium text-slate-light mb-1.5">Lead / Customer</label>
                     <select
                       {...register('leadId' as const)}
                       className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-gold/50"
@@ -224,9 +223,8 @@ export default function NewQuotationPage() {
               </CardHeader>
               <CardContent className="space-y-3">
                 {/* Base Rate and Area */}
-                <div className="grid grid-cols-2 gap-4 pb-3 border-b border-navy-border">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pb-3 border-b border-navy-border">
                   <div>
-                    <label className="block text-xs font-medium text-slate-light mb-1.5">Base Rate (₹/sq.ft) *</label>
                     <div className="relative">
                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate text-xs">₹</span>
                       <input
@@ -291,9 +289,8 @@ export default function NewQuotationPage() {
                 <CardTitle><FileText className="w-4 h-4 text-gold" />Payment Terms</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-medium text-slate-light mb-1.5">Booking Amount (₹)</label>
                     <div className="relative">
                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate text-xs">₹</span>
                       <input {...register('bookingAmount')} type="number" placeholder="Booking amount" className="w-full bg-navy border border-navy-border rounded-lg pl-7 pr-3 py-2 text-sm text-white placeholder:text-slate/40 focus:outline-none focus:ring-1 focus:ring-gold/50" />

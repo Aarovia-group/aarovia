@@ -178,7 +178,7 @@ export function StatusStepper({ steps, currentStep, labels = {} }: StatusStepper
               }
             </div>
             <span className={cn(
-              'text-[9px] mt-1.5 whitespace-nowrap font-medium',
+              'text-[9px] mt-1.5 text-center whitespace-normal font-medium',
               i === currentIndex ? 'text-gold' : i < currentIndex ? 'text-slate-light' : 'text-slate'
             )}>
               {labels[step] || step.charAt(0) + step.slice(1).toLowerCase().replace(/_/g, ' ')}

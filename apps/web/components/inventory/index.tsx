@@ -83,7 +83,7 @@ export function UnitCard({ unit, onClick }: UnitCardProps) {
         </span>
       </div>
 
-      <div className="grid grid-cols-2 gap-2 mb-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-3">
         {[
           { icon: Layers, label: 'Floor', value: unit.floor ? `Floor ${unit.floor}` : '—' },
           { icon: Home, label: 'Area', value: `${unit.area} sq.ft` },
@@ -135,7 +135,7 @@ export function InventoryStats({ available, blocked, sold, reserved, onFilter, a
   ]
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
       {items.map(item => (
         <button
           key={item.status}

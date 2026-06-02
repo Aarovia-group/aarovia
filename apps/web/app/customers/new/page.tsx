@@ -74,9 +74,8 @@ export default function NewCustomerPage() {
                 <CardTitle><UserCheck className="w-4 h-4 text-gold" />Personal Information</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className={labelClass}>Full Name *</label>
                     <input {...register('name', { required: 'Name is required' })} placeholder="Customer full name" className={inputClass} />
                     {errors.name && <p className={errorClass}>{errors.name.message as string}</p>}
                   </div>
@@ -104,9 +103,8 @@ export default function NewCustomerPage() {
                 <span className="text-[10px] text-slate">Required for booking registration</span>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className={labelClass}>PAN Number</label>
                     <input
                       {...register('panNumber', {
                         pattern: { value: /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/, message: 'Invalid PAN (e.g. ABCDE1234F)' },
@@ -145,7 +143,7 @@ export default function NewCustomerPage() {
                 <CardTitle>Address Details</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="col-span-2">
                     <label className={labelClass}>Full Address</label>
                     <textarea {...register('address')} rows={2} placeholder="House/Flat No., Street, Area..." className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white placeholder:text-slate/40 focus:outline-none focus:ring-1 focus:ring-gold/50 resize-none" />

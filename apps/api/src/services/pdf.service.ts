@@ -110,7 +110,7 @@ export const generateQuotationHTML = (quotation: any): string => {
   </div>
 
   <div class="footer">
-    <strong>Aarovia Real Estates</strong> &nbsp;|&nbsp; crm.aarovia.co.in &nbsp;|&nbsp; RERA Approved<br>
+    <strong>Aarovia Real Estates</strong> &nbsp;|&nbsp; aarovia.co.in &nbsp;|&nbsp; RERA Approved<br>
     <span style="font-size:10px;margin-top:4px;display:block">This is a computer-generated quotation. For queries, contact your sales executive.</span>
   </div>
 </div>
@@ -151,7 +151,7 @@ export const generateInvoiceHTML = (invoice: any, booking: any): string => {
       <div style="margin-top:16px;font-size:12px;color:#4b5563;">
         Hyderabad, Telangana<br>
         GSTIN: 36AAAAA0000A1ZA<br>
-        crm.aarovia.co.in
+        aarovia.co.in
       </div>
     </div>
     <div>

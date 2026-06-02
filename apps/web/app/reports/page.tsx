@@ -90,7 +90,7 @@ export default function ReportsPage() {
       }
     >
       {/* Report tabs */}
-      <div className="flex gap-1 mb-5 bg-navy-mid border border-navy-border rounded-lg p-1 w-fit overflow-x-auto scrollbar-hide">
+      <div className="flex gap-1 mb-5 bg-navy-mid border border-navy-border rounded-lg p-1 w-full sm:w-fit overflow-x-auto scrollbar-hide">
         {reports.map(r => (
           <button
             key={r.key}
@@ -105,7 +105,7 @@ export default function ReportsPage() {
       {/* Overview */}
       {activeReport === 'overview' && (
         <div className="space-y-4">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
             <StatCard label="Total Revenue" value={formatCurrency(totalRevenue)} accentColor="gold" icon={<Coins className="w-4 h-4" />} />
             <StatCard label="Avg Monthly" value={formatCurrency(avgMonthly)} accentColor="green" icon={<TrendingUp className="w-4 h-4" />} />
             <StatCard label="Total Sources" value={sources.length} accentColor="blue" icon={<PieChart className="w-4 h-4" />} />
