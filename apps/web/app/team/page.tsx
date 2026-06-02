@@ -6,7 +6,7 @@ import { AppLayout } from '@/components/layout/AppLayout'
 import { Button, Card, Table, Tr, Td, SearchInput, EmptyState, Modal } from '@/components/ui/index'
 import { formatDate, formatRelativeTime, USER_ROLES } from '@/lib/utils'
 import { toast } from '@/components/ui/toaster'
-import { UsersRound, Plus, Edit2, CheckCircle, XCircle, Shield } from 'lucide-react'
+import { UsersRound, Plus, Edit2, CheckCircle, XCircle, Shield, Key } from 'lucide-react'
 import api from '@/lib/api'
 import { useForm } from 'react-hook-form'
 
@@ -50,9 +50,22 @@ export default function TeamPage() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['users'] }),
   })
 
+  const resetPasswordMutation = useMutation({
+    mutationFn: ({ id, newPassword }: any) => api.patch(`/api/users/${id}/reset-password`, { newPassword }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] })
+      setResetUser(null)
+      resetReset()
+      toast.success('Password reset successfully')
+    },
+    onError: (e: any) => toast.error(e.response?.data?.message || 'Failed to reset password'),
+  })
+
   const users = data?.data?.data || []
   const { register, handleSubmit, reset } = useForm()
   const { register: registerEdit, handleSubmit: handleEditSubmit } = useForm()
+  const { register: registerReset, handleSubmit: handleResetSubmit, reset: resetReset, formState: { errors: resetErrors } } = useForm()
+  const [resetUser, setResetUser] = useState<any>(null)
 
   const roleSummary = USER_ROLES.map(r => ({
     ...r,
@@ -121,12 +134,22 @@ export default function TeamPage() {
               <Td className="text-xs text-slate">{u.lastLogin ? formatRelativeTime(u.lastLogin) : 'Never'}</Td>
               <Td className="text-xs text-slate">{formatDate(u.createdAt)}</Td>
               <Td>
-                <button
-                  onClick={() => setEditUser(u)}
-                  className="p-1.5 text-slate hover:text-gold hover:bg-navy-light rounded transition-colors"
-                >
-                  <Edit2 className="w-3.5 h-3.5" />
-                </button>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => setEditUser(u)}
+                    className="p-1.5 text-slate hover:text-gold hover:bg-navy-light rounded transition-colors"
+                    title="Edit user"
+                  >
+                    <Edit2 className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onClick={() => setResetUser(u)}
+                    className="p-1.5 text-slate hover:text-gold hover:bg-navy-light rounded transition-colors"
+                    title="Reset password"
+                  >
+                    <Key className="w-3.5 h-3.5" />
+                  </button>
+                </div>
               </Td>
             </Tr>
           ))}
@@ -182,6 +205,28 @@ export default function TeamPage() {
               </select>
             </div>
             <Button type="submit" loading={updateMutation.isPending} className="w-full">Save Changes</Button>
+          </form>
+        </Modal>
+      )}
+
+      {resetUser && (
+        <Modal open={!!resetUser} onClose={() => { setResetUser(null); resetReset() }} title={`Reset Password — ${resetUser.name}`} size="sm">
+          <form onSubmit={handleResetSubmit(d => resetPasswordMutation.mutate({ id: resetUser.id, newPassword: d.password }))} className="space-y-4">
+            <div>
+              <label className="block text-xs font-medium text-slate-light mb-1.5">New Password</label>
+              <input
+                {...registerReset('password', { required: true, minLength: 8 })}
+                type="password"
+                placeholder="Enter new password"
+                className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white placeholder:text-slate/40 focus:outline-none focus:ring-1 focus:ring-gold/50"
+              />
+              {resetErrors.password && (
+                <p className="text-[11px] text-red-400 mt-1">
+                  {resetErrors.password.type === 'minLength' ? 'Password must be at least 8 characters' : 'Password is required'}
+                </p>
+              )}
+            </div>
+            <Button type="submit" loading={resetPasswordMutation.isPending} className="w-full">Reset Password</Button>
           </form>
         </Modal>
       )}
