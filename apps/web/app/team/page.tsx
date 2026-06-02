@@ -6,7 +6,7 @@ import { AppLayout } from '@/components/layout/AppLayout'
 import { Button, Card, Table, Tr, Td, SearchInput, EmptyState, Modal } from '@/components/ui/index'
 import { formatDate, formatRelativeTime, USER_ROLES } from '@/lib/utils'
 import { toast } from '@/components/ui/toaster'
-import { UsersRound, Plus, Edit2, CheckCircle, XCircle, Shield, Key } from 'lucide-react'
+import { UsersRound, Plus, CheckCircle, XCircle, Key } from 'lucide-react'
 import api from '@/lib/api'
 import { useForm } from 'react-hook-form'
 
@@ -26,7 +26,7 @@ export default function TeamPage() {
   const [search, setSearch] = useState('')
   const [roleFilter, setRoleFilter] = useState('')
   const [showCreate, setShowCreate] = useState(false)
-  const [editUser, setEditUser] = useState<any>(null)
+  const [resetUser, setResetUser] = useState<any>(null)
 
   const { data, isLoading } = useQuery({
     queryKey: ['users', search, roleFilter],
@@ -37,12 +37,6 @@ export default function TeamPage() {
     mutationFn: (d: any) => api.post('/api/auth/register', d),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['users'] }); setShowCreate(false); toast.success('Team member added') },
     onError: (e: any) => toast.error(e.response?.data?.message || 'Failed to add member'),
-  })
-
-  const updateMutation = useMutation({
-    mutationFn: ({ id, ...d }: any) => api.put(`/api/users/${id}`, d),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['users'] }); setEditUser(null); toast.success('User updated') },
-    onError: () => toast.error('Failed to update user'),
   })
 
   const toggleActiveMutation = useMutation({
@@ -63,9 +57,7 @@ export default function TeamPage() {
 
   const users = data?.data?.data || []
   const { register, handleSubmit, reset } = useForm()
-  const { register: registerEdit, handleSubmit: handleEditSubmit } = useForm()
-  const { register: registerReset, handleSubmit: handleResetSubmit, reset: resetReset, formState: { errors: resetErrors } } = useForm()
-  const [resetUser, setResetUser] = useState<any>(null)
+  const { register: registerReset, handleSubmit: handleResetSubmit, reset: resetReset, watch, formState: { errors: resetErrors } } = useForm<{ newPassword: string; confirmPassword: string }>()
 
   const roleSummary = USER_ROLES.map(r => ({
     ...r,
@@ -134,22 +126,13 @@ export default function TeamPage() {
               <Td className="text-xs text-slate">{u.lastLogin ? formatRelativeTime(u.lastLogin) : 'Never'}</Td>
               <Td className="text-xs text-slate">{formatDate(u.createdAt)}</Td>
               <Td>
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => setEditUser(u)}
-                    className="p-1.5 text-slate hover:text-gold hover:bg-navy-light rounded transition-colors"
-                    title="Edit user"
-                  >
-                    <Edit2 className="w-3.5 h-3.5" />
-                  </button>
-                  <button
-                    onClick={() => setResetUser(u)}
-                    className="p-1.5 text-slate hover:text-gold hover:bg-navy-light rounded transition-colors"
-                    title="Reset password"
-                  >
-                    <Key className="w-3.5 h-3.5" />
-                  </button>
-                </div>
+                <button
+                  onClick={() => setResetUser(u)}
+                  className="p-1.5 text-slate hover:text-gold hover:bg-navy-light rounded transition-colors"
+                  title="Reset password"
+                >
+                  <Key className="w-3.5 h-3.5" />
+                </button>
               </Td>
             </Tr>
           ))}
@@ -187,42 +170,37 @@ export default function TeamPage() {
       </Modal>
 
       {/* Edit User Modal */}
-      {editUser && (
-        <Modal open={!!editUser} onClose={() => setEditUser(null)} title={`Edit — ${editUser.name}`} size="sm">
-          <form onSubmit={handleEditSubmit(d => updateMutation.mutate({ id: editUser.id, ...d }))} className="space-y-4">
-            <div>
-              <label className="block text-xs font-medium text-slate-light mb-1.5">Full Name</label>
-              <input {...registerEdit('name')} defaultValue={editUser.name} className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-gold/50" />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-slate-light mb-1.5">Phone</label>
-              <input {...registerEdit('phone')} defaultValue={editUser.phone} className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-gold/50" />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-slate-light mb-1.5">Role</label>
-              <select {...registerEdit('role')} defaultValue={editUser.role} className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-gold/50">
-                {USER_ROLES.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
-              </select>
-            </div>
-            <Button type="submit" loading={updateMutation.isPending} className="w-full">Save Changes</Button>
-          </form>
-        </Modal>
-      )}
-
       {resetUser && (
         <Modal open={!!resetUser} onClose={() => { setResetUser(null); resetReset() }} title={`Reset Password — ${resetUser.name}`} size="sm">
-          <form onSubmit={handleResetSubmit(d => resetPasswordMutation.mutate({ id: resetUser.id, newPassword: d.password }))} className="space-y-4">
+          <form onSubmit={handleResetSubmit((d) => resetPasswordMutation.mutate({ id: resetUser.id, newPassword: d.newPassword }))} className="space-y-4">
             <div>
               <label className="block text-xs font-medium text-slate-light mb-1.5">New Password</label>
               <input
-                {...registerReset('password', { required: true, minLength: 8 })}
+                {...registerReset('newPassword', { required: true, minLength: 8 })}
                 type="password"
                 placeholder="Enter new password"
                 className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white placeholder:text-slate/40 focus:outline-none focus:ring-1 focus:ring-gold/50"
               />
-              {resetErrors.password && (
+              {resetErrors.newPassword && (
                 <p className="text-[11px] text-red-400 mt-1">
-                  {resetErrors.password.type === 'minLength' ? 'Password must be at least 8 characters' : 'Password is required'}
+                  {resetErrors.newPassword.type === 'minLength' ? 'Password must be at least 8 characters' : 'Password is required'}
+                </p>
+              )}
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-light mb-1.5">Confirm Password</label>
+              <input
+                {...registerReset('confirmPassword', {
+                  required: true,
+                  validate: (value) => value === watch('newPassword') || 'Passwords do not match',
+                })}
+                type="password"
+                placeholder="Confirm new password"
+                className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white placeholder:text-slate/40 focus:outline-none focus:ring-1 focus:ring-gold/50"
+              />
+              {resetErrors.confirmPassword && (
+                <p className="text-[11px] text-red-400 mt-1">
+                  {resetErrors.confirmPassword.message || 'Confirm password is required'}
                 </p>
               )}
             </div>
