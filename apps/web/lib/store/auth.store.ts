@@ -1,4 +1,4 @@
-import { create } from 'zustand'
+﻿import { create } from 'zustand'
 
 interface User {
   id: string
@@ -22,9 +22,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   user: null,
   token: null,
   isAuthenticated: false,
-
   setAuth: (user: User, token: string) => {
-    // Save directly to localStorage
     if (typeof window !== 'undefined') {
       localStorage.setItem('crm_token', token)
       localStorage.setItem('crm_user', JSON.stringify(user))
@@ -32,7 +30,6 @@ export const useAuthStore = create<AuthState>((set) => ({
     }
     set({ user, token, isAuthenticated: true })
   },
-
   clearAuth: () => {
     if (typeof window !== 'undefined') {
       localStorage.removeItem('crm_token')
@@ -41,7 +38,6 @@ export const useAuthStore = create<AuthState>((set) => ({
     }
     set({ user: null, token: null, isAuthenticated: false })
   },
-
   updateUser: (userData: Partial<User>) =>
     set((state) => ({
       user: state.user ? { ...state.user, ...userData } : null,
