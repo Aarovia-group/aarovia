@@ -6,12 +6,12 @@ import { AppLayout } from '@/components/layout/AppLayout'
 import { Button, Card, Table, Tr, Td, SearchInput, EmptyState, Modal } from '@/components/ui/index'
 import { formatDate, formatRelativeTime, USER_ROLES } from '@/lib/utils'
 import { toast } from '@/components/ui/toaster'
-import { UsersRound, Plus, Edit2, CheckCircle, XCircle, Key, Trash2 } from 'lucide-react'
+import { UsersRound, Plus, Edit2, CheckCircle, XCircle, Trash2, KeyRound } from 'lucide-react'
 import api from '@/lib/api'
 import { useForm } from 'react-hook-form'
 
 const ROLE_COLORS: Record<string, string> = {
-  SUPER_ADMIN: 'bg-gold/20 text-gold border-gold/30',
+  SUPER_ADMIN: 'bg-[#C9A84C]/20 text-[#C9A84C] border-[#C9A84C]/30',
   ADMIN: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
   SALES_MANAGER: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
   SALES_EXECUTIVE: 'bg-green-500/20 text-green-400 border-green-500/30',
@@ -27,7 +27,8 @@ export default function TeamPage() {
   const [roleFilter, setRoleFilter] = useState('')
   const [showCreate, setShowCreate] = useState(false)
   const [editUser, setEditUser] = useState<any>(null)
-  const [resetUser, setResetUser] = useState<any>(null)
+  const [deleteUser, setDeleteUser] = useState<any>(null)
+  const [pwError, setPwError] = useState('')
 
   const { data, isLoading } = useQuery({
     queryKey: ['users', search, roleFilter],
@@ -36,8 +37,41 @@ export default function TeamPage() {
 
   const createMutation = useMutation({
     mutationFn: (d: any) => api.post('/api/auth/register', d),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['users'] }); setShowCreate(false); toast.success('Team member added') },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] })
+      setShowCreate(false)
+      resetCreate()
+      toast.success('Team member added successfully')
+    },
     onError: (e: any) => toast.error(e.response?.data?.message || 'Failed to add member'),
+  })
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, ...d }: any) => api.put(`/api/users/${id}`, d),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] })
+      toast.success('User updated successfully')
+    },
+    onError: () => toast.error('Failed to update user'),
+  })
+
+  const resetPasswordMutation = useMutation({
+    mutationFn: ({ id, newPassword }: any) => api.patch(`/api/users/${id}/reset-password`, { newPassword }),
+    onSuccess: () => {
+      toast.success('Password reset successfully')
+      setEditUser(null)
+    },
+    onError: () => toast.error('Failed to reset password'),
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => api.delete(`/api/users/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] })
+      setDeleteUser(null)
+      toast.success('User deactivated successfully')
+    },
+    onError: () => toast.error('Failed to delete user'),
   })
 
   const toggleActiveMutation = useMutation({
@@ -45,78 +79,80 @@ export default function TeamPage() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['users'] }),
   })
 
-  const updateUserMutation = useMutation({
-    mutationFn: ({ id, ...data }: any) => api.put(`/api/users/${id}`, data),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['users'] }),
-    onError: () => toast.error('Failed to update user'),
-  })
-
-  const resetPasswordMutation = useMutation({
-    mutationFn: ({ id, newPassword }: any) => api.patch(`/api/users/${id}/reset-password`, { newPassword }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['users'] }),
-    onError: (e: any) => toast.error(e.response?.data?.message || 'Failed to reset password'),
-  })
-
-  const deleteUserMutation = useMutation({
-    mutationFn: (id: string) => api.delete(`/api/users/${id}`),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['users'] })
-      toast.success('User deleted successfully')
-    },
-    onError: (e: any) => toast.error(e.response?.data?.message || 'Failed to delete user'),
-  })
-
   const users = data?.data?.data || []
-  const { register, handleSubmit, reset } = useForm()
-  const { register: registerEdit, handleSubmit: handleEditSubmit, watch: watchEdit, formState: { errors: editErrors }, reset: resetEdit } = useForm<{ name: string; phone: string; role: string; newPassword: string; confirmPassword: string }>()
-  const { register: registerReset, handleSubmit: handleResetSubmit, reset: resetReset, watch, formState: { errors: resetErrors } } = useForm<{ newPassword: string; confirmPassword: string }>()
+  const { register: registerCreate, handleSubmit: handleCreate, reset: resetCreate } = useForm()
+  const { register: registerEdit, handleSubmit: handleEditSubmit } = useForm()
 
   const roleSummary = USER_ROLES.map(r => ({
     ...r,
     count: users.filter((u: any) => u.role === r.value).length,
   }))
 
+  const onCreateSubmit = (d: any) => createMutation.mutate(d)
+
+  const onEditSubmit = async (d: any) => {
+    setPwError('')
+    await updateMutation.mutateAsync({ id: editUser.id, name: d.name, phone: d.phone, role: d.role })
+    if (d.newPassword) {
+      if (d.newPassword !== d.confirmPassword) {
+        setPwError('Passwords do not match')
+        return
+      }
+      if (d.newPassword.length < 8) {
+        setPwError('Password must be at least 8 characters')
+        return
+      }
+      await resetPasswordMutation.mutateAsync({ id: editUser.id, newPassword: d.newPassword })
+    } else {
+      setEditUser(null)
+    }
+  }
+
+  const inp = "w-full bg-[#0A1628] border border-[#2A4070] rounded-lg px-3 py-2 text-sm text-white placeholder:text-[#8BA3C4]/50 focus:outline-none focus:ring-1 focus:ring-[#C9A84C]/50"
+  const sel = "w-full bg-[#0A1628] border border-[#2A4070] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-[#C9A84C]/50"
+  const lbl = "block text-xs font-medium text-[#B8CAE0] mb-1.5"
+
   return (
     <AppLayout
       title="Team Management"
       subtitle={`${users.length} team members`}
-      actions={<Button size="sm" icon={<Plus className="w-3.5 h-3.5" />} onClick={() => setShowCreate(true)}>Add Member</Button>}
+      actions={
+        <Button size="sm" icon={<Plus className="w-3.5 h-3.5" />} onClick={() => setShowCreate(true)}>
+          Add Member
+        </Button>
+      }
     >
-      {/* Role summary */}
       <div className="flex gap-2 mb-5 flex-wrap">
+        <button onClick={() => setRoleFilter('')} className={`px-3 py-1.5 rounded-lg text-xs border transition-colors ${!roleFilter ? 'bg-[#C9A84C]/20 text-[#C9A84C] border-[#C9A84C]/40' : 'bg-[#12243E] border-[#2A4070] text-[#8BA3C4] hover:text-white'}`}>
+          All ({users.length})
+        </button>
         {roleSummary.filter(r => r.count > 0).map(r => (
-          <button
-            key={r.value}
-            onClick={() => setRoleFilter(roleFilter === r.value ? '' : r.value)}
-            className={`px-3 py-1.5 rounded-lg text-xs border transition-colors ${roleFilter === r.value ? ROLE_COLORS[r.value] : 'bg-navy-mid border-navy-border text-slate hover:text-white'}`}
-          >
-            {r.label} <span className="ml-1.5 font-medium">{r.count}</span>
+          <button key={r.value} onClick={() => setRoleFilter(roleFilter === r.value ? '' : r.value)} className={`px-3 py-1.5 rounded-lg text-xs border transition-colors ${roleFilter === r.value ? ROLE_COLORS[r.value] : 'bg-[#12243E] border-[#2A4070] text-[#8BA3C4] hover:text-white'}`}>
+            {r.label} {r.count}
           </button>
         ))}
       </div>
 
-      <div className="flex gap-2 mb-4">
-        <div className="flex-1">
-          <SearchInput value={search} onChange={setSearch} placeholder="Search team members..." />
-        </div>
+      <div className="mb-4">
+        <SearchInput value={search} onChange={setSearch} placeholder="Search team members..." />
       </div>
 
       <Card>
         <Table headers={['Member', 'Role', 'Phone', 'Status', 'Last Login', 'Joined', 'Actions']}>
           {isLoading ? (
-            <tr><td colSpan={7} className="py-12 text-center text-slate text-sm">Loading team...</td></tr>
+            <tr><td colSpan={7} className="py-12 text-center text-[#8BA3C4] text-sm">Loading team...</td></tr>
           ) : users.length === 0 ? (
             <tr><td colSpan={7}><EmptyState icon={<UsersRound className="w-10 h-10" />} title="No team members found" /></td></tr>
           ) : users.map((u: any) => (
             <Tr key={u.id}>
               <Td>
                 <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-full gold-gradient flex items-center justify-center text-navy text-xs font-bold flex-shrink-0">
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#C9A84C] to-[#E8C96A] flex items-center justify-center text-[#0A1628] text-xs font-bold flex-shrink-0">
                     {u.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}
                   </div>
                   <div>
                     <p className="text-sm font-medium text-white">{u.name}</p>
-                    <p className="text-[10px] text-slate">{u.email}</p>
+                    <p className="text-[10px] text-[#8BA3C4]">{u.email}</p>
                   </div>
                 </div>
               </Td>
@@ -125,47 +161,21 @@ export default function TeamPage() {
                   {u.role?.replace(/_/g, ' ')}
                 </span>
               </Td>
-              <Td className="text-xs text-slate">{u.phone || '—'}</Td>
+              <Td className="text-xs text-[#8BA3C4]">{u.phone || '—'}</Td>
               <Td>
-                <button
-                  onClick={() => {
-                    if (confirm(`Are you sure you want to ${u.isActive ? 'deactivate' : 'activate'} this user?`)) {
-                      toggleActiveMutation.mutate({ id: u.id, isActive: !u.isActive })
-                    }
-                  }}
-                  className={`flex items-center gap-1 text-xs font-medium transition-colors ${u.isActive ? 'text-green-400 hover:text-red-400' : 'text-red-400 hover:text-green-400'}`}
-                >
+                <button onClick={() => toggleActiveMutation.mutate({ id: u.id, isActive: !u.isActive })} className={`flex items-center gap-1 text-xs font-medium transition-colors ${u.isActive ? 'text-green-400 hover:text-red-400' : 'text-red-400 hover:text-green-400'}`}>
                   {u.isActive ? <CheckCircle className="w-3.5 h-3.5" /> : <XCircle className="w-3.5 h-3.5" />}
-                  {u.isActive ? 'Deactivate' : 'Activate'}
+                  {u.isActive ? 'Active' : 'Inactive'}
                 </button>
               </Td>
-              <Td className="text-xs text-slate">{u.lastLogin ? formatRelativeTime(u.lastLogin) : 'Never'}</Td>
-              <Td className="text-xs text-slate">{formatDate(u.createdAt)}</Td>
+              <Td className="text-xs text-[#8BA3C4]">{u.lastLogin ? formatRelativeTime(u.lastLogin) : 'Never'}</Td>
+              <Td className="text-xs text-[#8BA3C4]">{formatDate(u.createdAt)}</Td>
               <Td>
                 <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => { resetEdit(); setEditUser(u) }}
-                    className="p-1.5 text-slate hover:text-gold hover:bg-navy-light rounded transition-colors"
-                    title="Edit user"
-                  >
+                  <button onClick={() => { setPwError(''); setEditUser(u) }} title="Edit user" className="p-1.5 text-[#8BA3C4] hover:text-[#C9A84C] hover:bg-[#C9A84C]/10 rounded transition-colors">
                     <Edit2 className="w-3.5 h-3.5" />
                   </button>
-                  <button
-                    onClick={() => setResetUser(u)}
-                    className="p-1.5 text-slate hover:text-gold hover:bg-navy-light rounded transition-colors"
-                    title="Reset password"
-                  >
-                    <Key className="w-3.5 h-3.5" />
-                  </button>
-                  <button
-                    onClick={() => {
-                      if (confirm('Are you sure you want to delete this user?')) {
-                        deleteUserMutation.mutate(u.id)
-                      }
-                    }}
-                    className="p-1.5 text-slate hover:text-red-400 hover:bg-red-500/10 rounded transition-colors"
-                    title="Delete user"
-                  >
+                  <button onClick={() => setDeleteUser(u)} title="Deactivate user" className="p-1.5 text-[#8BA3C4] hover:text-red-400 hover:bg-red-500/10 rounded transition-colors">
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 </div>
@@ -175,141 +185,72 @@ export default function TeamPage() {
         </Table>
       </Card>
 
-      {/* Add Member Modal */}
-      <Modal open={showCreate} onClose={() => { setShowCreate(false); reset() }} title="Add Team Member" size="sm">
-        <form onSubmit={handleSubmit(d => createMutation.mutate(d))} className="space-y-4">
+      {/* ADD MEMBER MODAL */}
+      <Modal open={showCreate} onClose={() => { setShowCreate(false); resetCreate() }} title="Add Team Member" size="sm">
+        <form onSubmit={handleCreate(onCreateSubmit)} className="space-y-4">
+          <div><label className={lbl}>Full Name *</label><input {...registerCreate('name', { required: true })} placeholder="Full name" className={inp} /></div>
+          <div><label className={lbl}>Email Address *</label><input {...registerCreate('email', { required: true })} type="email" placeholder="email@aarovia.co.in" className={inp} /></div>
+          <div><label className={lbl}>Phone Number</label><input {...registerCreate('phone')} placeholder="+91 9876543210" className={inp} /></div>
           <div>
-            <label className="block text-xs font-medium text-slate-light mb-1.5">Full Name *</label>
-            <input {...register('name', { required: true })} placeholder="Full name" className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white placeholder:text-slate/40 focus:outline-none focus:ring-1 focus:ring-gold/50" />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-slate-light mb-1.5">Email *</label>
-            <input {...register('email', { required: true })} type="email" placeholder="email@aarovia.co.in" className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white placeholder:text-slate/40 focus:outline-none focus:ring-1 focus:ring-gold/50" />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-slate-light mb-1.5">Phone</label>
-            <input {...register('phone')} placeholder="+91 XXXXX XXXXX" className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white placeholder:text-slate/40 focus:outline-none focus:ring-1 focus:ring-gold/50" />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-slate-light mb-1.5">Role *</label>
-            <select {...register('role', { required: true })} className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-gold/50">
+            <label className={lbl}>Role *</label>
+            <select {...registerCreate('role', { required: true })} className={sel}>
               <option value="">Select role</option>
               {USER_ROLES.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
             </select>
           </div>
-          <div>
-            <label className="block text-xs font-medium text-slate-light mb-1.5">Password *</label>
-            <input {...register('password', { required: true, minLength: 8 })} type="password" placeholder="Min 8 characters" className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white placeholder:text-slate/40 focus:outline-none focus:ring-1 focus:ring-gold/50" />
-          </div>
+          <div><label className={lbl}>Password *</label><input {...registerCreate('password', { required: true, minLength: 8 })} type="password" placeholder="Min 8 characters" className={inp} /></div>
           <Button type="submit" loading={createMutation.isPending} className="w-full">Add Team Member</Button>
         </form>
       </Modal>
 
-      {/* Edit User Modal */}
+      {/* EDIT + PASSWORD RESET MODAL */}
       {editUser && (
-        <Modal open={!!editUser} onClose={() => { setEditUser(null); resetEdit() }} title={`Edit — ${editUser.name}`} size="sm">
-          <form onSubmit={handleEditSubmit(async (d) => {
-            // Check password match if newPassword is provided
-            if (d.newPassword && d.newPassword !== d.confirmPassword) {
-              alert('Passwords do not match')
-              return
-            }
-            
-            try {
-              // Update user info
-              await updateUserMutation.mutateAsync({ id: editUser.id, name: d.name, phone: d.phone, role: d.role })
-              
-              // Reset password if provided
-              if (d.newPassword) {
-                await resetPasswordMutation.mutateAsync({ id: editUser.id, newPassword: d.newPassword })
-              }
-              
-              setEditUser(null)
-              resetEdit()
-              toast.success('User updated successfully')
-            } catch (err) {
-              // Error already handled by mutation
-            }
-          })} className="space-y-4">
+        <Modal open={!!editUser} onClose={() => { setEditUser(null); setPwError('') }} title={`Edit — ${editUser.name}`} size="sm">
+          <form onSubmit={handleEditSubmit(onEditSubmit)} className="space-y-4">
+            <div><label className={lbl}>Full Name</label><input {...registerEdit('name')} defaultValue={editUser.name} className={inp} /></div>
+            <div><label className={lbl}>Phone Number</label><input {...registerEdit('phone')} defaultValue={editUser.phone || ''} className={inp} /></div>
             <div>
-              <label className="block text-xs font-medium text-slate-light mb-1.5">Full Name</label>
-              <input {...registerEdit('name')} defaultValue={editUser.name} className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-gold/50" />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-slate-light mb-1.5">Phone</label>
-              <input {...registerEdit('phone')} defaultValue={editUser.phone} className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-gold/50" />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-slate-light mb-1.5">Role</label>
-              <select {...registerEdit('role')} defaultValue={editUser.role} className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-gold/50">
+              <label className={lbl}>Role</label>
+              <select {...registerEdit('role')} defaultValue={editUser.role} className={sel}>
                 {USER_ROLES.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
               </select>
             </div>
-            
-            <div style={{borderTop:'1px solid #2A4070', marginTop:'16px', paddingTop:'16px'}}>
-              <p style={{color:'#8BA3C4', fontSize:'11px', marginBottom:'12px'}}>RESET PASSWORD (OPTIONAL)</p>
-              <div style={{marginBottom:'12px'}}>
-                <label style={{color:'#B8CAE0', fontSize:'12px', display:'block', marginBottom:'6px'}}>New Password</label>
-                <input 
-                  {...registerEdit('newPassword')} 
-                  type="password" 
-                  placeholder="Leave blank to keep current password"
-                  style={{width:'100%', background:'#0A1628', border:'1px solid #2A4070', borderRadius:'8px', padding:'8px 12px', color:'white', fontSize:'14px'}}
-                />
-              </div>
-              <div>
-                <label style={{color:'#B8CAE0', fontSize:'12px', display:'block', marginBottom:'6px'}}>Confirm New Password</label>
-                <input 
-                  {...registerEdit('confirmPassword')} 
-                  type="password" 
-                  placeholder="Confirm new password"
-                  style={{width:'100%', background:'#0A1628', border:'1px solid #2A4070', borderRadius:'8px', padding:'8px 12px', color:'white', fontSize:'14px'}}
-                />
+            <div className="border-t border-[#2A4070] pt-4">
+              <p className="text-[10px] text-[#8BA3C4] uppercase tracking-wider mb-3 flex items-center gap-2">
+                <KeyRound className="w-3.5 h-3.5 text-[#C9A84C]" />
+                Reset Password (leave blank to keep current)
+              </p>
+              <div className="space-y-3">
+                <div><label className={lbl}>New Password</label><input {...registerEdit('newPassword')} type="password" placeholder="Min 8 characters" className={inp} /></div>
+                <div><label className={lbl}>Confirm New Password</label><input {...registerEdit('confirmPassword')} type="password" placeholder="Confirm new password" className={inp} /></div>
+                {pwError && <p className="text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">⚠️ {pwError}</p>}
               </div>
             </div>
-            
-            <Button type="submit" loading={updateUserMutation.isPending || resetPasswordMutation.isPending} className="w-full">Save Changes</Button>
+            <Button type="submit" loading={updateMutation.isPending || resetPasswordMutation.isPending} className="w-full">Save Changes</Button>
           </form>
         </Modal>
       )}
 
-      {/* Edit User Modal */}
-      {resetUser && (
-        <Modal open={!!resetUser} onClose={() => { setResetUser(null); resetReset() }} title={`Reset Password — ${resetUser.name}`} size="sm">
-          <form onSubmit={handleResetSubmit((d) => resetPasswordMutation.mutate({ id: resetUser.id, newPassword: d.newPassword }))} className="space-y-4">
-            <div>
-              <label className="block text-xs font-medium text-slate-light mb-1.5">New Password</label>
-              <input
-                {...registerReset('newPassword', { required: true, minLength: 8 })}
-                type="password"
-                placeholder="Enter new password"
-                className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white placeholder:text-slate/40 focus:outline-none focus:ring-1 focus:ring-gold/50"
-              />
-              {resetErrors.newPassword && (
-                <p className="text-[11px] text-red-400 mt-1">
-                  {resetErrors.newPassword.type === 'minLength' ? 'Password must be at least 8 characters' : 'Password is required'}
-                </p>
-              )}
+      {/* DELETE CONFIRM MODAL */}
+      {deleteUser && (
+        <Modal open={!!deleteUser} onClose={() => setDeleteUser(null)} title="Deactivate User" size="sm">
+          <div className="space-y-4">
+            <div className="flex items-start gap-3 p-4 bg-red-500/10 border border-red-500/20 rounded-lg">
+              <Trash2 className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-medium text-white">Deactivate {deleteUser.name}?</p>
+                <p className="text-xs text-[#8BA3C4] mt-1">This will prevent the user from logging in. You can reactivate anytime.</p>
+              </div>
             </div>
-            <div>
-              <label className="block text-xs font-medium text-slate-light mb-1.5">Confirm Password</label>
-              <input
-                {...registerReset('confirmPassword', {
-                  required: true,
-                  validate: (value) => value === watch('newPassword') || 'Passwords do not match',
-                })}
-                type="password"
-                placeholder="Confirm new password"
-                className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white placeholder:text-slate/40 focus:outline-none focus:ring-1 focus:ring-gold/50"
-              />
-              {resetErrors.confirmPassword && (
-                <p className="text-[11px] text-red-400 mt-1">
-                  {resetErrors.confirmPassword.message || 'Confirm password is required'}
-                </p>
-              )}
+            <div className="flex gap-3">
+              <button onClick={() => deleteMutation.mutate(deleteUser.id)} disabled={deleteMutation.isPending} className="flex-1 bg-red-500/20 text-red-400 border border-red-500/30 hover:bg-red-500/30 rounded-lg py-2 text-sm font-medium transition-colors disabled:opacity-50">
+                {deleteMutation.isPending ? 'Deactivating...' : 'Yes, Deactivate'}
+              </button>
+              <button onClick={() => setDeleteUser(null)} className="flex-1 bg-[#12243E] text-[#B8CAE0] border border-[#2A4070] hover:bg-[#1E3559] rounded-lg py-2 text-sm font-medium transition-colors">
+                Cancel
+              </button>
             </div>
-            <Button type="submit" loading={resetPasswordMutation.isPending} className="w-full">Reset Password</Button>
-          </form>
+          </div>
         </Modal>
       )}
     </AppLayout>

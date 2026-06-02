@@ -1,6 +1,5 @@
 'use client'
 
-import axios from 'axios'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
@@ -8,7 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { authApi } from '@/lib/api'
 import { useAuthStore } from '@/lib/store/auth.store'
-import { Eye, EyeOff, Lock, Mail, Building2 } from 'lucide-react'
+import { Eye, EyeOff, Lock, Mail } from 'lucide-react'
 
 const schema = z.object({
   email: z.string().email('Invalid email address'),
@@ -31,15 +30,32 @@ export default function LoginPage() {
     try {
       setError('')
       const res = await authApi.login(data)
-      setAuth(res.data.data.user, res.data.data.token)
+
+      // Handle multiple response formats
+      const resData = res.data
+      let user, token
+
+      if (resData?.data?.user && resData?.data?.token) {
+        user = resData.data.user
+        token = resData.data.token
+      } else if (resData?.user && resData?.token) {
+        user = resData.user
+        token = resData.token
+      } else {
+        setError('Login failed - unexpected response. Please try again.')
+        return
+      }
+
+      if (!token) {
+        setError('Login failed - no token received.')
+        return
+      }
+
+      setAuth(user, token)
       router.push('/dashboard')
     } catch (err: any) {
-      console.error('Login error:', err)
-      if (axios.isAxiosError(err) && !err.response) {
-        setError('Unable to reach the API. Check your network or API URL and try again.')
-      } else {
-        setError(err.response?.data?.message || err.message || 'Login failed. Please try again.')
-      }
+      const msg = err.response?.data?.message || err.message || 'Login failed. Please try again.'
+      setError(msg)
     }
   }
 

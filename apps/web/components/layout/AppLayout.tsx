@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { usePathname, useRouter } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/lib/store/auth.store'
 import { Sidebar } from './Sidebar'
 import { Topbar } from './Topbar'
@@ -18,12 +18,9 @@ interface AppLayoutProps {
 export function AppLayout({ children, title, subtitle, actions }: AppLayoutProps) {
   const { isAuthenticated, setAuth } = useAuthStore()
   const router = useRouter()
-  const pathname = usePathname()
   const [ready, setReady] = useState(false)
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   useEffect(() => {
-    // Restore auth from localStorage on every page load
     const token = localStorage.getItem('crm_token')
     const userStr = localStorage.getItem('crm_user')
     const isAuth = localStorage.getItem('crm_auth')
@@ -50,12 +47,6 @@ export function AppLayout({ children, title, subtitle, actions }: AppLayoutProps
     }
   }, [ready, isAuthenticated, router])
 
-  useEffect(() => {
-    if (mobileMenuOpen) {
-      setMobileMenuOpen(false)
-    }
-  }, [pathname])
-
   const { data: notifData } = useQuery({
     queryKey: ['notifications-count'],
     queryFn: () => notificationApi.getAll({ isRead: false, limit: 1 }),
@@ -80,18 +71,13 @@ export function AppLayout({ children, title, subtitle, actions }: AppLayoutProps
 
   return (
     <div className="flex h-screen bg-navy overflow-hidden">
-      <Sidebar
-        unreadNotifications={unreadCount}
-        mobileOpen={mobileMenuOpen}
-        onMobileClose={() => setMobileMenuOpen(false)}
-      />
+      <Sidebar unreadNotifications={unreadCount} />
       <div className="flex-1 flex flex-col overflow-hidden">
         <Topbar
           title={title}
           subtitle={subtitle}
           actions={actions}
           unreadCount={unreadCount}
-          onMenuClick={() => setMobileMenuOpen(open => !open)}
         />
         <main className="flex-1 overflow-y-auto bg-[#0D1F38] p-5">
           {children}
