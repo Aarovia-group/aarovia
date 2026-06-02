@@ -92,7 +92,7 @@ export function Sidebar({
         onClick={onMobileClose}
       />
       <aside className={cn(
-        'fixed inset-y-0 left-0 z-30 transform w-64 bg-navy-mid border-r border-navy-border flex flex-col h-screen overflow-y-auto scrollbar-hide transition-transform duration-200 md:static md:translate-x-0 md:w-[220px]',
+        'fixed inset-y-0 left-0 z-30 transform w-64 bg-navy-mid border-r border-navy-border flex flex-col h-[100vh] transition-transform duration-200 md:static md:translate-x-0 md:w-[220px]',
         mobileOpen ? 'translate-x-0' : '-translate-x-full'
       )}>
         {/* Logo */}
