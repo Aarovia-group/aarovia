@@ -6,7 +6,7 @@ import { useAuthStore } from '@/lib/store/auth.store'
 import { Sidebar } from './Sidebar'
 import { Topbar } from './Topbar'
 import { useQuery } from '@tanstack/react-query'
-import { notificationApi } from '@/lib/api'
+import { authApi, notificationApi } from '@/lib/api'
 
 interface AppLayoutProps {
   children: React.ReactNode
@@ -16,30 +16,78 @@ interface AppLayoutProps {
 }
 
 export function AppLayout({ children, title, subtitle, actions }: AppLayoutProps) {
-  const { isAuthenticated, setAuth } = useAuthStore()
+  const { isAuthenticated, setAuth, clearAuth } = useAuthStore()
   const router = useRouter()
   const [ready, setReady] = useState(false)
 
-  useEffect(() => {
-    const token = localStorage.getItem('crm_token')
-    const userStr = localStorage.getItem('crm_user')
-    const isAuth = localStorage.getItem('crm_auth')
+  const decodeTokenExpiry = (token: string) => {
+    try {
+      const [, payload] = token.split('.')
+      if (!payload) return null
+      const decoded = JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/')))
+      return decoded.exp ? decoded.exp * 1000 : null
+    } catch {
+      return null
+    }
+  }
 
-    if (token && userStr && isAuth === 'true') {
-      try {
-        const user = JSON.parse(userStr)
-        setAuth(user, token)
-        setReady(true)
-      } catch {
-        localStorage.removeItem('crm_token')
-        localStorage.removeItem('crm_user')
-        localStorage.removeItem('crm_auth')
-        router.push('/auth/login')
+  const isTokenExpiredOrNearExpiry = (token: string, thresholdMs = 120000) => {
+    const expiry = decodeTokenExpiry(token)
+    if (!expiry) return true
+    return Date.now() >= expiry - thresholdMs
+  }
+
+  useEffect(() => {
+    const restoreAuth = async () => {
+      const token = localStorage.getItem('crm_token')
+      const userStr = localStorage.getItem('crm_user')
+      const isAuth = localStorage.getItem('crm_auth')
+
+      if (token && userStr && isAuth === 'true') {
+        try {
+          const user = JSON.parse(userStr)
+          if (isTokenExpiredOrNearExpiry(token)) {
+            try {
+              const response = await authApi.refreshToken()
+              const data = response.data?.data
+              if (data?.token && data?.user) {
+                setAuth(data.user, data.token)
+                setReady(true)
+                return
+              }
+            } catch {
+              clearAuth()
+            }
+          } else {
+            setAuth(user, token)
+            setReady(true)
+            return
+          }
+        } catch {
+          localStorage.removeItem('crm_token')
+          localStorage.removeItem('crm_user')
+          localStorage.removeItem('crm_auth')
+        }
       }
-    } else {
+
+      try {
+        const response = await authApi.refreshToken()
+        const data = response.data?.data
+        if (data?.token && data?.user) {
+          setAuth(data.user, data.token)
+          setReady(true)
+          return
+        }
+      } catch {
+        clearAuth()
+      }
+
+      setReady(true)
       router.push('/auth/login')
     }
-  }, [])
+
+    restoreAuth()
+  }, [setAuth, clearAuth, router])
 
   useEffect(() => {
     if (ready && !isAuthenticated) {
