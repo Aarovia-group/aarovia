@@ -1,20 +1,3 @@
 {
-  "version": 2,
-  "projects": [
-    {
-      "name": "aarovia-crm-web",
-      "rootDirectory": "apps/web",
-      "framework": "nextjs",
-      "buildCommand": "npm run build",
-      "outputDirectory": ".next",
-      "installCommand": "npm install"
-    },
-    {
-      "name": "aarovia-crm-api",
-      "rootDirectory": "apps/api",
-      "buildCommand": "npm run build",
-      "outputDirectory": "dist",
-      "installCommand": "npm install"
-    }
-  ]
+  "version": 2
 }

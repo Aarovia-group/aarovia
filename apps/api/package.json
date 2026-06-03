@@ -8,6 +8,7 @@
     "build": "prisma generate && tsc",
     "vercel-build": "prisma generate && tsc",
     "start": "node dist/server.js",
+    "test": "node -r ts-node/register src/controllers/auth.controller.test.ts",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:seed": "ts-node prisma/seed.ts",
@@ -44,6 +45,7 @@
     "@types/uuid": "^9.0.8",
     "prisma": "^5.10.0",
     "serverless-http": "^3.0.0",
+    "ts-node": "^10.9.1",
     "ts-node-dev": "^2.0.0",
     "typescript": "^5.3.3"
   }

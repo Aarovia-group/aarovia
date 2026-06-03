@@ -1,7 +1,8 @@
+import path from 'path'
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
-  turbopack: { root: __dirname },
+  turbopack: { root: path.resolve(__dirname, '../..') },
   experimental: { serverActions: { allowedOrigins: ['localhost:3000', 'https://aarovia.co.in', 'https://www.aarovia.co.in'] } },
   images: {
     remotePatterns: [
@@ -28,7 +29,7 @@ const nextConfig: NextConfig = {
   async rewrites() {
     const rawApiUrl = process.env.NEXT_PUBLIC_API_URL?.trim() ||
       (process.env.NODE_ENV === 'production' ? 'https://api.aarovia.co.in' : 'http://localhost:5000')
-    const apiUrl = rawApiUrl.replace(/\/+$, '').replace(/\/api$/, '')
+    const apiUrl = rawApiUrl.replace(/\/+$/, '').replace(/\/api$/, '')
     const destination = `${apiUrl}/api/:path*`
 
     return [

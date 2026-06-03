@@ -6,7 +6,11 @@ import prisma from '../utils/prisma'
 import { AuthRequest } from '../middleware/auth.middleware'
 
 const getJwtSecret = () => {
-  return process.env.JWT_SECRET || process.env.SUPABASE_JWT_SECRET || process.env.aarovia_SUPABASE_JWT_SECRET
+  const secret = process.env.JWT_SECRET
+  if (!secret) {
+    throw new Error('JWT_SECRET must be configured')
+  }
+  return secret
 }
 
 export const parseDuration = (value: string) => {
@@ -23,12 +27,20 @@ export const parseDuration = (value: string) => {
   }
 }
 
+const normalizeExpiry = (value: string | undefined, fallback: string) => {
+  const expiry = value?.trim()
+  if (!expiry) return fallback
+  if (parseDuration(expiry) > 0) return expiry
+  console.warn(`Invalid token expiry value: ${value}. Falling back to ${fallback}.`)
+  return fallback
+}
+
 const getAccessTokenExpiresIn = () => {
-  return process.env.ACCESS_TOKEN_EXPIRES_IN || process.env.JWT_EXPIRES_IN || '15m'
+  return normalizeExpiry(process.env.ACCESS_TOKEN_EXPIRES_IN || process.env.JWT_EXPIRES_IN, '15m')
 }
 
 const getRefreshTokenExpiresIn = () => {
-  return process.env.REFRESH_TOKEN_EXPIRES_IN || '30d'
+  return normalizeExpiry(process.env.REFRESH_TOKEN_EXPIRES_IN, '30d')
 }
 
 const getRefreshTokenExpiration = () => {
@@ -42,7 +54,7 @@ export const getJwtCookieOptions = () => {
   return {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
-    sameSite: 'none' as const,
+    sameSite: 'lax' as const,
     path: '/',
     domain: cookieDomain,
   }
@@ -59,12 +71,10 @@ export const parseCookies = (cookieHeader?: string) => {
 
 const generateToken = (id: string) => {
   const jwtSecret = getJwtSecret()
-  if (!jwtSecret) {
-    throw new Error('JWT secret is not configured')
-  }
-
+  const expiresIn = getAccessTokenExpiresIn()
+  console.info(`[Auth] Generating access token for user=${id}, expiresIn=${expiresIn}`)
   return jwt.sign({ id }, jwtSecret, {
-    expiresIn: getAccessTokenExpiresIn(),
+    expiresIn,
   } as jwt.SignOptions)
 }
 
@@ -142,6 +152,7 @@ export const login = async (req: Request, res: Response) => {
     }
 
     // Log login history
+    console.info(`[Auth] Login success for user=${user.id}, email=${email}, ip=${req.ip}`)
     await prisma.loginHistory.create({
       data: {
         userId: user.id,
@@ -178,6 +189,7 @@ export const refreshToken = async (req: Request, res: Response) => {
     const refreshToken = cookies.refreshToken
 
     if (!refreshToken) {
+      console.warn('[Auth] Refresh request missing refresh token cookie')
       return res.status(401).json({ success: false, message: 'Refresh token not found' })
     }
 
@@ -187,6 +199,7 @@ export const refreshToken = async (req: Request, res: Response) => {
     })
 
     if (!storedToken || storedToken.revoked || storedToken.expiresAt < new Date()) {
+      console.warn('[Auth] Invalid or expired refresh token', { token: refreshToken, userId: storedToken?.userId })
       clearRefreshTokenCookie(res)
       return res.status(401).json({ success: false, message: 'Refresh token expired or invalid' })
     }
@@ -205,6 +218,7 @@ export const refreshToken = async (req: Request, res: Response) => {
 
     const accessToken = generateToken(user.id)
     sendRefreshTokenCookie(res, newRefreshToken.token, newRefreshToken.expiresAt)
+    console.info(`[Auth] Refresh successful for user=${user.id}, ip=${req.ip}, ua=${req.headers['user-agent']}`)
 
     const { password: _, ...userWithoutPassword } = user
     res.json({ success: true, message: 'Token refreshed', data: { user: userWithoutPassword, token: accessToken } })
@@ -227,6 +241,7 @@ export const logout = async (req: Request, res: Response) => {
     }
 
     clearRefreshTokenCookie(res)
+    console.info(`[Auth] Logout completed for refreshToken=${refreshToken || 'none'}, ip=${req.ip}`)
     res.json({ success: true, message: 'Logged out successfully' })
   } catch (error) {
     res.status(500).json({ success: false, message: 'Logout failed', error })

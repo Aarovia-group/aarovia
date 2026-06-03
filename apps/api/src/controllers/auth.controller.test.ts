@@ -21,7 +21,7 @@ try {
   const cookieOptions = getJwtCookieOptions()
   assert.equal(cookieOptions.httpOnly, true)
   assert.equal(cookieOptions.secure, true)
-  assert.equal(cookieOptions.sameSite, 'none')
+  assert.equal(cookieOptions.sameSite, 'lax')
   assert.equal(cookieOptions.path, '/')
   assert.equal(cookieOptions.domain, '.aarovia.co.in')
 

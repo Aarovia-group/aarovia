@@ -6,70 +6,88 @@ const prisma = new PrismaClient()
 async function main() {
   console.log('🌱 Seeding Aarovia CRM database...')
 
-  // Create Super Admin
-  const hashedPassword = await bcrypt.hash('Admin@1234', 12)
+  await prisma.notification.deleteMany({})
+  await prisma.loginHistory.deleteMany({})
+  await prisma.callLog.deleteMany({})
+  await prisma.task.deleteMany({})
+  await prisma.activity.deleteMany({})
+  await prisma.quotation.updateMany({ data: { createdById: null } })
+  await prisma.lead.updateMany({ data: { assignedToId: null, createdById: null } })
+  await prisma.user.deleteMany({})
 
-  const superAdmin = await prisma.user.upsert({
-    where: { email: 'admin@aarovia.co.in' },
-    update: {},
-    create: {
-      name: 'Super Admin',
-      email: 'admin@aarovia.co.in',
+  const hashedPassword = await bcrypt.hash('Aarovia@2026', 12)
+
+  const superAdmin = await prisma.user.create({
+    data: {
+      name: 'Admin',
+      email: 'admin@aaroviagroup.com',
       password: hashedPassword,
       role: 'SUPER_ADMIN',
-      phone: '+91 9000000001',
+      isActive: true,
     },
   })
 
-  const salesManager = await prisma.user.upsert({
-    where: { email: 'manager@aarovia.co.in' },
-    update: {},
-    create: {
-      name: 'Rajesh Desai',
-      email: 'manager@aarovia.co.in',
+  const salesExec1 = await prisma.user.create({
+    data: {
+      name: 'Ravi R',
+      email: 'ravi@aaroviagroup.com',
+      password: hashedPassword,
+      role: 'SALES_EXECUTIVE',
+      isActive: true,
+    },
+  })
+
+  const adminUser = await prisma.user.create({
+    data: {
+      name: 'Karishmah Siingh',
+      email: 'karishmah.siingh@aaroviagroup.com',
+      password: hashedPassword,
+      role: 'ADMIN',
+      isActive: true,
+    },
+  })
+
+  const salesManager = await prisma.user.create({
+    data: {
+      name: 'Vivek H',
+      email: 'vivek.h@aaroviagroup.com',
       password: hashedPassword,
       role: 'SALES_MANAGER',
-      phone: '+91 9000000002',
+      isActive: true,
     },
   })
 
-  const exec1 = await prisma.user.upsert({
-    where: { email: 'arjun@aarovia.co.in' },
-    update: {},
-    create: {
-      name: 'Arjun Rawat',
-      email: 'arjun@aarovia.co.in',
+  const managerUser = await prisma.user.create({
+    data: {
+      name: 'Manager',
+      email: 'manager@aaroviagroup.com',
+      password: hashedPassword,
+      role: 'SALES_MANAGER',
+      isActive: true,
+    },
+  })
+
+  const salesTeam = await prisma.user.create({
+    data: {
+      name: 'Sales Team',
+      email: 'sales@aaroviagroup.com',
       password: hashedPassword,
       role: 'SALES_EXECUTIVE',
-      phone: '+91 9000000003',
+      isActive: true,
     },
   })
 
-  const exec2 = await prisma.user.upsert({
-    where: { email: 'sanjana@aarovia.co.in' },
-    update: {},
-    create: {
-      name: 'Sanjana Mishra',
-      email: 'sanjana@aarovia.co.in',
+  const financeTeam = await prisma.user.create({
+    data: {
+      name: 'Finance Team',
+      email: 'finance@aaroviagroup.com',
       password: hashedPassword,
-      role: 'SALES_EXECUTIVE',
-      phone: '+91 9000000004',
+      role: 'ACCOUNTS',
+      isActive: true,
     },
   })
 
-  const telecaller = await prisma.user.upsert({
-    where: { email: 'paresh@aarovia.co.in' },
-    update: {},
-    create: {
-      name: 'Paresh Kumar',
-      email: 'paresh@aarovia.co.in',
-      password: hashedPassword,
-      role: 'TELECALLER',
-      phone: '+91 9000000005',
-    },
-  })
-
-  console.log('✅ Users created')
+  console.log('✅ Users reset and created: admin@aaroviagroup.com, ravi@aaroviagroup.com, karishmah.siingh@aaroviagroup.com, vivek.h@aaroviagroup.com, manager@aaroviagroup.com, sales@aaroviagroup.com, finance@aaroviagroup.com')
 
   // Create Projects
   const project1 = await prisma.project.upsert({
@@ -166,11 +184,8 @@ async function main() {
       data: {
         ...lead,
         propertyType: 'APARTMENT',
-        assignedToId: exec1.id,
-        createdById: exec1.id,
-        projectId: project1.id,
-        nextFollowupDate: new Date(Date.now() + Math.random() * 7 * 24 * 60 * 60 * 1000),
-        tags: ['warm', 'budget-ready'],
+          assignedToId: salesExec1.id,
+          createdById: salesExec1.id,
       },
     }).catch(() => {}) // Skip duplicates
   }
@@ -193,10 +208,10 @@ async function main() {
   // Create sample notifications
   await prisma.notification.createMany({
     data: [
-      { userId: superAdmin.id, title: 'New Lead Assigned', message: 'Rahul Sharma has been assigned to Arjun Rawat', channel: 'IN_APP' },
+      { userId: superAdmin.id, title: 'New Lead Assigned', message: 'Rahul Sharma has been assigned to Ravi R', channel: 'IN_APP' },
       { userId: superAdmin.id, title: 'Site Visit Scheduled', message: 'Sneha Iyer - Site visit scheduled for tomorrow 11 AM', channel: 'IN_APP' },
       { userId: superAdmin.id, title: 'Payment Due Alert', message: '3 bookings have overdue payments. Total due: ₹24,50,000', channel: 'IN_APP' },
-      { userId: exec1.id, title: 'Followup Reminder', message: 'You have 5 leads with pending followups today', channel: 'IN_APP' },
+      { userId: salesExec1.id, title: 'Followup Reminder', message: 'You have 5 leads with pending followups today', channel: 'IN_APP' },
     ],
     skipDuplicates: true,
   })
@@ -204,9 +219,13 @@ async function main() {
   console.log('✅ Settings and notifications created')
   console.log('\n🎉 Seeding complete!')
   console.log('\n📋 Login credentials:')
-  console.log('   Super Admin : admin@aarovia.co.in / Admin@1234')
-  console.log('   Sales Manager: manager@aarovia.co.in / Admin@1234')
-  console.log('   Sales Exec  : arjun@aarovia.co.in / Admin@1234')
+  console.log('   admin@aaroviagroup.com / Aarovia@2026')
+  console.log('   ravi@aaroviagroup.com / Aarovia@2026')
+  console.log('   karishmah.siingh@aaroviagroup.com / Aarovia@2026')
+  console.log('   vivek.h@aaroviagroup.com / Aarovia@2026')
+  console.log('   manager@aaroviagroup.com / Aarovia@2026')
+  console.log('   sales@aaroviagroup.com / Aarovia@2026')
+  console.log('   finance@aaroviagroup.com / Aarovia@2026')
 }
 
 main()

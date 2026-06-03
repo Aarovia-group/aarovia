@@ -24,7 +24,13 @@ export default function InventoryPage() {
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
   const [showCreate, setShowCreate] = useState(false)
+  const [showImport, setShowImport] = useState(false)
   const [selectedUnit, setSelectedUnit] = useState<any>(null)
+  const [importFile, setImportFile] = useState<File | null>(null)
+  const [importErrors, setImportErrors] = useState<string | null>(null)
+  const [importSummary, setImportSummary] = useState<any>(null)
+  const [isImporting, setIsImporting] = useState(false)
+  const [importProjectId, setImportProjectId] = useState('')
 
   const { data, isLoading } = useQuery({
     queryKey: ['inventory', search, statusFilter],
@@ -59,12 +65,109 @@ export default function InventoryPage() {
 
   const { register, handleSubmit, reset } = useForm()
 
+  const sampleInventoryImportTemplate = `unitNumber,tower,floor,area,baseRate,propertyType,finalRate,bedrooms,bathrooms,facing,notes,status\nA-101,Tower A,1,1200,4500,APARTMENT,5000,2,2,East,Corner unit,AVAILABLE\n`
+
+  const parseCsvLine = (line: string) => {
+    const values: string[] = []
+    let current = ''
+    let inQuotes = false
+
+    for (let i = 0; i < line.length; i += 1) {
+      const char = line[i]
+      if (char === '"') {
+        if (inQuotes && line[i + 1] === '"') {
+          current += '"'
+          i += 1
+        } else {
+          inQuotes = !inQuotes
+        }
+      } else if (char === ',' && !inQuotes) {
+        values.push(current.trim())
+        current = ''
+      } else {
+        current += char
+      }
+    }
+
+    values.push(current.trim())
+    return values
+  }
+
+  const parseImportCsv = (text: string) => {
+    const rows = text.split(/\r?\n/).filter((row) => row.trim().length > 0)
+    if (rows.length < 2) throw new Error('CSV must contain headers and at least one row')
+
+    const headers = parseCsvLine(rows[0]).map((header) => header.trim())
+    const expectedHeaders = ['unitNumber', 'tower', 'floor', 'area', 'baseRate', 'propertyType', 'finalRate', 'bedrooms', 'bathrooms', 'facing', 'notes', 'status', 'projectId']
+    const unknownHeaders = headers.filter((header) => header && !expectedHeaders.includes(header))
+    if (unknownHeaders.length > 0) {
+      throw new Error(`Unknown CSV headers: ${unknownHeaders.join(', ')}`)
+    }
+
+    return rows.slice(1).map((row, index) => {
+      const values = parseCsvLine(row)
+      if (values.length !== headers.length) {
+        throw new Error(`Row ${index + 2} must have ${headers.length} values, but has ${values.length}`)
+      }
+
+      return headers.reduce((record: any, header, idx) => {
+        record[header] = values[idx] ?? ''
+        return record
+      }, {})
+    })
+  }
+
+  const downloadImportTemplate = () => {
+    const blob = new Blob([sampleInventoryImportTemplate], { type: 'text/csv' })
+    const url = URL.createObjectURL(blob)
+    const anchor = document.createElement('a')
+    anchor.href = url
+    anchor.download = 'inventory-import-template.csv'
+    anchor.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const handleImportSubmit = async () => {
+    if (!importProjectId) {
+      toast.error('Choose a project before importing')
+      return
+    }
+
+    if (!importFile) {
+      toast.error('Select a CSV file to import')
+      return
+    }
+
+    try {
+      setImportErrors(null)
+      setImportSummary(null)
+      setIsImporting(true)
+
+      const csvText = await importFile.text()
+      const units = parseImportCsv(csvText)
+
+      const { data } = await inventoryApi.import({ projectId: importProjectId, units })
+      queryClient.invalidateQueries({ queryKey: ['inventory'] })
+      setImportSummary(data)
+      setImportFile(null)
+      toast.success(`${data.imported} inventory units imported`)
+    } catch (error: any) {
+      const message = error?.response?.data?.message || error?.message || 'Import failed'
+      const details = error?.response?.data?.errors ? error.response.data.errors.join('; ') : null
+      setImportErrors(details ? `${message}: ${details}` : message)
+      toast.error('Inventory import failed')
+    } finally {
+      setIsImporting(false)
+    }
+  }
+
   return (
     <AppLayout
       title="Inventory Management"
       subtitle={`${inventory.length} total units`}
       actions={
         <div className="flex items-center gap-2">
+          <Button size="sm" variant="secondary" onClick={() => setShowImport(true)}>Import Units</Button>
           <Button size="sm" icon={<Plus className="w-3.5 h-3.5" />} onClick={() => setShowCreate(true)}>Add Unit</Button>
         </div>
       }
@@ -260,6 +363,54 @@ export default function InventoryPage() {
             <Button type="button" variant="ghost" onClick={() => { setShowCreate(false); reset() }}>Cancel</Button>
           </div>
         </form>
+      </Modal>
+
+      <Modal open={showImport} onClose={() => { setShowImport(false); setImportErrors(null); setImportSummary(null); setImportFile(null); setImportProjectId('') }} title="Import Inventory" size="lg">
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-medium text-slate-light mb-1.5">Project *</label>
+              <select value={importProjectId} onChange={(e) => setImportProjectId(e.target.value)} className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-gold/50">
+                <option value="">Select project</option>
+                {projects.map((project: any) => <option key={project.id} value={project.id}>{project.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-light mb-1.5">CSV File *</label>
+              <input
+                type="file"
+                accept=".csv"
+                onChange={(event) => setImportFile(event.target.files?.[0] || null)}
+                className="w-full text-xs text-white"
+              />
+            </div>
+          </div>
+
+          <div className="grid gap-2 text-xs text-slate">
+            <p>Required CSV headers:</p>
+            <p className="font-mono bg-navy border border-navy-border rounded-lg p-3">unitNumber,tower,floor,area,baseRate,propertyType,finalRate,bedrooms,bathrooms,facing,notes,status</p>
+            <p>Download a sample template and upload a CSV file to import inventory in bulk.</p>
+          </div>
+
+          {importErrors && (
+            <div className="rounded-lg border border-red-600 bg-red-900/20 p-3 text-sm text-red-100">
+              {importErrors}
+            </div>
+          )}
+
+          {importSummary && (
+            <div className="rounded-lg border border-green-600 bg-green-900/20 p-3 text-sm text-green-100">
+              <p>Imported: {importSummary.imported}</p>
+              <p>Requested: {importSummary.requested}</p>
+              <p>Skipped duplicates: {importSummary.skippedDuplicates}</p>
+            </div>
+          )}
+
+          <div className="flex gap-3 pt-2">
+            <Button onClick={handleImportSubmit} loading={isImporting} className="flex-1">Import CSV</Button>
+            <Button type="button" variant="ghost" onClick={downloadImportTemplate}>Download Template</Button>
+          </div>
+        </div>
       </Modal>
     </AppLayout>
   )

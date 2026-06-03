@@ -79,6 +79,106 @@ export const createInventory = async (req: AuthRequest, res: Response) => {
   }
 }
 
+export const importInventory = async (req: AuthRequest, res: Response) => {
+  try {
+    const { projectId, units } = req.body
+    if (!projectId) {
+      return res.status(400).json({ success: false, message: 'projectId is required for import' })
+    }
+
+    if (!Array.isArray(units) || units.length === 0) {
+      return res.status(400).json({ success: false, message: 'No inventory rows provided for import' })
+    }
+
+    const validPropertyTypes = ['VILLA', 'APARTMENT', 'PLOT', 'FARMLAND', 'COMMERCIAL']
+    const validStatus = ['AVAILABLE', 'BLOCKED', 'SOLD', 'RESERVED']
+    const errors: string[] = []
+    const seen = new Set<string>()
+    const importRows: any[] = []
+
+    units.forEach((row: any, index: number) => {
+      const rowIndex = index + 1
+      const unitNumber = row.unitNumber?.toString().trim()
+      const projectKey = `${projectId}:${unitNumber}`
+      const area = row.area !== undefined && row.area !== null ? parseFloat(row.area) : NaN
+      const baseRate = row.baseRate !== undefined && row.baseRate !== null ? parseFloat(row.baseRate) : NaN
+      const propertyType = row.propertyType?.toString().trim().toUpperCase()
+      const status = row.status?.toString().trim().toUpperCase()
+
+      if (!unitNumber) {
+        errors.push(`Row ${rowIndex}: unitNumber is required`)
+      }
+      if (Number.isNaN(area) || area <= 0) {
+        errors.push(`Row ${rowIndex}: area must be a valid number`)
+      }
+      if (Number.isNaN(baseRate) || baseRate <= 0) {
+        errors.push(`Row ${rowIndex}: baseRate must be a valid number`)
+      }
+      if (!validPropertyTypes.includes(propertyType)) {
+        errors.push(`Row ${rowIndex}: propertyType must be one of ${validPropertyTypes.join(', ')}`)
+      }
+      if (status && !validStatus.includes(status)) {
+        errors.push(`Row ${rowIndex}: status must be one of ${validStatus.join(', ')}`)
+      }
+      if (seen.has(projectKey)) {
+        errors.push(`Row ${rowIndex}: duplicate unitNumber ${unitNumber} for the selected project`) 
+      }
+
+      if (!errors.some(e => e.startsWith(`Row ${rowIndex}:`))) {
+        seen.add(projectKey)
+        importRows.push({
+          unitNumber,
+          tower: row.tower?.toString().trim() || null,
+          floor: row.floor !== undefined && row.floor !== null && row.floor !== '' ? parseInt(row.floor, 10) : null,
+          area,
+          facing: row.facing?.toString().trim() || null,
+          baseRate,
+          finalRate: row.finalRate !== undefined && row.finalRate !== null && row.finalRate !== '' ? parseFloat(row.finalRate) : null,
+          propertyType,
+          bedrooms: row.bedrooms !== undefined && row.bedrooms !== null && row.bedrooms !== '' ? parseInt(row.bedrooms, 10) : null,
+          bathrooms: row.bathrooms !== undefined && row.bathrooms !== null && row.bathrooms !== '' ? parseInt(row.bathrooms, 10) : null,
+          notes: row.notes?.toString().trim() || null,
+          status: status || undefined,
+          projectId,
+        })
+      }
+    })
+
+    if (errors.length > 0) {
+      return res.status(400).json({ success: false, message: 'Import validation failed', errors })
+    }
+
+    const result = await prisma.inventory.createMany({
+      data: importRows.map((row) => ({
+        unitNumber: row.unitNumber,
+        tower: row.tower,
+        floor: row.floor,
+        area: row.area,
+        facing: row.facing,
+        baseRate: row.baseRate,
+        finalRate: row.finalRate,
+        propertyType: row.propertyType,
+        bedrooms: row.bedrooms,
+        bathrooms: row.bathrooms,
+        notes: row.notes,
+        status: row.status,
+        projectId: row.projectId,
+      })),
+      skipDuplicates: true,
+    })
+
+    res.status(201).json({
+      success: true,
+      message: 'Inventory import completed',
+      imported: result.count,
+      requested: importRows.length,
+      skippedDuplicates: importRows.length - result.count,
+    })
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Inventory import failed', error })
+  }
+}
+
 export const updateInventory = async (req: AuthRequest, res: Response) => {
   try {
     const inventory = await prisma.inventory.update({

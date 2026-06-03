@@ -2,8 +2,10 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { Bell, Menu, ChevronDown, Settings, User, LogOut } from 'lucide-react'
 import { useAuthStore } from '@/lib/store/auth.store'
+import { authApi } from '@/lib/api'
 import { cn } from '@/lib/utils'
 
 interface TopbarProps {
@@ -15,12 +17,18 @@ interface TopbarProps {
 }
 
 export function Topbar({ title, subtitle, actions, unreadCount = 0, onMenuClick }: TopbarProps) {
+  const router = useRouter()
   const { user, clearAuth } = useAuthStore()
   const [profileOpen, setProfileOpen] = useState(false)
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await authApi.logout()
+    } catch {
+      // ignore failure and clear local auth anyway
+    }
     clearAuth()
-    window.location.href = '/auth/login'
+    router.push('/auth/login')
   }
 
   return (

@@ -1,8 +1,9 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
+import { authApi } from '@/lib/api'
 import { useAuthStore } from '@/lib/store/auth.store'
 import {
   LayoutDashboard, Users, UserCheck, Building2, FileText,
@@ -57,11 +58,17 @@ interface SidebarProps {
 
 export function Sidebar({ unreadNotifications = 0, mobileOpen, onMobileClose }: SidebarProps) {
   const pathname = usePathname()
+  const router = useRouter()
   const { user, clearAuth } = useAuthStore()
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await authApi.logout()
+    } catch {
+      // proceed with local cleanup even if server logout fails
+    }
     clearAuth()
-    window.location.href = '/auth/login'
+    router.push('/auth/login')
   }
 
   return (

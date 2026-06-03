@@ -38,12 +38,18 @@ export function AppLayout({ children, title, subtitle, actions }: AppLayoutProps
   }
 
   useEffect(() => {
+    const clearLocalAuth = () => {
+      localStorage.removeItem('crm_token')
+      localStorage.removeItem('crm_user')
+      localStorage.removeItem('crm_auth')
+      localStorage.removeItem('aarovia-auth')
+    }
+
     const restoreAuth = async () => {
       const token = localStorage.getItem('crm_token')
       const userStr = localStorage.getItem('crm_user')
-      const isAuth = localStorage.getItem('crm_auth')
 
-      if (token && userStr && isAuth === 'true') {
+      if (token && userStr) {
         try {
           const user = JSON.parse(userStr)
           if (isTokenExpiredOrNearExpiry(token)) {
@@ -57,6 +63,7 @@ export function AppLayout({ children, title, subtitle, actions }: AppLayoutProps
               }
             } catch {
               clearAuth()
+              clearLocalAuth()
             }
           } else {
             setAuth(user, token)
@@ -64,9 +71,8 @@ export function AppLayout({ children, title, subtitle, actions }: AppLayoutProps
             return
           }
         } catch {
-          localStorage.removeItem('crm_token')
-          localStorage.removeItem('crm_user')
-          localStorage.removeItem('crm_auth')
+          clearAuth()
+          clearLocalAuth()
         }
       }
 
@@ -80,6 +86,7 @@ export function AppLayout({ children, title, subtitle, actions }: AppLayoutProps
         }
       } catch {
         clearAuth()
+        clearLocalAuth()
       }
 
       setReady(true)

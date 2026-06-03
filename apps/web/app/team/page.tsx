@@ -94,6 +94,26 @@ export default function TeamPage() {
 
   const onCreateSubmit = (d: any) => createMutation.mutate(d)
 
+  const onEditSubmit = (data: { name?: string; phone?: string; role?: string; newPassword?: string; confirmPassword?: string }) => {
+    if (!editUser) return
+    if (data.newPassword && data.newPassword !== data.confirmPassword) {
+      setPwError("Passwords don't match")
+      return
+    }
+
+    setPwError('')
+    const { newPassword, confirmPassword, ...updateData } = data
+
+    updateMutation.mutate({ id: editUser.id, ...updateData })
+
+    if (newPassword) {
+      resetPasswordMutation.mutate({ id: editUser.id, newPassword })
+    }
+
+    setEditUser(null)
+    resetEdit()
+  }
+
   const validatePassword = (password: string) => {
     if (!password) return ''
     if (password.length < 8) return 'Password must be at least 8 characters'

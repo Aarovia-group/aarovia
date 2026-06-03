@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { Button, Card, CardHeader, CardTitle, CardContent } from '@/components/ui/index'
-import { reportApi } from '@/lib/api'
+import { inventoryApi, reportApi } from '@/lib/api'
 import { formatCurrency, formatDate, getSourceLabel, getLeadStatusLabel } from '@/lib/utils'
 import { toast } from '@/components/ui/toaster'
 import { Download, FileText, BarChart3, Users, Coins, Home, ArrowLeft } from 'lucide-react'
@@ -101,9 +101,8 @@ export default function ReportsExportPage() {
         }
         case 'inventory': {
           toast.info('Fetching inventory data...')
-          const res = await fetch('/api/inventory?limit=500', { headers: { Authorization: `Bearer ${JSON.parse(localStorage.getItem('aarovia-auth') || '{}')?.state?.token}` } })
-          const json = await res.json()
-          const rows = (json.data || []).map((u: any) => ({
+          const res = await inventoryApi.getAll({ limit: 500 })
+          const rows = (res.data?.data || []).map((u: any) => ({
             'Unit Number': u.unitNumber,
             Tower: u.tower || '',
             Floor: u.floor || '',

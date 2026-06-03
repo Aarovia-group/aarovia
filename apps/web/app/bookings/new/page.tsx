@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { AppLayout } from '@/components/layout/AppLayout'
@@ -184,7 +185,7 @@ export default function NewBookingPage() {
                 </div>
                 <p className="text-[11px] text-slate">
                   Don't see the customer?{' '}
-                  <a href="/customers" className="text-gold hover:text-gold-light">Create a new customer profile first →</a>
+                  <Link href="/customers" className="text-gold hover:text-gold-light">Create a new customer profile first →</Link>
                 </p>
               </CardContent>
             </Card>

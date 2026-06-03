@@ -18,6 +18,9 @@
 - `NODE_ENV=production`
 - `DATABASE_URL` - production PostgreSQL connection string
 - `JWT_SECRET` - strong JWT secret
+- `ACCESS_TOKEN_EXPIRES_IN=15m`
+- `REFRESH_TOKEN_EXPIRES_IN=30d`
+- `COOKIE_DOMAIN=.aarovia.co.in`
 - `JWT_EXPIRES_IN=7d`
 - `FRONTEND_URL=https://aarovia.co.in,https://www.aarovia.co.in`
 - `SMTP_HOST` - SMTP hostname (optional if using Gmail)
@@ -72,3 +75,4 @@ npx prisma db seed
 - Email sends now support both Gmail and custom SMTP providers.
 - Make sure `FRONTEND_URL` and `NEXT_PUBLIC_APP_URL` use `https://aarovia.co.in`.
 - For local testing, use `http://localhost:5000` for API and `http://localhost:3000` for frontend.
+- The API now uses HTTP-only refresh cookies for session persistence, so frontend requests must include `credentials` and the API must allow `Access-Control-Allow-Credentials`.

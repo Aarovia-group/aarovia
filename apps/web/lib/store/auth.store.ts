@@ -27,6 +27,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       localStorage.setItem('crm_token', token)
       localStorage.setItem('crm_user', JSON.stringify(user))
       localStorage.setItem('crm_auth', 'true')
+      localStorage.setItem('aarovia-auth', 'true')
     }
     set({ user, token, isAuthenticated: true })
   },
@@ -35,6 +36,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       localStorage.removeItem('crm_token')
       localStorage.removeItem('crm_user')
       localStorage.removeItem('crm_auth')
+      localStorage.removeItem('aarovia-auth')
     }
     set({ user: null, token: null, isAuthenticated: false })
   },

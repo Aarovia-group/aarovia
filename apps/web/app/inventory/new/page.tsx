@@ -261,7 +261,7 @@ export default function NewInventoryPage() {
             <Card>
               <CardContent>
                 <p className="text-[10px] text-slate uppercase tracking-wide mb-3">Bulk Upload</p>
-                <p className="text-xs text-slate mb-3">Need to add many units at once? Use the bulk import feature.</p>
+                <p className="text-xs text-slate mb-3">Need to add many units at once? Use the inventory import tool on the main inventory page.</p>
                 <Link href="/inventory">
                   <Button variant="ghost" size="sm" className="w-full text-xs">Go to Inventory →</Button>
                 </Link>

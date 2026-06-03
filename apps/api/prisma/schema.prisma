@@ -121,9 +121,26 @@ model User {
   tasks          Task[]
   notifications  Notification[]
   loginHistory   LoginHistory[]
+  refreshTokens  RefreshToken[]
   quotations     Quotation[]
 
   @@map("users")
+}
+
+model RefreshToken {
+  id              String   @id @default(cuid())
+  token           String   @unique
+  userId          String
+  user            User     @relation(fields: [userId], references: [id])
+  expiresAt       DateTime
+  revoked         Boolean  @default(false)
+  replacedByToken String?
+  ipAddress       String?
+  userAgent       String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("refresh_tokens")
 }
 
 model Project {

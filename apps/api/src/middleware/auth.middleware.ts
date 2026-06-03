@@ -16,15 +16,15 @@ export const authenticate = async (req: AuthRequest, res: Response, next: NextFu
     const authHeader = req.headers.authorization
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return res.status(401).json({ success: false, message: 'No token provided' })
-    }
+  }
 
-    const jwtSecret = process.env.JWT_SECRET || process.env.SUPABASE_JWT_SECRET || process.env.aarovia_SUPABASE_JWT_SECRET
-    if (!jwtSecret) {
-      throw new Error('JWT secret is not configured')
-    }
+  const jwtSecret = process.env.JWT_SECRET
+  if (!jwtSecret) {
+    throw new Error('JWT_SECRET must be configured')
+  }
 
-    const token = authHeader.split(' ')[1]
-    const decoded = jwt.verify(token, jwtSecret) as { id: string }
+  const token = authHeader.split(' ')[1]
+  const decoded = jwt.verify(token, jwtSecret) as { id: string }
 
     const user = await prisma.user.findUnique({
       where: { id: decoded.id },
@@ -37,7 +37,8 @@ export const authenticate = async (req: AuthRequest, res: Response, next: NextFu
 
     req.user = { id: user.id, email: user.email, role: user.role, name: user.name }
     next()
-  } catch (error) {
+  } catch (error: any) {
+    console.warn('[Auth] Authentication failed', error?.message || error)
     return res.status(401).json({ success: false, message: 'Invalid or expired token' })
   }
 }

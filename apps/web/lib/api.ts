@@ -41,6 +41,7 @@ const saveAuthToStorage = (user: any, token: string) => {
     localStorage.setItem('crm_token', token)
     localStorage.setItem('crm_user', JSON.stringify(user))
     localStorage.setItem('crm_auth', 'true')
+    localStorage.setItem('aarovia-auth', 'true')
   }
 }
 
@@ -80,7 +81,7 @@ api.interceptors.response.use(
     const isRefreshRequest = requestUrl.includes('/auth/refresh-token')
     const isAuthRequest = requestUrl.includes('/auth/login') || requestUrl.includes('/auth/register')
 
-    if ((status === 401 || status === 403) && !isAuthRequest && !isRefreshRequest) {
+    if (status === 401 && !isAuthRequest && !isRefreshRequest) {
       if (!originalRequest || (originalRequest as any)._retry) {
         clearClientAuth()
         redirectToLogin()
@@ -181,6 +182,7 @@ export const inventoryApi = {
   create: (data: any) => api.post('/inventory', data),
   update: (id: string, data: any) => api.put(`/inventory/${id}`, data),
   updateStatus: (id: string, data: any) => api.patch(`/inventory/${id}/status`, data),
+  import: (data: any) => api.post('/inventory/import', data),
   getHeatmap: (projectId: string) => api.get(`/inventory/heatmap/${projectId}`),
   delete: (id: string) => api.delete(`/inventory/${id}`),
 }
