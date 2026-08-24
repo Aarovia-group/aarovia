@@ -18,7 +18,7 @@ export const authenticate = async (req: AuthRequest, res: Response, next: NextFu
       return res.status(401).json({ success: false, message: 'No token provided' })
   }
 
-  const jwtSecret = process.env.JWT_SECRET
+  const jwtSecret = process.env.JWT_SECRET || process.env.SUPABASE_JWT_SECRET
   if (!jwtSecret) {
     throw new Error('JWT_SECRET must be configured')
   }

@@ -125,7 +125,7 @@ export function AppLayout({ children, title, subtitle, actions }: AppLayoutProps
   }
 
   return (
-    <div className="flex h-screen bg-navy overflow-hidden">
+    <div className="flex h-screen crm-shell overflow-hidden">
       <Sidebar unreadNotifications={unreadCount} />
       <div className="flex-1 flex flex-col overflow-hidden">
         <Topbar
@@ -134,7 +134,7 @@ export function AppLayout({ children, title, subtitle, actions }: AppLayoutProps
           actions={actions}
           unreadCount={unreadCount}
         />
-        <main className="flex-1 overflow-y-auto bg-[#0D1F38] p-5">
+        <main className="flex-1 overflow-y-auto p-5 md:p-6">
           {children}
         </main>
       </div>

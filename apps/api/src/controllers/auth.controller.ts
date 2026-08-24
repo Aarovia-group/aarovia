@@ -6,7 +6,7 @@ import prisma from '../utils/prisma'
 import { AuthRequest } from '../middleware/auth.middleware'
 
 const getJwtSecret = () => {
-  const secret = process.env.JWT_SECRET
+  const secret = process.env.JWT_SECRET || process.env.SUPABASE_JWT_SECRET
   if (!secret) {
     throw new Error('JWT_SECRET must be configured')
   }

@@ -15,9 +15,9 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant = 'primary', size = 'md', loading, icon, children, disabled, ...props }, ref) => {
     const variants = {
-      primary: 'bg-gold text-navy font-semibold hover:bg-gold-light active:bg-gold-dark',
-      secondary: 'bg-gold/10 text-gold border border-gold/20 hover:bg-gold/20 hover:border-gold/40',
-      ghost: 'text-slate-light hover:text-white hover:bg-navy-light',
+      primary: 'bg-gold text-white font-semibold hover:bg-gold-light active:bg-gold-dark',
+      secondary: 'bg-amber-50 text-gold border border-amber-200 hover:bg-amber-100 hover:border-amber-300',
+      ghost: 'text-slate-light hover:text-foreground hover:bg-slate-100',
       danger: 'bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20',
       success: 'bg-green-500/10 text-green-400 border border-green-500/20 hover:bg-green-500/20',
     }
@@ -47,18 +47,18 @@ Button.displayName = 'Button'
 // Card
 export function Card({ className, children, ...props }: HTMLAttributes<HTMLDivElement>) {
   return (
-    <div className={cn('bg-navy-mid border border-navy-border rounded-xl', className)} {...props}>
+    <div className={cn('bg-white border border-[#e3e9ef] rounded-lg shadow-[0_1px_2px_rgba(31,41,55,0.03)]', className)} {...props}>
       {children}
     </div>
   )
 }
 
 export function CardHeader({ className, children, ...props }: HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn('px-4 py-3.5 border-b border-navy-border flex items-center justify-between', className)} {...props}>{children}</div>
+  return <div className={cn('px-4 py-3.5 border-b border-[#e8edf2] flex items-center justify-between', className)} {...props}>{children}</div>
 }
 
 export function CardTitle({ className, children, ...props }: HTMLAttributes<HTMLHeadingElement>) {
-  return <h3 className={cn('text-sm font-medium text-white flex items-center gap-2', className)} {...props}>{children}</h3>
+  return <h3 className={cn('text-sm font-semibold text-[#172033] flex items-center gap-2', className)} {...props}>{children}</h3>
 }
 
 export function CardContent({ className, children, ...props }: HTMLAttributes<HTMLDivElement>) {
@@ -72,7 +72,7 @@ interface BadgeProps extends HTMLAttributes<HTMLSpanElement> {
 
 export function Badge({ className, variant = 'default', children, ...props }: BadgeProps) {
   const variants = {
-    default: 'bg-navy-light text-slate-light border border-navy-border',
+    default: 'bg-slate-100 text-slate-light border border-slate-200',
     success: 'bg-green-500/15 text-green-400 border border-green-500/25',
     warning: 'bg-yellow-500/15 text-yellow-400 border border-yellow-500/25',
     danger: 'bg-red-500/15 text-red-400 border border-red-500/25',
@@ -103,7 +103,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
           <input
             ref={ref}
             className={cn(
-              'w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white placeholder:text-slate/50',
+              'w-full bg-white border border-[#d8e0e8] rounded-lg px-3 py-2 text-sm text-[#172033] placeholder:text-slate/50',
               'focus:outline-none focus:ring-1 focus:ring-gold/50 focus:border-gold/50 transition-colors',
               icon && 'pl-9',
               error && 'border-red-500/50 focus:ring-red-500/30',
@@ -140,7 +140,7 @@ export function Select({ label, error, options, value, onChange, placeholder, cl
         onChange={(e) => onChange?.(e.target.value)}
         disabled={disabled}
         className={cn(
-          'w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white',
+          'w-full bg-white border border-[#d8e0e8] rounded-lg px-3 py-2 text-sm text-[#172033]',
           'focus:outline-none focus:ring-1 focus:ring-gold/50 focus:border-gold/50 transition-colors',
           'disabled:opacity-50 disabled:cursor-not-allowed',
           !value && 'text-slate/50',
@@ -150,7 +150,7 @@ export function Select({ label, error, options, value, onChange, placeholder, cl
       >
         {placeholder && <option value="">{placeholder}</option>}
         {options.map(opt => (
-          <option key={opt.value} value={opt.value} className="bg-navy-mid text-white">{opt.label}</option>
+          <option key={opt.value} value={opt.value} className="bg-white text-[#172033]">{opt.label}</option>
         ))}
       </select>
       {error && <p className="text-[11px] text-red-400">{error}</p>}
@@ -171,7 +171,7 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
       <textarea
         ref={ref}
         className={cn(
-          'w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white placeholder:text-slate/50 resize-none',
+          'w-full bg-white border border-[#d8e0e8] rounded-lg px-3 py-2 text-sm text-[#172033] placeholder:text-slate/50 resize-none',
           'focus:outline-none focus:ring-1 focus:ring-gold/50 focus:border-gold/50 transition-colors',
           error && 'border-red-500/50',
           className
@@ -199,7 +199,7 @@ export function Modal({ open, onClose, title, children, size = 'md' }: ModalProp
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      <div className={cn('relative bg-navy-mid border border-navy-border rounded-xl shadow-2xl w-full mx-4', sizes[size])}>
+      <div className={cn('relative bg-white border border-[#e3e9ef] rounded-lg shadow-2xl w-full mx-4', sizes[size])}>
         <div className="flex items-center justify-between px-5 py-4 border-b border-navy-border">
           <h2 className="font-display text-base font-medium text-white">{title}</h2>
           <button onClick={onClose} className="text-slate hover:text-white transition-colors p-1 rounded-md hover:bg-navy-light">

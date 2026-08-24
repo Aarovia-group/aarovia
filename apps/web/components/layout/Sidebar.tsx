@@ -72,16 +72,16 @@ export function Sidebar({ unreadNotifications = 0, mobileOpen, onMobileClose }: 
   }
 
   return (
-    <aside className="w-[220px] min-w-[220px] h-screen bg-[#12243E] border-r border-[#2A4070] flex flex-col overflow-hidden">
+    <aside className="w-[220px] min-w-[220px] h-screen bg-white border-r border-[#d8e0e8] flex flex-col overflow-hidden">
       {/* Logo - fixed top */}
-      <div className="px-4 py-4 border-b border-[#2A4070] flex-shrink-0">
+      <div className="px-4 py-4 border-b border-[#d8e0e8] flex-shrink-0">
         <Link href="/dashboard" className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#C9A84C] to-[#E8C96A] flex items-center justify-center flex-shrink-0">
             <span className="font-bold text-[#0A1628] text-sm">A</span>
           </div>
           <div>
-            <div className="text-sm font-semibold text-[#E8C96A] leading-tight">Aarovia</div>
-            <div className="text-[9px] text-[#8BA3C4] uppercase tracking-[2px]">Real Estates</div>
+            <div className="text-sm font-semibold text-[#172033] leading-tight">Aarovia</div>
+            <div className="text-[9px] text-[#64748b] uppercase tracking-[2px]">Real Estates</div>
           </div>
         </Link>
       </div>
@@ -89,11 +89,11 @@ export function Sidebar({ unreadNotifications = 0, mobileOpen, onMobileClose }: 
       {/* Nav - scrollable */}
       <nav
         className="flex-1 overflow-y-scroll py-2"
-        style={{ scrollbarWidth: 'thin', scrollbarColor: '#2A4070 #12243E' }}
+        style={{ scrollbarWidth: 'thin', scrollbarColor: '#cbd5e1 #ffffff' }}
       >
         {navItems.map((section) => (
           <div key={section.label} className="mb-1">
-            <p className="text-[9px] font-medium uppercase tracking-[1.5px] text-[#8BA3C4] px-4 py-2">
+            <p className="text-[9px] font-medium uppercase tracking-[1.5px] text-[#64748b] px-4 py-2">
               {section.label}
             </p>
             {section.items.map((item) => {
@@ -106,8 +106,8 @@ export function Sidebar({ unreadNotifications = 0, mobileOpen, onMobileClose }: 
                   className={cn(
                     'flex items-center gap-2.5 px-4 py-2 text-[12.5px] border-l-2 transition-all duration-150',
                     isActive
-                      ? 'bg-[#C9A84C]/10 text-[#C9A84C] border-l-[#C9A84C] font-medium'
-                      : 'text-[#B8CAE0] border-l-transparent hover:bg-[#C9A84C]/5 hover:text-[#E8C96A] hover:border-l-[#C9A84C]/30'
+                      ? 'bg-[#fff7e3] text-[#9a6812] border-l-[#b27a16] font-medium'
+                      : 'text-[#475569] border-l-transparent hover:bg-[#fffaf0] hover:text-[#9a6812] hover:border-l-[#b27a16]/30'
                   )}
                 >
                   <item.icon className="w-4 h-4 flex-shrink-0" />
@@ -125,7 +125,7 @@ export function Sidebar({ unreadNotifications = 0, mobileOpen, onMobileClose }: 
       </nav>
 
       {/* User profile - fixed bottom */}
-      <div className="border-t border-[#2A4070] p-3 flex-shrink-0 bg-[#12243E]">
+      <div className="border-t border-[#d8e0e8] p-3 flex-shrink-0 bg-white">
         <div className="flex items-center gap-2.5 mb-2">
           <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#C9A84C] to-[#E8C96A] flex items-center justify-center flex-shrink-0">
             <span className="text-[#0A1628] text-xs font-bold">
@@ -133,15 +133,15 @@ export function Sidebar({ unreadNotifications = 0, mobileOpen, onMobileClose }: 
             </span>
           </div>
           <div className="flex-1 min-w-0">
-            <div className="text-xs font-medium text-white truncate">{user?.name}</div>
-            <div className="text-[10px] text-[#8BA3C4] truncate">
+            <div className="text-xs font-medium text-[#172033] truncate">{user?.name}</div>
+            <div className="text-[10px] text-[#64748b] truncate">
               {user?.role?.replace(/_/g, ' ')}
             </div>
           </div>
         </div>
         <button
           onClick={handleLogout}
-          className="w-full flex items-center gap-2 px-2 py-1.5 rounded text-[11px] text-[#8BA3C4] hover:text-red-400 hover:bg-red-500/10 transition-colors"
+          className="w-full flex items-center gap-2 px-2 py-1.5 rounded text-[11px] text-[#64748b] hover:text-red-500 hover:bg-red-50 transition-colors"
         >
           <LogOut className="w-3.5 h-3.5" />
           Sign out

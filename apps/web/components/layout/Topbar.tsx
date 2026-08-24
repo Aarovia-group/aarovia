@@ -32,7 +32,7 @@ export function Topbar({ title, subtitle, actions, unreadCount = 0, onMenuClick 
   }
 
   return (
-    <header className="h-14 bg-navy-mid border-b border-navy-border flex items-center px-4 md:px-5 gap-2 md:gap-3 flex-shrink-0 z-10">
+    <header className="h-14 bg-white/90 backdrop-blur border-b border-[#e3e9ef] flex items-center px-4 md:px-5 gap-2 md:gap-3 flex-shrink-0 z-10">
       <button
         type="button"
         onClick={onMenuClick}
@@ -42,7 +42,7 @@ export function Topbar({ title, subtitle, actions, unreadCount = 0, onMenuClick 
       </button>
 
       <div className="flex-1 min-w-0">
-        <h1 className="font-display text-base font-medium text-white leading-tight truncate">{title}</h1>
+        <h1 className="font-display text-base font-medium text-[#172033] leading-tight truncate">{title}</h1>
         {subtitle && <p className="text-[11px] text-slate truncate">{subtitle}</p>}
       </div>
 
@@ -84,7 +84,7 @@ export function Topbar({ title, subtitle, actions, unreadCount = 0, onMenuClick 
           {profileOpen && (
             <>
               <div className="fixed inset-0 z-10" onClick={() => setProfileOpen(false)} />
-              <div className="absolute right-0 top-10 z-20 w-48 bg-navy-mid border border-navy-border rounded-lg shadow-xl overflow-hidden">
+              <div className="absolute right-0 top-10 z-20 w-48 bg-white border border-[#e3e9ef] rounded-lg shadow-xl overflow-hidden">
                 <div className="px-3 py-2.5 border-b border-navy-border">
                   <p className="text-xs font-medium text-white truncate">{user?.name}</p>
                   <p className="text-[10px] text-slate truncate">{user?.email}</p>

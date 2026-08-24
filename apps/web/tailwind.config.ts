@@ -7,9 +7,9 @@ const config: Config = {
     container: { center: true, padding: '2rem', screens: { '2xl': '1400px' } },
     extend: {
       colors: {
-        navy: { DEFAULT: '#0A1628', mid: '#12243E', light: '#1E3559', border: '#2A4070' },
-        gold: { DEFAULT: '#C9A84C', light: '#E8C96A', pale: '#F5E8C0', dark: '#8B6914' },
-        slate: { DEFAULT: '#8BA3C4', light: '#B8CAE0' },
+        navy: { DEFAULT: '#ffffff', mid: '#f8fafc', light: '#eef2f6', border: '#d8e0e8' },
+        gold: { DEFAULT: '#b27a16', light: '#d49b2a', pale: '#fff4d6', dark: '#7c5310' },
+        slate: { DEFAULT: '#64748b', light: '#475569' },
         border: 'hsl(var(--border))',
         input: 'hsl(var(--input))',
         ring: 'hsl(var(--ring))',
