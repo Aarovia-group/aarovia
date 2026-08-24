@@ -6,6 +6,11 @@ const prisma = new PrismaClient()
 async function main() {
   console.log('🌱 Seeding Aarovia CRM database...')
 
+  if (await prisma.user.count() > 0) {
+    console.log('Database already contains users; skipping seed reset.')
+    return
+  }
+
   await prisma.notification.deleteMany({})
   await prisma.loginHistory.deleteMany({})
   await prisma.refreshToken.deleteMany({})
