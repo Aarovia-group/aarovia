@@ -8,6 +8,7 @@ async function main() {
 
   await prisma.notification.deleteMany({})
   await prisma.loginHistory.deleteMany({})
+  await prisma.refreshToken.deleteMany({})
   await prisma.callLog.deleteMany({})
   await prisma.task.deleteMany({})
   await prisma.activity.deleteMany({})
