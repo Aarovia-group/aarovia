@@ -101,9 +101,9 @@ export default function LeadDetailPage() {
       title={lead.name}
       subtitle={`${getSourceLabel(lead.source)} · ${lead.mobile}`}
       actions={
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Button variant="ghost" size="sm" icon={<ArrowLeft className="w-3.5 h-3.5" />} onClick={() => router.back()}>Back</Button>
-          <a href={`tel:${lead.mobile}`} className="inline-flex items-center justify-center gap-2 rounded-md bg-green-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-green-500">
+          <a href={`tel:${lead.mobile}`} className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md bg-green-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-green-500">
             <Phone className="w-3.5 h-3.5" />Call Client
           </a>
           <Button variant="secondary" size="sm" icon={<Phone className="w-3.5 h-3.5" />} onClick={() => setShowCallModal(true)}>Log Call</Button>
@@ -142,8 +142,9 @@ export default function LeadDetailPage() {
                     <div className="text-slate flex-shrink-0">{item.icon}</div>
                     <div className="flex-1 min-w-0">
                       <span className="text-[10px] text-slate block">{item.label}</span>
-                      <span className="text-xs text-slate-light">{item.value}</span>
+                        <span className="text-xs text-slate-light">{item.value}</span>
                     </div>
+                      {item.label === 'Mobile' && <a href={`tel:${lead.mobile}`} aria-label={`Call ${lead.name}`} className="text-green-400 hover:text-green-300" title="Call client"><Phone className="w-4 h-4" /></a>}
                   </div>
                 ))}
               </div>
