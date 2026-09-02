@@ -2,9 +2,12 @@ import axios from 'axios'
 
 const isBrowser = typeof window !== 'undefined'
 const rawApiUrl = process.env.NEXT_PUBLIC_API_URL?.trim() || process.env.API_URL || ''
+const browserApiBase = rawApiUrl
+  ? `${rawApiUrl.replace(/\/+$/, '').replace(/\/api$/, '')}/api`
+  : '/api'
 
 const apiBase = isBrowser
-  ? '/api'
+  ? browserApiBase
   : rawApiUrl
     ? rawApiUrl.replace(/\/+$/, '').replace(/\/api$/, '')
     : (process.env.NODE_ENV === 'production' ? 'https://api.aarovia.co.in' : 'http://localhost:5000')
@@ -140,6 +143,10 @@ export const authApi = {
   logout: () => api.post('/auth/logout'),
 }
 
+export const settingsApi = {
+  getAll: () => api.get('/settings'),
+}
+
 export const leadApi = {
   getAll: (params?: any) => api.get('/leads', { params }),
   getById: (id: string) => api.get(`/leads/${id}`),
@@ -151,6 +158,7 @@ export const leadApi = {
   assign: (id: string, data: any) => api.patch(`/leads/${id}/assign`, data),
   addCallLog: (id: string, data: any) => api.post(`/leads/${id}/call-log`, data),
   addNote: (id: string, data: any) => api.post(`/leads/${id}/note`, data),
+  scheduleSiteVisit: (id: string, data: any) => api.post(`/leads/${id}/site-visit`, data),
 }
 
 export const notificationApi = {
@@ -163,6 +171,7 @@ export const reportApi = {
   getDashboard: () => api.get('/reports/dashboard'),
   getMonthlyRevenue: (months: number) => api.get('/reports/monthly-revenue', { params: { months } }),
   getLeadSources: () => api.get('/reports/lead-sources'),
+  getLeadStatus: () => api.get('/reports/lead-status'),
   getTeamPerformance: (params?: any) => api.get('/reports/team-performance', { params }),
   getCollections: (params?: any) => api.get('/reports/collections', { params }),
   getInventory: (params?: any) => api.get('/reports/inventory', { params }),
@@ -223,6 +232,17 @@ export const emailApi = {
   sendProjectDetails: (data: any) => api.post('/email/send-project-details', data),
   sendQuotation: (data: any) => api.post('/email/send-quotation', data),
   getLogs: (params?: any) => api.get('/email/logs', { params }),
+}
+
+export const uploadApi = {
+  uploadDocument: (file: File, category = 'BROCHURE') => {
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('category', category)
+    return api.post('/upload/document', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+  },
 }
 
 export default api
