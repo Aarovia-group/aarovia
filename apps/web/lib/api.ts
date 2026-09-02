@@ -4,7 +4,7 @@ const isBrowser = typeof window !== 'undefined'
 const rawApiUrl = process.env.NEXT_PUBLIC_API_URL?.trim() || process.env.API_URL || ''
 const browserApiBase = rawApiUrl
   ? `${rawApiUrl.replace(/\/+$/, '').replace(/\/api$/, '')}/api`
-  : '/api'
+  : (process.env.NODE_ENV === 'production' ? 'https://aarovia-api.vercel.app/api' : '/api')
 
 const apiBase = isBrowser
   ? browserApiBase
