@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { Button, Card, CardHeader, CardTitle, CardContent, Badge, Modal } from '@/components/ui/index'
-import { leadApi, emailApi, whatsappApi } from '@/lib/api'
+import { leadApi, emailApi, uploadApi, whatsappApi } from '@/lib/api'
 import { formatCurrency, formatDate, formatDateTime, formatRelativeTime, getLeadStatusColor, getLeadStatusLabel, getSourceLabel, LEAD_STATUSES } from '@/lib/utils'
 import { toast } from '@/components/ui/toaster'
 import { Phone, Mail, MessageSquare, MapPin, Calendar, Edit2, ArrowLeft, Plus, FileText, Activity, Clock, User, Building2, Banknote, Send, CheckCircle } from 'lucide-react'
@@ -20,6 +20,7 @@ export default function LeadDetailPage() {
   const [showStatusModal, setShowStatusModal] = useState(false)
   const [showCallModal, setShowCallModal] = useState(false)
   const [showNoteModal, setShowNoteModal] = useState(false)
+  const [showVisitModal, setShowVisitModal] = useState(false)
   const [showEmailModal, setShowEmailModal] = useState(false)
 
   const { data, isLoading } = useQuery({
@@ -46,8 +47,29 @@ export default function LeadDetailPage() {
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['lead', id] }); setShowNoteModal(false); toast.success('Note added') },
   })
 
+  const scheduleVisitMutation = useMutation({
+    mutationFn: (data: any) => leadApi.scheduleSiteVisit(id, data),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['lead', id] }); setShowVisitModal(false); toast.success('Site visit scheduled') },
+    onError: () => toast.error('Failed to schedule site visit'),
+  })
+
   const sendEmailMutation = useMutation({
-    mutationFn: (data: any) => emailApi.sendProjectDetails({ leadId: id, ...data }),
+    mutationFn: async (data: any) => {
+      const files = Array.from(data.attachments || []) as File[]
+      const uploadedFiles = await Promise.all(files.map(async (file) => {
+        const response = await uploadApi.uploadDocument(file)
+        const uploaded = response.data?.data
+        if (!uploaded?.url) throw new Error('File upload failed')
+        return { url: uploaded.url, name: uploaded.name }
+      }))
+
+      return emailApi.sendProjectDetails({
+        leadId: id,
+        ...data,
+        brochureUrl: uploadedFiles[0]?.url,
+        attachments: uploadedFiles,
+      })
+    },
     onSuccess: () => { setShowEmailModal(false); toast.success('Email sent successfully') },
     onError: () => toast.error('Failed to send email'),
   })
@@ -81,6 +103,9 @@ export default function LeadDetailPage() {
       actions={
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="sm" icon={<ArrowLeft className="w-3.5 h-3.5" />} onClick={() => router.back()}>Back</Button>
+          <a href={`tel:${lead.mobile}`} className="inline-flex items-center justify-center gap-2 rounded-md bg-green-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-green-500">
+            <Phone className="w-3.5 h-3.5" />Call Client
+          </a>
           <Button variant="secondary" size="sm" icon={<Phone className="w-3.5 h-3.5" />} onClick={() => setShowCallModal(true)}>Log Call</Button>
           <Button variant="secondary" size="sm" icon={<MessageSquare className="w-3.5 h-3.5" />} onClick={() => sendWAMutation.mutate()} loading={sendWAMutation.isPending}>WhatsApp</Button>
           <Button variant="secondary" size="sm" icon={<Mail className="w-3.5 h-3.5" />} onClick={() => setShowEmailModal(true)}>Send Email</Button>
@@ -292,6 +317,9 @@ export default function LeadDetailPage() {
               {/* Site Visits */}
               {activeTab === 'visits' && (
                 <div className="space-y-3">
+                  <div className="flex justify-end">
+                    <Button size="sm" icon={<Plus className="w-3.5 h-3.5" />} onClick={() => setShowVisitModal(true)}>Schedule Visit</Button>
+                  </div>
                   {lead.siteVisits?.length === 0 && <p className="text-sm text-slate text-center py-8">No site visits scheduled</p>}
                   {lead.siteVisits?.map((v: any) => (
                     <div key={v.id} className="bg-navy rounded-lg p-3 border border-navy-border">
@@ -351,6 +379,21 @@ export default function LeadDetailPage() {
       </Modal>
 
       {/* Add Note Modal */}
+      <Modal open={showVisitModal} onClose={() => { setShowVisitModal(false); reset() }} title="Schedule Site Visit" size="sm">
+        <form onSubmit={handleSubmit((d) => scheduleVisitMutation.mutate(d))} className="space-y-4">
+          <div>
+            <label className="block text-xs font-medium text-slate-light mb-1.5">Visit Date and Time *</label>
+            <input {...register('scheduledAt', { required: true })} type="datetime-local" className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-gold/50" />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-light mb-1.5">Notes</label>
+            <textarea {...register('notes')} rows={3} placeholder="Visit notes..." className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white placeholder:text-slate/40 focus:outline-none focus:ring-1 focus:ring-gold/50 resize-none" />
+          </div>
+          <Button type="submit" loading={scheduleVisitMutation.isPending} className="w-full">Schedule Visit</Button>
+        </form>
+      </Modal>
+
+      {/* Add Note Modal */}
       <Modal open={showNoteModal} onClose={() => setShowNoteModal(false)} title="Add Note" size="sm">
         <form onSubmit={handleSubmit((d) => addNoteMutation.mutate(d))} className="space-y-4">
           <div>
@@ -375,8 +418,17 @@ export default function LeadDetailPage() {
             </select>
           </div>
           <div>
+            <label className="block text-xs font-medium text-slate-light mb-1.5">Custom Subject (optional)</label>
+            <input {...register('subject')} placeholder="Project details from Aarovia Real Estates" className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white placeholder:text-slate/40 focus:outline-none focus:ring-1 focus:ring-gold/50" />
+          </div>
+          <div>
             <label className="block text-xs font-medium text-slate-light mb-1.5">Custom Message (optional)</label>
             <textarea {...register('customMessage')} rows={3} placeholder="Add a personal message..." className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white placeholder:text-slate/40 focus:outline-none focus:ring-1 focus:ring-gold/50 resize-none" />
+          </div>
+          <div className="rounded-lg border border-gold/30 bg-gold/5 p-3">
+            <label className="block text-xs font-medium text-gold mb-1.5">Attach Files (optional)</label>
+            <input {...register('attachments')} type="file" multiple accept="application/pdf,.doc,.docx,.xls,.xlsx,image/*" className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-slate file:mr-3 file:rounded-md file:border-0 file:bg-gold/20 file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-gold hover:file:bg-gold/30" />
+            <p className="text-[10px] text-slate mt-1.5">Attach brochures, PDFs, or images. Each file can be up to 10MB.</p>
           </div>
           <Button type="submit" icon={<Send className="w-3.5 h-3.5" />} loading={sendEmailMutation.isPending} className="w-full">Send Email</Button>
         </form>
