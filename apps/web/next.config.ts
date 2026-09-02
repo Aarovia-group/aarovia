@@ -28,7 +28,7 @@ const nextConfig: NextConfig = {
   },
   async rewrites() {
     const rawApiUrl = process.env.NEXT_PUBLIC_API_URL?.trim() ||
-      (process.env.NODE_ENV === 'production' ? 'https://api.aarovia.co.in' : 'http://localhost:5000')
+      (process.env.NODE_ENV === 'production' ? 'https://aarovia-api.vercel.app' : 'http://localhost:5000')
     const apiUrl = rawApiUrl.replace(/\/+$/, '').replace(/\/api$/, '')
     const destination = `${apiUrl}/api/:path*`
 

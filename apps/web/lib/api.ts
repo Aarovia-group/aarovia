@@ -1,16 +1,17 @@
 import axios from 'axios'
 
+const productionApiBase = 'https://aarovia-api.vercel.app'
 const isBrowser = typeof window !== 'undefined'
 const rawApiUrl = process.env.NEXT_PUBLIC_API_URL?.trim() || process.env.API_URL || ''
 const browserApiBase = rawApiUrl
   ? `${rawApiUrl.replace(/\/+$/, '').replace(/\/api$/, '')}/api`
-  : (process.env.NODE_ENV === 'production' ? 'https://aarovia-api.vercel.app/api' : '/api')
+  : (process.env.NODE_ENV === 'production' ? `${productionApiBase}/api` : '/api')
 
 const apiBase = isBrowser
   ? browserApiBase
   : rawApiUrl
     ? rawApiUrl.replace(/\/+$/, '').replace(/\/api$/, '')
-    : (process.env.NODE_ENV === 'production' ? 'https://api.aarovia.co.in' : 'http://localhost:5000')
+    : (process.env.NODE_ENV === 'production' ? productionApiBase : 'http://localhost:5000')
 
 const api = axios.create({
   baseURL: isBrowser

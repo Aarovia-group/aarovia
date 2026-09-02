@@ -3,7 +3,7 @@
 ## Production Domain
 - Frontend: `https://aarovia.co.in`
 - Frontend alternate: `https://www.aarovia.co.in`
-- Backend API: `https://api.aarovia.co.in`
+- Backend API: `https://aarovia-api.vercel.app`
 
 ## Vercel Setup
 
@@ -44,7 +44,7 @@
 - Example env file: `apps/web/.env.example`
 
 #### Required Environment Variables
-- `NEXT_PUBLIC_API_URL=https://api.aarovia.co.in`
+- `NEXT_PUBLIC_API_URL=https://aarovia-api.vercel.app`
 - `NEXT_PUBLIC_APP_NAME=Aarovia CRM`
 - `NEXT_PUBLIC_APP_URL=https://www.aarovia.co.in`
 
