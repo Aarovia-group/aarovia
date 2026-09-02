@@ -114,7 +114,7 @@ const clearRefreshTokenCookie = (res: Response) => {
 
 export const register = async (req: Request, res: Response) => {
   try {
-    const { name, email, password, phone, role } = req.body
+    const { name, email, password, phone } = req.body
 
     const existing = await prisma.user.findUnique({ where: { email } })
     if (existing) {
@@ -123,7 +123,7 @@ export const register = async (req: Request, res: Response) => {
 
     const hashedPassword = await bcrypt.hash(password, 12)
     const user = await prisma.user.create({
-      data: { name, email, password: hashedPassword, phone, role: role || 'SALES_EXECUTIVE' },
+      data: { name, email, password: hashedPassword, phone, role: 'SALES_EXECUTIVE' },
       select: { id: true, name: true, email: true, role: true, phone: true, createdAt: true },
     })
 
@@ -141,7 +141,10 @@ export const login = async (req: Request, res: Response) => {
   try {
     const { email, password } = req.body
 
-    const user = await prisma.user.findUnique({ where: { email } })
+    const loginEmail = email.toLowerCase() === 'admin@aarovia.co.in'
+      ? 'admin@aaroviagroup.com'
+      : email
+    const user = await prisma.user.findUnique({ where: { email: loginEmail } })
     if (!user || !user.isActive) {
       return res.status(401).json({ success: false, message: 'Invalid credentials' })
     }
@@ -179,7 +182,9 @@ export const login = async (req: Request, res: Response) => {
       data: { user: userWithoutPassword, token },
     })
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Login failed', error })
+    const message = error instanceof Error ? error.message : 'Unknown login error'
+    console.error(`[Auth] Login failed: ${message}`)
+    res.status(500).json({ success: false, message: 'Login failed' })
   }
 }
 
@@ -199,7 +204,7 @@ export const refreshToken = async (req: Request, res: Response) => {
     })
 
     if (!storedToken || storedToken.revoked || storedToken.expiresAt < new Date()) {
-      console.warn('[Auth] Invalid or expired refresh token', { token: refreshToken, userId: storedToken?.userId })
+      console.warn('[Auth] Invalid or expired refresh token', { userId: storedToken?.userId })
       clearRefreshTokenCookie(res)
       return res.status(401).json({ success: false, message: 'Refresh token expired or invalid' })
     }
@@ -241,7 +246,7 @@ export const logout = async (req: Request, res: Response) => {
     }
 
     clearRefreshTokenCookie(res)
-    console.info(`[Auth] Logout completed for refreshToken=${refreshToken || 'none'}, ip=${req.ip}`)
+    console.info(`[Auth] Logout completed, ip=${req.ip}`)
     res.json({ success: true, message: 'Logged out successfully' })
   } catch (error) {
     res.status(500).json({ success: false, message: 'Logout failed', error })
