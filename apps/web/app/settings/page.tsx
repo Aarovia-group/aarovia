@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { Button, Card, CardHeader, CardTitle, CardContent } from '@/components/ui/index'
 import { toast } from '@/components/ui/toaster'
@@ -12,7 +12,7 @@ import api from '@/lib/api'
 type ProfileFormValues = { name: string; phone: string }
 type PasswordFormValues = { currentPassword: string; newPassword: string; confirmPassword: string }
 type EmailFormValues = { gmailUser: string; gmailAppPassword: string; fromName: string }
-type WAFormValues = { phoneId: string; accessToken: string; businessId: string }
+type WAFormValues = { phoneId: string; accessToken: string; businessId: string; templateName: string; allowRawText: boolean }
 
 const TABS = [
   { key: 'profile', label: 'My Profile', icon: User },
@@ -35,7 +35,24 @@ export default function SettingsPage() {
 
   const { register: regPw, handleSubmit: handlePw } = useForm<PasswordFormValues>()
   const { register: regEmail, handleSubmit: handleEmail } = useForm<EmailFormValues>()
-  const { register: regWA, handleSubmit: handleWA } = useForm<WAFormValues>()
+  const { register: regWA, handleSubmit: handleWA, reset: resetWA } = useForm<WAFormValues>()
+  const [hasSavedWAToken, setHasSavedWAToken] = useState(false)
+
+  useEffect(() => {
+    if (activeTab !== 'whatsapp') return
+    api.get('/api/settings/whatsapp').then((response) => {
+      const settings = response.data?.data
+      if (!settings) return
+      setHasSavedWAToken(Boolean(settings.hasAccessToken))
+      resetWA({
+        phoneId: settings.phoneId || '',
+        accessToken: '',
+        businessId: settings.businessId || '',
+        templateName: settings.templateName || '',
+        allowRawText: Boolean(settings.allowRawText),
+      })
+    }).catch(() => {})
+  }, [activeTab, resetWA])
 
   const onProfileSave = async (data: any) => {
     try {
@@ -61,7 +78,9 @@ export default function SettingsPage() {
 
   const onWASave = async (data: any) => {
     try {
-      await api.post('/api/settings/whatsapp', data)
+      const response = await api.post('/api/settings/whatsapp', data)
+      setHasSavedWAToken(Boolean(response.data?.data?.hasAccessToken))
+      resetWA({ ...data, accessToken: '' })
       toast.success('WhatsApp configuration saved')
     } catch { toast.error('Failed to save WhatsApp config') }
   }
@@ -197,12 +216,20 @@ export default function SettingsPage() {
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-slate-light mb-1.5">Access Token</label>
-                    <textarea {...regWA('accessToken')} rows={3} placeholder="EAAxxxxxx..." className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white font-mono placeholder:text-slate/40 focus:outline-none focus:ring-1 focus:ring-gold/50 resize-none" />
+                    <input {...regWA('accessToken')} type="password" autoComplete="new-password" placeholder={hasSavedWAToken ? '******** (saved; blank keeps current token)' : 'EAAxxxxxx...'} className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white font-mono placeholder:text-slate/40 focus:outline-none focus:ring-1 focus:ring-gold/50" />
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-slate-light mb-1.5">Business Account ID</label>
                     <input {...regWA('businessId')} placeholder="WABA ID" className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white font-mono placeholder:text-slate/40 focus:outline-none focus:ring-1 focus:ring-gold/50" />
                   </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-light mb-1.5">Approved WhatsApp Template Name / SID</label>
+                    <input {...regWA('templateName')} placeholder="hello_world or HX123..." className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white font-mono placeholder:text-slate/40 focus:outline-none focus:ring-1 focus:ring-gold/50" />
+                  </div>
+                  <label className="flex items-center gap-3 text-sm text-slate-light">
+                    <input type="checkbox" {...regWA('allowRawText')} className="h-4 w-4 rounded border-navy-border bg-navy" />
+                    Allow raw WhatsApp text only for opted-in recipients
+                  </label>
                   <Button type="submit" icon={<Save className="w-3.5 h-3.5" />}>Save WhatsApp Config</Button>
                 </form>
               </CardContent>
