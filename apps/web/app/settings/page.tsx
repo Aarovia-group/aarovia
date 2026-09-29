@@ -48,13 +48,13 @@ export default function SettingsPage() {
   const [hasSavedWAToken, setHasSavedWAToken] = useState(false)
   const { data: adsSettingsData } = useQuery({
     queryKey: ['ads-settings'],
-    queryFn: () => api.get('/api/settings/ads'),
+    queryFn: () => api.get('/settings/ads'),
     enabled: activeTab === 'ads',
   })
 
   useEffect(() => {
     if (activeTab !== 'whatsapp') return
-    api.get('/api/settings/whatsapp').then((response) => {
+    api.get('/settings/whatsapp').then((response) => {
       const settings = response.data?.data
       if (!settings) return
       setHasSavedWAToken(Boolean(settings.hasAccessToken))
@@ -90,7 +90,7 @@ export default function SettingsPage() {
 
   const onProfileSave = async (data: any) => {
     try {
-      const res = await api.put('/api/auth/profile', data)
+      const res = await api.put('/auth/profile', data)
       updateUser(res.data.data)
       toast.success('Profile updated successfully')
     } catch { toast.error('Failed to update profile') }
@@ -98,21 +98,21 @@ export default function SettingsPage() {
 
   const onPasswordChange = async (data: any) => {
     try {
-      await api.put('/api/auth/change-password', data)
+      await api.put('/auth/change-password', data)
       toast.success('Password changed successfully')
     } catch (e: any) { toast.error(e.response?.data?.message || 'Failed to change password') }
   }
 
   const onEmailSave = async (data: any) => {
     try {
-      await api.post('/api/settings/email', data)
+      await api.post('/settings/email', data)
       toast.success('Email configuration saved')
     } catch { toast.error('Failed to save email config') }
   }
 
   const onWASave = async (data: any) => {
     try {
-      const response = await api.post('/api/settings/whatsapp', data)
+      const response = await api.post('/settings/whatsapp', data)
       setHasSavedWAToken(Boolean(response.data?.data?.hasAccessToken))
       resetWA({ ...data, accessToken: '' })
       toast.success('WhatsApp configuration saved')
@@ -121,7 +121,7 @@ export default function SettingsPage() {
 
   const onAdsSave = async (data: AdsFormValues) => {
     try {
-      await api.post('/api/settings/ads', {
+      await api.post('/settings/ads', {
         meta_app_id: data.metaAppId,
         meta_app_secret: data.metaAppSecret,
         meta_lead_verify_token: data.metaLeadVerifyToken,
@@ -143,7 +143,7 @@ export default function SettingsPage() {
 
   const connectAds = async (provider: 'meta' | 'google') => {
     try {
-      const response = await api.get(`/api/ad-integrations/${provider}/connect`)
+      const response = await api.get(`/ad-integrations/${provider}/connect`)
       window.location.href = response.data.data.url
     } catch (error: any) {
       toast.error(error.response?.data?.message || `Unable to connect ${provider === 'meta' ? 'Meta' : 'Google Ads'}`)
@@ -152,7 +152,7 @@ export default function SettingsPage() {
 
   const sendTestEmail = async () => {
     try {
-      await api.post('/api/email/send-project-details', { toEmail: user?.email, templateType: 'villa' })
+      await api.post('/email/send-project-details', { toEmail: user?.email, templateType: 'villa' })
       setTestEmailSent(true)
       toast.success('Test email sent to ' + user?.email)
     } catch { toast.error('Test email failed') }
