@@ -1,10 +1,11 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { Button, Card, CardHeader, CardTitle, CardContent } from '@/components/ui/index'
 import { toast } from '@/components/ui/toaster'
-import { Settings, Mail, MessageSquare, Building2, Shield, User, Palette, Save, Eye, EyeOff, CheckCircle } from 'lucide-react'
+import { Settings, Mail, MessageSquare, Building2, Shield, User, Palette, Save, Eye, EyeOff, CheckCircle, Megaphone } from 'lucide-react'
 import { useAuthStore } from '@/lib/store/auth.store'
 import { useForm } from 'react-hook-form'
 import api from '@/lib/api'
@@ -13,11 +14,17 @@ type ProfileFormValues = { name: string; phone: string }
 type PasswordFormValues = { currentPassword: string; newPassword: string; confirmPassword: string }
 type EmailFormValues = { gmailUser: string; gmailAppPassword: string; fromName: string }
 type WAFormValues = { phoneId: string; accessToken: string; businessId: string; templateName: string; allowRawText: boolean }
+type AdsFormValues = {
+  metaAppId: string; metaAppSecret: string; metaLeadVerifyToken: string; metaLeadAccessToken: string; metaAdsAccessToken: string; metaAdAccountId: string
+  googleLeadWebhookKey: string; googleAdsClientId: string; googleAdsClientSecret: string; googleAdsRefreshToken: string
+  googleAdsDeveloperToken: string; googleAdsCustomerId: string; googleAdsLoginCustomerId: string
+}
 
 const TABS = [
   { key: 'profile', label: 'My Profile', icon: User },
   { key: 'email', label: 'Email Config', icon: Mail },
   { key: 'whatsapp', label: 'WhatsApp API', icon: MessageSquare },
+  { key: 'ads', label: 'Meta & Google Ads', icon: Megaphone },
   { key: 'projects', label: 'Projects', icon: Building2 },
   { key: 'security', label: 'Security', icon: Shield },
   { key: 'branding', label: 'Branding', icon: Palette },
@@ -28,6 +35,7 @@ export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState('profile')
   const [showPass, setShowPass] = useState(false)
   const [testEmailSent, setTestEmailSent] = useState(false)
+  const queryClient = useQueryClient()
 
   const { register, handleSubmit, formState: { isSubmitting } } = useForm<ProfileFormValues>({
     defaultValues: { name: user?.name || '', phone: user?.phone || '' } as ProfileFormValues,
@@ -36,7 +44,13 @@ export default function SettingsPage() {
   const { register: regPw, handleSubmit: handlePw } = useForm<PasswordFormValues>()
   const { register: regEmail, handleSubmit: handleEmail } = useForm<EmailFormValues>()
   const { register: regWA, handleSubmit: handleWA, reset: resetWA } = useForm<WAFormValues>()
+  const { register: regAds, handleSubmit: handleAds, reset: resetAds } = useForm<AdsFormValues>()
   const [hasSavedWAToken, setHasSavedWAToken] = useState(false)
+  const { data: adsSettingsData } = useQuery({
+    queryKey: ['ads-settings'],
+    queryFn: () => api.get('/api/settings/ads'),
+    enabled: activeTab === 'ads',
+  })
 
   useEffect(() => {
     if (activeTab !== 'whatsapp') return
@@ -53,6 +67,26 @@ export default function SettingsPage() {
       })
     }).catch(() => {})
   }, [activeTab, resetWA])
+
+  useEffect(() => {
+    const settings = adsSettingsData?.data?.data
+    if (!settings) return
+    resetAds({
+      metaAppId: settings.meta_app_id || '',
+      metaAppSecret: settings.meta_app_secret || '',
+      metaLeadVerifyToken: settings.meta_lead_verify_token || '',
+      metaLeadAccessToken: settings.meta_lead_access_token || '',
+      metaAdsAccessToken: settings.meta_ads_access_token || '',
+      metaAdAccountId: settings.meta_ad_account_id || '',
+      googleLeadWebhookKey: settings.google_lead_webhook_key || '',
+      googleAdsClientId: settings.google_ads_client_id || '',
+      googleAdsClientSecret: settings.google_ads_client_secret || '',
+      googleAdsRefreshToken: settings.google_ads_refresh_token || '',
+      googleAdsDeveloperToken: settings.google_ads_developer_token || '',
+      googleAdsCustomerId: settings.google_ads_customer_id || '',
+      googleAdsLoginCustomerId: settings.google_ads_login_customer_id || '',
+    })
+  }, [adsSettingsData, resetAds])
 
   const onProfileSave = async (data: any) => {
     try {
@@ -83,6 +117,37 @@ export default function SettingsPage() {
       resetWA({ ...data, accessToken: '' })
       toast.success('WhatsApp configuration saved')
     } catch { toast.error('Failed to save WhatsApp config') }
+  }
+
+  const onAdsSave = async (data: AdsFormValues) => {
+    try {
+      await api.post('/api/settings/ads', {
+        meta_app_id: data.metaAppId,
+        meta_app_secret: data.metaAppSecret,
+        meta_lead_verify_token: data.metaLeadVerifyToken,
+        meta_lead_access_token: data.metaLeadAccessToken,
+        meta_ads_access_token: data.metaAdsAccessToken,
+        meta_ad_account_id: data.metaAdAccountId,
+        google_lead_webhook_key: data.googleLeadWebhookKey,
+        google_ads_client_id: data.googleAdsClientId,
+        google_ads_client_secret: data.googleAdsClientSecret,
+        google_ads_refresh_token: data.googleAdsRefreshToken,
+        google_ads_developer_token: data.googleAdsDeveloperToken,
+        google_ads_customer_id: data.googleAdsCustomerId,
+        google_ads_login_customer_id: data.googleAdsLoginCustomerId,
+      })
+      queryClient.invalidateQueries({ queryKey: ['ads-settings'] })
+      toast.success('Ads credentials saved and integrations activated')
+    } catch (error: any) { toast.error(error.response?.data?.message || 'Failed to save Ads credentials') }
+  }
+
+  const connectAds = async (provider: 'meta' | 'google') => {
+    try {
+      const response = await api.get(`/api/ad-integrations/${provider}/connect`)
+      window.location.href = response.data.data.url
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || `Unable to connect ${provider === 'meta' ? 'Meta' : 'Google Ads'}`)
+    }
   }
 
   const sendTestEmail = async () => {
@@ -231,6 +296,52 @@ export default function SettingsPage() {
                     Allow raw WhatsApp text only for opted-in recipients
                   </label>
                   <Button type="submit" icon={<Save className="w-3.5 h-3.5" />}>Save WhatsApp Config</Button>
+                </form>
+              </CardContent>
+            </Card>
+          )}
+
+          {activeTab === 'ads' && (
+            <Card>
+              <CardHeader>
+                <CardTitle><Megaphone className="w-4 h-4 text-gold" />Meta & Google Ads Integrations</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-5">
+                  <div className={`rounded-lg border px-4 py-3 text-xs flex items-center justify-between gap-3 ${adsSettingsData?.data?.data?.metaActive ? 'border-green-500/30 bg-green-500/10 text-green-400' : 'border-navy-border bg-navy text-slate'}`}>
+                    <span>Meta Ads: {adsSettingsData?.data?.data?.metaActive ? 'Active' : 'Not connected'}</span>
+                    <Button type="button" variant="secondary" size="sm" onClick={() => connectAds('meta')}>Connect Meta</Button>
+                  </div>
+                  <div className={`rounded-lg border px-4 py-3 text-xs flex items-center justify-between gap-3 ${adsSettingsData?.data?.data?.googleActive ? 'border-green-500/30 bg-green-500/10 text-green-400' : 'border-navy-border bg-navy text-slate'}`}>
+                    <span>Google Ads: {adsSettingsData?.data?.data?.googleActive ? 'Active' : 'Not connected'}</span>
+                    <Button type="button" variant="secondary" size="sm" onClick={() => connectAds('google')}>Connect Google Ads</Button>
+                  </div>
+                </div>
+                <form onSubmit={handleAds(onAdsSave)} className="space-y-6">
+                  <div>
+                    <h3 className="text-sm font-medium text-white mb-3">Meta Lead Ads</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div><label className="block text-xs font-medium text-slate-light mb-1.5">Meta App ID</label><input {...regAds('metaAppId')} placeholder="Meta Developer App ID" className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white font-mono placeholder:text-slate/40 focus:outline-none focus:ring-1 focus:ring-gold/50" /></div>
+                      <div><label className="block text-xs font-medium text-slate-light mb-1.5">Meta App Secret</label><input {...regAds('metaAppSecret')} type="password" autoComplete="new-password" placeholder="Meta Developer App Secret" className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white font-mono placeholder:text-slate/40 focus:outline-none focus:ring-1 focus:ring-gold/50" /></div>
+                      <div><label className="block text-xs font-medium text-slate-light mb-1.5">Webhook Verify Token</label><input {...regAds('metaLeadVerifyToken')} type="password" autoComplete="new-password" placeholder="Meta webhook verification token" className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white font-mono placeholder:text-slate/40 focus:outline-none focus:ring-1 focus:ring-gold/50" /></div>
+                      <div><label className="block text-xs font-medium text-slate-light mb-1.5">Ad Account ID</label><input {...regAds('metaAdAccountId')} placeholder="act_123... or 123..." className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white font-mono placeholder:text-slate/40 focus:outline-none focus:ring-1 focus:ring-gold/50" /></div>
+                      <div><label className="block text-xs font-medium text-slate-light mb-1.5">Lead Page Access Token</label><input {...regAds('metaLeadAccessToken')} type="password" autoComplete="new-password" placeholder="Meta Page access token" className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white font-mono placeholder:text-slate/40 focus:outline-none focus:ring-1 focus:ring-gold/50" /></div>
+                      <div><label className="block text-xs font-medium text-slate-light mb-1.5">Ads Reporting Access Token</label><input {...regAds('metaAdsAccessToken')} type="password" autoComplete="new-password" placeholder="Meta Ads access token" className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white font-mono placeholder:text-slate/40 focus:outline-none focus:ring-1 focus:ring-gold/50" /></div>
+                    </div>
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-medium text-white mb-3">Google Lead Forms & Ads</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div><label className="block text-xs font-medium text-slate-light mb-1.5">Lead Webhook Key</label><input {...regAds('googleLeadWebhookKey')} type="password" autoComplete="new-password" placeholder="Optional webhook key" className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white font-mono placeholder:text-slate/40 focus:outline-none focus:ring-1 focus:ring-gold/50" /></div>
+                      <div><label className="block text-xs font-medium text-slate-light mb-1.5">Customer ID</label><input {...regAds('googleAdsCustomerId')} placeholder="123-456-7890" className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white font-mono placeholder:text-slate/40 focus:outline-none focus:ring-1 focus:ring-gold/50" /></div>
+                      <div><label className="block text-xs font-medium text-slate-light mb-1.5">OAuth Client ID</label><input {...regAds('googleAdsClientId')} placeholder="Google OAuth client ID" className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white font-mono placeholder:text-slate/40 focus:outline-none focus:ring-1 focus:ring-gold/50" /></div>
+                      <div><label className="block text-xs font-medium text-slate-light mb-1.5">OAuth Client Secret</label><input {...regAds('googleAdsClientSecret')} type="password" autoComplete="new-password" placeholder="Google Ads OAuth client secret" className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white font-mono placeholder:text-slate/40 focus:outline-none focus:ring-1 focus:ring-gold/50" /></div>
+                      <div><label className="block text-xs font-medium text-slate-light mb-1.5">OAuth Refresh Token</label><input {...regAds('googleAdsRefreshToken')} type="password" autoComplete="new-password" placeholder="Google Ads refresh token" className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white font-mono placeholder:text-slate/40 focus:outline-none focus:ring-1 focus:ring-gold/50" /></div>
+                      <div><label className="block text-xs font-medium text-slate-light mb-1.5">Developer Token</label><input {...regAds('googleAdsDeveloperToken')} type="password" autoComplete="new-password" placeholder="Google Ads developer token" className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white font-mono placeholder:text-slate/40 focus:outline-none focus:ring-1 focus:ring-gold/50" /></div>
+                      <div><label className="block text-xs font-medium text-slate-light mb-1.5">Login Customer ID (optional)</label><input {...regAds('googleAdsLoginCustomerId')} placeholder="Manager account ID" className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white font-mono placeholder:text-slate/40 focus:outline-none focus:ring-1 focus:ring-gold/50" /></div>
+                    </div>
+                  </div>
+                  <Button type="submit" icon={<Save className="w-3.5 h-3.5" />}>Save & Activate Ads Integrations</Button>
                 </form>
               </CardContent>
             </Card>
