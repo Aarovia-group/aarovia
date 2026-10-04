@@ -33,6 +33,8 @@ const adsSecretKeys = new Set<string>([
   'google_ads_developer_token',
 ])
 
+const brandingKeys = ['brand_company_name', 'brand_logo_url', 'crm_domain', 'brand_accent_color'] as const
+
 router.get('/', async (req, res) => {
   try {
     const settings = await prisma.settings.findMany({
@@ -41,6 +43,66 @@ router.get('/', async (req, res) => {
     const map = settings.reduce((acc: any, s) => { acc[s.key] = s.value; return acc }, {})
     res.json({ success: true, data: map })
   } catch (e) { res.status(500).json({ success: false, message: 'Failed to fetch settings' }) }
+})
+
+router.get('/branding', async (_req, res) => {
+  try {
+    const settings = await prisma.settings.findMany({ where: { key: { in: [...brandingKeys] } } })
+    const values = settings.reduce<Record<string, string>>((result, setting) => {
+      result[setting.key] = setting.value
+      return result
+    }, {})
+    res.json({
+      success: true,
+      data: {
+        companyName: values.brand_company_name || 'Aarovia',
+        logoUrl: values.brand_logo_url || '',
+        domain: values.crm_domain || 'aarovia.co.in',
+        accentColor: values.brand_accent_color || '#C9A84C',
+      },
+    })
+  } catch {
+    res.status(500).json({ success: false, message: 'Failed to load branding settings' })
+  }
+})
+
+router.post('/branding', authorize('SUPER_ADMIN', 'ADMIN'), async (req, res) => {
+  try {
+    const { companyName, domain, logoUrl, accentColor } = req.body || {}
+    if (typeof companyName !== 'string' || !companyName.trim()) {
+      return res.status(400).json({ success: false, message: 'Company name is required' })
+    }
+    if (typeof domain !== 'string' || !domain.trim()) {
+      return res.status(400).json({ success: false, message: 'CRM domain is required' })
+    }
+    if (typeof logoUrl !== 'string' || typeof accentColor !== 'string' || !/^#[0-9a-fA-F]{6}$/.test(accentColor)) {
+      return res.status(400).json({ success: false, message: 'A valid logo URL and accent color are required' })
+    }
+    if (logoUrl) {
+      let parsedLogoUrl: URL
+      try {
+        parsedLogoUrl = new URL(logoUrl)
+      } catch {
+        return res.status(400).json({ success: false, message: 'Logo URL must be a valid HTTPS image URL' })
+      }
+      if (parsedLogoUrl.protocol !== 'https:') {
+        return res.status(400).json({ success: false, message: 'Logo URL must use HTTPS' })
+      }
+    }
+    const values = [companyName.trim(), logoUrl.trim(), domain.trim(), accentColor]
+    await prisma.$transaction(brandingKeys.map((key, index) => prisma.settings.upsert({
+      where: { key },
+      update: { value: values[index], group: 'branding' },
+      create: { key, value: values[index], group: 'branding' },
+    })))
+    res.json({
+      success: true,
+      data: { companyName: values[0], logoUrl: values[1], domain: values[2], accentColor: values[3] },
+      message: 'Branding settings saved',
+    })
+  } catch {
+    res.status(500).json({ success: false, message: 'Failed to save branding settings' })
+  }
 })
 
 router.get('/ads', authorize('SUPER_ADMIN', 'ADMIN'), async (_req, res) => {

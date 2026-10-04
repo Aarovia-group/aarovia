@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { ChangeEvent, useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { Button, Card, CardHeader, CardTitle, CardContent } from '@/components/ui/index'
@@ -8,7 +8,7 @@ import { toast } from '@/components/ui/toaster'
 import { Settings, Mail, MessageSquare, Building2, Shield, User, Palette, Save, Eye, EyeOff, CheckCircle, Megaphone, Plus } from 'lucide-react'
 import { useAuthStore } from '@/lib/store/auth.store'
 import { useForm } from 'react-hook-form'
-import api from '@/lib/api'
+import api, { uploadApi } from '@/lib/api'
 
 type ProfileFormValues = { name: string; phone: string }
 type PasswordFormValues = { currentPassword: string; newPassword: string; confirmPassword: string }
@@ -16,6 +16,7 @@ type EmailFormValues = { gmailUser: string; gmailAppPassword: string; fromName: 
 type WAFormValues = { phoneId: string; accessToken: string; businessId: string }
 type TwilioWAFormValues = { accountSid: string; authToken: string; apiKeySid: string; apiKeySecret: string; phoneNumber: string; smsPhoneNumber: string; templateSid: string }
 type ProjectFormValues = { name: string; location: string; city: string; state: string; description: string; reraNumber: string }
+type BrandingFormValues = { companyName: string; domain: string; logoUrl: string; accentColor: string }
 type AdsFormValues = {
   metaAppId: string; metaAppSecret: string; metaLeadVerifyToken: string; metaLeadAccessToken: string; metaAdsAccessToken: string; metaAdAccountId: string
   googleLeadWebhookKey: string; googleAdsClientId: string; googleAdsClientSecret: string; googleAdsRefreshToken: string
@@ -57,6 +58,10 @@ export default function SettingsPage() {
   const [twilioWhatsAppSettings, setTwilioWhatsAppSettings] = useState<any>(null)
   const [showProjectForm, setShowProjectForm] = useState(false)
   const { register: regProject, handleSubmit: handleProjectSubmit, reset: resetProject } = useForm<ProjectFormValues>()
+  const logoInputRef = useRef<HTMLInputElement>(null)
+  const { register: regBranding, handleSubmit: handleBrandingSubmit, reset: resetBranding, setValue: setBrandingValue, watch: watchBranding } = useForm<BrandingFormValues>({
+    defaultValues: { companyName: 'Aarovia', domain: 'aarovia.co.in', logoUrl: '', accentColor: '#C9A84C' },
+  })
   const { data: adsSettingsData, isLoading: adsSettingsLoading, isError: adsSettingsError } = useQuery({
     queryKey: ['ads-settings'],
     queryFn: () => api.get('/settings/ads'),
@@ -66,6 +71,33 @@ export default function SettingsPage() {
     queryKey: ['projects'],
     queryFn: () => api.get('/projects', { params: { isActive: true } }),
     enabled: activeTab === 'projects',
+  })
+  const brandingQuery = useQuery({
+    queryKey: ['branding-settings'],
+    queryFn: () => api.get('/settings/branding'),
+    enabled: activeTab === 'branding',
+  })
+  const uploadLogoMutation = useMutation({
+    mutationFn: uploadApi.uploadBrandingLogo,
+    onSuccess: (response) => {
+      const logoUrl = response.data?.data?.url
+      if (typeof logoUrl !== 'string' || !logoUrl) {
+        toast.error('Logo upload did not return an image URL')
+        return
+      }
+      setBrandingValue('logoUrl', logoUrl, { shouldDirty: true })
+      toast.success('Logo uploaded. Save Branding to publish it.')
+    },
+    onError: (error: any) => toast.error(error.response?.data?.message || 'Logo upload failed'),
+  })
+  const saveBrandingMutation = useMutation({
+    mutationFn: (data: BrandingFormValues) => api.post('/settings/branding', data),
+    onSuccess: (response) => {
+      resetBranding(response.data?.data)
+      queryClient.invalidateQueries({ queryKey: ['branding-settings'] })
+      toast.success('Branding settings saved')
+    },
+    onError: (error: any) => toast.error(error.response?.data?.message || 'Failed to save branding settings'),
   })
   const createProjectMutation = useMutation({
     mutationFn: (data: ProjectFormValues) => api.post('/projects', {
@@ -137,6 +169,26 @@ export default function SettingsPage() {
       googleAdsLoginCustomerId: settings.google_ads_login_customer_id || '',
     })
   }, [adsSettingsData, resetAds])
+
+  useEffect(() => {
+    const settings = brandingQuery.data?.data?.data
+    if (settings) resetBranding(settings)
+  }, [brandingQuery.data, resetBranding])
+
+  const onBrandingLogoChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    if (!file) return
+    if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
+      toast.error('Choose a PNG, JPEG, or WebP logo image')
+      return
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error('Logo image must be 2 MB or smaller')
+      return
+    }
+    uploadLogoMutation.mutate(file)
+  }
 
   const onProfileSave = async (data: any) => {
     try {
@@ -496,35 +548,66 @@ export default function SettingsPage() {
                 <CardTitle><Palette className="w-4 h-4 text-gold" />CRM Branding</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-5 max-w-md">
+                {brandingQuery.isLoading ? (
+                  <p className="text-sm text-slate py-6">Loading branding settings...</p>
+                ) : brandingQuery.isError ? (
+                  <p className="text-sm text-red-400 py-6">Could not load branding settings. Please try again.</p>
+                ) : (
+                  <form onSubmit={handleBrandingSubmit((data) => saveBrandingMutation.mutate(data))} className="space-y-5 max-w-md">
                   <div>
                     <label className="block text-xs font-medium text-slate-light mb-1.5">Company Name</label>
-                    <input defaultValue="Aarovia Real Estates" className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-gold/50" />
+                    <input {...regBranding('companyName', { required: true })} required className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-gold/50" />
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-slate-light mb-1.5">CRM Domain</label>
-                    <input defaultValue="aarovia.co.in" className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-gold/50" />
+                    <input {...regBranding('domain', { required: true })} required className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-gold/50" />
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-slate-light mb-3">Logo Upload</label>
-                    <div className="border-2 border-dashed border-navy-border rounded-lg p-6 text-center hover:border-gold/40 transition-colors cursor-pointer">
-                      <div className="w-12 h-12 rounded-xl gold-gradient mx-auto mb-3 flex items-center justify-center">
-                        <span className="font-display font-bold text-navy text-lg">A</span>
+                    <input
+                      ref={logoInputRef}
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp"
+                      className="hidden"
+                      onChange={onBrandingLogoChange}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => logoInputRef.current?.click()}
+                      disabled={uploadLogoMutation.isPending}
+                      className="w-full border-2 border-dashed border-navy-border rounded-lg p-6 text-center hover:border-gold/40 transition-colors disabled:opacity-50"
+                    >
+                      <div
+                        role={watchBranding('logoUrl') ? 'img' : undefined}
+                        aria-label={watchBranding('logoUrl') ? 'Company logo preview' : undefined}
+                        className="w-24 h-16 rounded-xl bg-gradient-to-br from-[#C9A84C] to-[#E8C96A] bg-center bg-contain bg-no-repeat mx-auto mb-3 flex items-center justify-center"
+                        style={watchBranding('logoUrl') ? { backgroundImage: `url("${watchBranding('logoUrl')}")` } : undefined}
+                      >
+                        {!watchBranding('logoUrl') && <span className="font-display font-bold text-[#0A1628] text-lg">{(watchBranding('companyName') || 'A').charAt(0).toUpperCase()}</span>}
                       </div>
-                      <p className="text-xs text-slate">Click to upload or drag & drop</p>
-                      <p className="text-[10px] text-slate/60 mt-1">PNG, SVG up to 2MB</p>
-                    </div>
+                      <p className="text-xs text-slate">{uploadLogoMutation.isPending ? 'Uploading logo...' : 'Select a company logo'}</p>
+                      <p className="text-[10px] text-slate/60 mt-1">PNG, JPEG, or WebP up to 2 MB</p>
+                    </button>
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-slate-light mb-2">Accent Color</label>
-                    <div className="flex gap-2">
+                    <div className="flex gap-2" role="group" aria-label="Accent color">
                       {['#C9A84C', '#E67E22', '#2ECC71', '#3498DB', '#9B59B6', '#E74C3C'].map(color => (
-                        <button key={color} className="w-7 h-7 rounded-full border-2 border-transparent hover:border-white transition-colors" style={{ backgroundColor: color }} />
+                        <button
+                          key={color}
+                          type="button"
+                          aria-label={`Choose accent color ${color}`}
+                          aria-pressed={watchBranding('accentColor') === color}
+                          onClick={() => setBrandingValue('accentColor', color, { shouldDirty: true })}
+                          className={`w-7 h-7 rounded-full border-2 transition-colors ${watchBranding('accentColor') === color ? 'border-slate-900' : 'border-transparent hover:border-slate-400'}`}
+                          style={{ backgroundColor: color }}
+                        />
                       ))}
                     </div>
                   </div>
-                  <Button icon={<Save className="w-3.5 h-3.5" />}>Save Branding</Button>
-                </div>
+                  <Button type="submit" loading={saveBrandingMutation.isPending} disabled={uploadLogoMutation.isPending} icon={<Save className="w-3.5 h-3.5" />}>Save Branding</Button>
+                  </form>
+                )}
               </CardContent>
             </Card>
           )}

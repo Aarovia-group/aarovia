@@ -100,6 +100,10 @@
 .text-slate { color: #64748b !important; }
 .text-slate-light { color: #475569 !important; }
 .text-white { color: #172033 !important; }
+.crm-shell button.text-white,
+.crm-shell button .text-white,
+.crm-shell a.text-white,
+.crm-shell a .text-white { color: #ffffff !important; }
 [class*='bg-[#0A1628]'] { background-color: #ffffff !important; }
 [class*='bg-[#12243E]'] { background-color: #f8fafc !important; }
 [class*='border-[#2A4070]'] { border-color: #d8e0e8 !important; }

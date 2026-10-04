@@ -146,6 +146,8 @@ export const authApi = {
 
 export const settingsApi = {
   getAll: () => api.get('/settings'),
+  getBranding: () => api.get('/settings/branding'),
+  saveBranding: (data: { companyName: string; domain: string; logoUrl: string; accentColor: string }) => api.post('/settings/branding', data),
 }
 
 export const leadApi = {
@@ -237,6 +239,13 @@ export const emailApi = {
 }
 
 export const uploadApi = {
+  uploadBrandingLogo: (file: File) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    return api.post('/upload/branding-logo', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+  },
   uploadDocument: (file: File, category = 'BROCHURE') => {
     const formData = new FormData()
     formData.append('file', file)

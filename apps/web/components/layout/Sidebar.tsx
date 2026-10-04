@@ -4,7 +4,9 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { authApi } from '@/lib/api'
+import api from '@/lib/api'
 import { useAuthStore } from '@/lib/store/auth.store'
+import { useQuery } from '@tanstack/react-query'
 import {
   LayoutDashboard, Users, UserCheck, Building2, FileText,
   BookOpen, Receipt, Coins, ClipboardList,
@@ -60,6 +62,13 @@ export function Sidebar({ unreadNotifications = 0, mobileOpen, onMobileClose }: 
   const pathname = usePathname()
   const router = useRouter()
   const { user, clearAuth } = useAuthStore()
+  const { data: brandingResponse } = useQuery({
+    queryKey: ['branding-settings'],
+    queryFn: () => api.get('/settings/branding'),
+    enabled: Boolean(user),
+    staleTime: 60_000,
+  })
+  const branding = brandingResponse?.data?.data
 
   const handleLogout = async () => {
     try {
@@ -76,11 +85,16 @@ export function Sidebar({ unreadNotifications = 0, mobileOpen, onMobileClose }: 
       {/* Logo - fixed top */}
       <div className="px-4 py-4 border-b border-[#d8e0e8] flex-shrink-0">
         <Link href="/dashboard" className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#C9A84C] to-[#E8C96A] flex items-center justify-center flex-shrink-0">
-            <span className="font-bold text-[#0A1628] text-sm">A</span>
+          <div
+            role={branding?.logoUrl ? 'img' : undefined}
+            aria-label={branding?.logoUrl ? `${branding.companyName} logo` : undefined}
+            className="w-9 h-9 rounded-lg bg-gradient-to-br from-[#C9A84C] to-[#E8C96A] flex items-center justify-center flex-shrink-0 bg-center bg-contain bg-no-repeat"
+            style={branding?.logoUrl ? { backgroundImage: `url("${branding.logoUrl}")` } : undefined}
+          >
+            {!branding?.logoUrl && <span className="font-bold text-[#0A1628] text-sm">{(branding?.companyName || 'A').charAt(0).toUpperCase()}</span>}
           </div>
           <div>
-            <div className="text-sm font-semibold text-[#172033] leading-tight">Aarovia</div>
+            <div className="text-sm font-semibold text-[#172033] leading-tight">{branding?.companyName || 'Aarovia'}</div>
             <div className="text-[9px] text-[#64748b] uppercase tracking-[2px]">Real Estates</div>
           </div>
         </Link>

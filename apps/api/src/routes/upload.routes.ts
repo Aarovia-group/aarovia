@@ -1,6 +1,6 @@
 import { Router } from 'express'
-import { authenticate } from '../middleware/auth.middleware'
-import { upload, uploadDocument, uploadProjectImage, uploadAvatar } from '../services/upload.service'
+import { authenticate, authorize } from '../middleware/auth.middleware'
+import { upload, uploadDocument, uploadProjectImage, uploadAvatar, uploadBrandingLogo } from '../services/upload.service'
 import prisma from '../utils/prisma'
 
 const router = Router()
@@ -14,6 +14,7 @@ router.post('/project-image', upload.single('file'), uploadProjectImage)
 
 // Upload user avatar
 router.post('/avatar', upload.single('file'), uploadAvatar)
+router.post('/branding-logo', authorize('SUPER_ADMIN', 'ADMIN'), upload.single('file'), uploadBrandingLogo)
 
 // Save document record to database after upload
 router.post('/save-document', async (req: any, res) => {

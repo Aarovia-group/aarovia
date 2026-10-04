@@ -134,6 +134,26 @@ export const uploadProjectImage = async (req: Request, res: Response) => {
   }
 }
 
+export const uploadBrandingLogo = async (req: Request, res: Response) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: 'Select a logo image to upload' })
+    }
+    if (!['image/png', 'image/jpeg', 'image/webp'].includes(req.file.mimetype)) {
+      return res.status(400).json({ success: false, message: 'Logo must be a PNG, JPEG, or WebP image' })
+    }
+    if (req.file.size > 2 * 1024 * 1024) {
+      return res.status(400).json({ success: false, message: 'Logo image must be 2 MB or smaller' })
+    }
+
+    const { url } = await uploadToCloudinary(req.file.buffer, 'branding', 'image')
+    res.json({ success: true, data: { url } })
+  } catch (error: any) {
+    console.error('[Upload] Branding logo upload failed', error)
+    res.status(500).json({ success: false, message: 'Logo upload failed' })
+  }
+}
+
 // Upload profile avatar
 export const uploadAvatar = async (req: Request, res: Response) => {
   try {
