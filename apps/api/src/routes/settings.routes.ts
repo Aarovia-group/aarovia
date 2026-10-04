@@ -440,14 +440,14 @@ router.post('/sms/twilio', authorize('SUPER_ADMIN', 'ADMIN'), async (req, res) =
       ['apiKeySecret', 'sms_twilio_api_key_secret', 'TWILIO_API_KEY_SECRET'],
       ['smsPhoneNumber', 'twilio_sms_phone_number', 'TWILIO_SMS_PHONE_NUMBER'],
     ] as const
-    const settings = await prisma.settings.findMany({
-      where: { key: { in: [...new Set(keys.map(([, key]) => key).concat([
-        'twilio_account_sid',
-        'twilio_auth_token',
-        'twilio_api_key_sid',
-        'twilio_api_key_secret',
-      ]))] } },
-    })
+    const lookupKeys: string[] = [...new Set([
+      ...keys.map(([, key]) => key),
+      'twilio_account_sid',
+      'twilio_auth_token',
+      'twilio_api_key_sid',
+      'twilio_api_key_secret',
+    ])]
+    const settings = await prisma.settings.findMany({ where: { key: { in: lookupKeys } } })
     const stored = settings.reduce<Record<string, string>>((result, setting) => {
       result[setting.key] = setting.value
       return result
