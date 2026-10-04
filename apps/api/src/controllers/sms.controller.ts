@@ -1,7 +1,7 @@
 import axios from 'axios'
 import { Response } from 'express'
 import { AuthRequest } from '../middleware/auth.middleware'
-import { getWhatsAppConfiguration } from '../services/whatsapp.service'
+import { getTwilioSmsConfiguration } from '../services/whatsapp.service'
 import prisma from '../utils/prisma'
 
 const toE164 = (value: string) => {
@@ -34,8 +34,7 @@ export const sendLeadSms = async (req: AuthRequest, res: Response) => {
     })
     if (!lead) return res.status(404).json({ success: false, message: 'Lead not found' })
 
-    const configuration = await getWhatsAppConfiguration()
-    const { accountSid, authToken, apiKeySid, apiKeySecret, smsPhoneNumber } = configuration.twilio
+    const { accountSid, authToken, apiKeySid, apiKeySecret, smsPhoneNumber } = await getTwilioSmsConfiguration()
     if (!accountSid || !(authToken || (apiKeySid && apiKeySecret)) || !smsPhoneNumber) {
       return res.status(400).json({
         success: false,

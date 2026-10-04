@@ -16,6 +16,7 @@ type PasswordFormValues = { currentPassword: string; newPassword: string; confir
 type EmailFormValues = { zohoEmail: string; zohoAppPassword: string; smtpHost: string; smtpPort: number; fromName: string }
 type WAFormValues = { phoneId: string; accessToken: string; businessId: string }
 type TwilioWAFormValues = { accountSid: string; authToken: string; apiKeySid: string; apiKeySecret: string; phoneNumber: string; smsPhoneNumber: string; templateSid: string }
+type TwilioSmsFormValues = { accountSid: string; authToken: string; apiKeySid: string; apiKeySecret: string; smsPhoneNumber: string }
 type ProjectFormValues = { name: string; location: string; city: string; state: string; description: string; reraNumber: string }
 type BrandingFormValues = { companyName: string; domain: string; logoUrl: string; accentColor: string }
 type AdsFormValues = {
@@ -28,6 +29,7 @@ const TABS = [
   { key: 'profile', label: 'My Profile', icon: User },
   { key: 'email', label: 'Email Config', icon: Mail },
   { key: 'whatsapp', label: 'Meta WhatsApp API', icon: MessageSquare },
+  { key: 'twilio-sms', label: 'Twilio SMS', icon: MessageSquare },
   { key: 'twilio-whatsapp', label: 'Twilio WhatsApp', icon: MessageSquare },
   { key: 'ads', label: 'Meta & Google Ads', icon: Megaphone },
   { key: 'projects', label: 'Projects', icon: Building2 },
@@ -52,13 +54,17 @@ export default function SettingsPage() {
   })
   const { register: regWA, handleSubmit: handleWA, reset: resetWA } = useForm<WAFormValues>()
   const { register: regTwilioWA, handleSubmit: handleTwilioWA, reset: resetTwilioWA } = useForm<TwilioWAFormValues>()
+  const { register: regTwilioSms, handleSubmit: handleTwilioSms, reset: resetTwilioSms } = useForm<TwilioSmsFormValues>()
   const { register: regAds, handleSubmit: handleAds, reset: resetAds } = useForm<AdsFormValues>()
   const canManageProjects = user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN'
   const [hasSavedWAToken, setHasSavedWAToken] = useState(false)
   const [hasSavedTwilioAuthToken, setHasSavedTwilioAuthToken] = useState(false)
   const [hasSavedTwilioApiKeySecret, setHasSavedTwilioApiKeySecret] = useState(false)
+  const [hasSavedSmsTwilioAuthToken, setHasSavedSmsTwilioAuthToken] = useState(false)
+  const [hasSavedSmsTwilioApiKeySecret, setHasSavedSmsTwilioApiKeySecret] = useState(false)
   const [waSettings, setWaSettings] = useState<any>(null)
   const [twilioWhatsAppSettings, setTwilioWhatsAppSettings] = useState<any>(null)
+  const [twilioSmsSettings, setTwilioSmsSettings] = useState<any>(null)
   const [showProjectForm, setShowProjectForm] = useState(false)
   const { register: regProject, handleSubmit: handleProjectSubmit, reset: resetProject } = useForm<ProjectFormValues>()
   const logoInputRef = useRef<HTMLInputElement>(null)
@@ -156,7 +162,25 @@ export default function SettingsPage() {
         toast.error(error.response?.data?.message || 'Failed to load Twilio WhatsApp settings')
       })
     }
-  }, [activeTab, resetWA, resetTwilioWA])
+    if (activeTab === 'twilio-sms') {
+      api.get('/settings/sms/twilio').then((response) => {
+        const settings = response.data?.data
+        if (!settings) return
+        setTwilioSmsSettings(settings)
+        setHasSavedSmsTwilioAuthToken(Boolean(settings.authTokenConfigured))
+        setHasSavedSmsTwilioApiKeySecret(Boolean(settings.apiKeySecretConfigured))
+        resetTwilioSms({
+          accountSid: settings.accountSid || '',
+          authToken: '',
+          apiKeySid: settings.apiKeySid || '',
+          apiKeySecret: '',
+          smsPhoneNumber: settings.smsPhoneNumber || '',
+        })
+      }).catch((error) => {
+        toast.error(error.response?.data?.message || 'Failed to load Twilio SMS settings')
+      })
+    }
+  }, [activeTab, resetWA, resetTwilioWA, resetTwilioSms])
 
   useEffect(() => {
     const settings = adsSettingsData?.data?.data
@@ -254,6 +278,19 @@ export default function SettingsPage() {
       toast.success('Twilio WhatsApp settings saved and selected')
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Failed to save Twilio WhatsApp settings')
+    }
+  }
+
+  const onTwilioSmsSave = async (data: TwilioSmsFormValues) => {
+    try {
+      await api.post('/settings/sms/twilio', data)
+      setTwilioSmsSettings((current: any) => ({ ...current, configured: true }))
+      setHasSavedSmsTwilioAuthToken(Boolean(data.authToken) || hasSavedSmsTwilioAuthToken)
+      setHasSavedSmsTwilioApiKeySecret(Boolean(data.apiKeySecret) || hasSavedSmsTwilioApiKeySecret)
+      resetTwilioSms({ ...data, authToken: '', apiKeySecret: '' })
+      toast.success('Twilio SMS settings saved. WhatsApp provider selection was not changed.')
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Failed to save Twilio SMS settings')
     }
   }
 
@@ -445,6 +482,50 @@ export default function SettingsPage() {
                     <input {...regWA('businessId')} placeholder="WABA ID" className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white font-mono placeholder:text-slate/40 focus:outline-none focus:ring-1 focus:ring-gold/50" />
                   </div>
                   <Button type="submit" disabled={Boolean(waSettings?.providerLocked && waSettings?.provider !== 'META')} icon={<Save className="w-3.5 h-3.5" />}>Save Meta WhatsApp API Settings</Button>
+                </form>
+              </CardContent>
+            </Card>
+          )}
+
+          {activeTab === 'twilio-sms' && (
+            <Card>
+              <CardHeader>
+                <CardTitle><MessageSquare className="w-4 h-4 text-gold" />Twilio SMS Setup</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className={`rounded-lg border px-4 py-3 mb-5 text-xs ${twilioSmsSettings?.configured ? 'border-green-500/30 bg-green-500/10 text-green-400' : 'border-amber-500/30 bg-amber-500/10 text-amber-300'}`}>
+                  {twilioSmsSettings?.configured
+                    ? 'Twilio SMS credentials and sender are configured. Secret values are never displayed.'
+                    : 'Add an SMS-capable Twilio sender number to enable consent-confirmed lead SMS.'}
+                </div>
+                <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg px-4 py-3 mb-5 text-xs text-blue-400">
+                  In Twilio Console, use your Account SID and either Auth Token or an API Key SID and Secret. Buy or verify a Twilio phone number with SMS capability and enter it in international format (for example, +1...). This setup does not change your WhatsApp provider.
+                </div>
+                <form onSubmit={handleTwilioSms(onTwilioSmsSave)} className="space-y-4 max-w-2xl">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-medium text-slate-light mb-1.5">Twilio Account SID</label>
+                      <input {...regTwilioSms('accountSid', { required: true })} placeholder="AC..." className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white font-mono placeholder:text-slate/40 focus:outline-none focus:ring-1 focus:ring-gold/50" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-slate-light mb-1.5">Twilio Auth Token</label>
+                      <input {...regTwilioSms('authToken')} type="password" autoComplete="new-password" placeholder={hasSavedSmsTwilioAuthToken ? 'Saved; blank keeps current token' : 'Enter Auth Token if not using an API key'} className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white font-mono placeholder:text-slate/40 focus:outline-none focus:ring-1 focus:ring-gold/50" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-slate-light mb-1.5">API Key SID (alternative)</label>
+                      <input {...regTwilioSms('apiKeySid')} placeholder="SK..." className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white font-mono placeholder:text-slate/40 focus:outline-none focus:ring-1 focus:ring-gold/50" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-slate-light mb-1.5">API Key Secret</label>
+                      <input {...regTwilioSms('apiKeySecret')} type="password" autoComplete="new-password" placeholder={hasSavedSmsTwilioApiKeySecret ? 'Saved; blank keeps current secret' : 'Enter API Key Secret if using an API key'} className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white font-mono placeholder:text-slate/40 focus:outline-none focus:ring-1 focus:ring-gold/50" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-slate-light mb-1.5">SMS-Capable Twilio Sender Number</label>
+                      <input {...regTwilioSms('smsPhoneNumber', { required: true })} type="tel" placeholder="+12345678900" className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white font-mono placeholder:text-slate/40 focus:outline-none focus:ring-1 focus:ring-gold/50" />
+                    </div>
+                  </div>
+                  <p className="text-[11px] text-slate">SMS is sent through Twilio only after a user confirms the lead consented. Twilio usage charges may apply.</p>
+                  <Button type="submit" icon={<Save className="w-3.5 h-3.5" />}>Save Twilio SMS Settings</Button>
                 </form>
               </CardContent>
             </Card>

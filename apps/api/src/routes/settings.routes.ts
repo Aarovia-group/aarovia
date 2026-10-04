@@ -1,7 +1,7 @@
 import { Router } from 'express'
 import { authenticate, authorize } from '../middleware/auth.middleware'
 import prisma from '../utils/prisma'
-import { getWhatsAppConfiguration } from '../services/whatsapp.service'
+import { getTwilioSmsConfiguration, getWhatsAppConfiguration } from '../services/whatsapp.service'
 
 const router = Router()
 router.use(authenticate)
@@ -38,6 +38,8 @@ const protectedSettingKeys = [
   'wa_access_token',
   'twilio_auth_token',
   'twilio_api_key_secret',
+  'sms_twilio_auth_token',
+  'sms_twilio_api_key_secret',
   'gmail_app_password',
   'smtp_pass',
   'zoho_app_password',
@@ -406,6 +408,85 @@ router.post('/whatsapp/twilio', authorize('SUPER_ADMIN', 'ADMIN'), async (req, r
     res.json({ success: true, data: { provider: 'TWILIO', configured: true }, message: 'Twilio WhatsApp settings saved' })
   } catch {
     res.status(500).json({ success: false, message: 'Failed to save Twilio WhatsApp settings' })
+  }
+})
+
+router.get('/sms/twilio', authorize('SUPER_ADMIN', 'ADMIN'), async (_req, res) => {
+  try {
+    const configuration = await getTwilioSmsConfiguration()
+    res.json({
+      success: true,
+      data: {
+        accountSid: configuration.accountSid,
+        authTokenConfigured: Boolean(configuration.authToken),
+        apiKeySid: configuration.apiKeySid,
+        apiKeySecretConfigured: Boolean(configuration.apiKeySecret),
+        smsPhoneNumber: configuration.smsPhoneNumber,
+        configured: configuration.configured,
+      },
+    })
+  } catch {
+    res.status(500).json({ success: false, message: 'Failed to fetch Twilio SMS settings' })
+  }
+})
+
+router.post('/sms/twilio', authorize('SUPER_ADMIN', 'ADMIN'), async (req, res) => {
+  try {
+    const body = req.body || {}
+    const keys = [
+      ['accountSid', 'sms_twilio_account_sid', 'TWILIO_ACCOUNT_SID'],
+      ['authToken', 'sms_twilio_auth_token', 'TWILIO_AUTH_TOKEN'],
+      ['apiKeySid', 'sms_twilio_api_key_sid', 'TWILIO_API_KEY_SID'],
+      ['apiKeySecret', 'sms_twilio_api_key_secret', 'TWILIO_API_KEY_SECRET'],
+      ['smsPhoneNumber', 'twilio_sms_phone_number', 'TWILIO_SMS_PHONE_NUMBER'],
+    ] as const
+    const settings = await prisma.settings.findMany({
+      where: { key: { in: [...new Set(keys.map(([, key]) => key).concat([
+        'twilio_account_sid',
+        'twilio_auth_token',
+        'twilio_api_key_sid',
+        'twilio_api_key_secret',
+      ]))] } },
+    })
+    const stored = settings.reduce<Record<string, string>>((result, setting) => {
+      result[setting.key] = setting.value
+      return result
+    }, {})
+    const values = keys.reduce<Record<string, string>>((result, [field, key, env]) => {
+      const submitted = typeof body[field] === 'string' ? body[field].trim() : ''
+      const sharedKey = key.replace(/^sms_/, '')
+      result[key] = process.env[env] || submitted || stored[key] || stored[sharedKey] || ''
+      return result
+    }, {})
+    const accountSid = values.sms_twilio_account_sid
+    const authToken = values.sms_twilio_auth_token
+    const apiKeySid = values.sms_twilio_api_key_sid
+    const apiKeySecret = values.sms_twilio_api_key_secret
+    const smsPhoneNumber = values.twilio_sms_phone_number
+    if (!(accountSid && (authToken || (apiKeySid && apiKeySecret)) && smsPhoneNumber)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Twilio Account SID, SMS sender number, and Auth Token or API key pair are required',
+      })
+    }
+    if (!/^(?:\+[1-9]\d{7,14}|\d{10,15})$/.test(smsPhoneNumber.replace(/[\s().-]/g, ''))) {
+      return res.status(400).json({ success: false, message: 'Enter a valid SMS sender number in international format' })
+    }
+
+    await prisma.$transaction(async (transaction) => {
+      for (const [field, key, env] of keys) {
+        const submitted = typeof body[field] === 'string' ? body[field].trim() : ''
+        if (process.env[env] || !submitted) continue
+        await transaction.settings.upsert({
+          where: { key },
+          update: { value: submitted, group: 'twilio-sms' },
+          create: { key, value: submitted, group: 'twilio-sms' },
+        })
+      }
+    })
+    res.json({ success: true, data: { configured: true }, message: 'Twilio SMS settings saved' })
+  } catch {
+    res.status(500).json({ success: false, message: 'Failed to save Twilio SMS settings' })
   }
 })
 

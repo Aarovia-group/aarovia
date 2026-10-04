@@ -66,6 +66,36 @@ export const getWhatsAppConfiguration = async () => {
   }
 }
 
+export const getTwilioSmsConfiguration = async () => {
+  const keys = [
+    'sms_twilio_account_sid',
+    'sms_twilio_auth_token',
+    'sms_twilio_api_key_sid',
+    'sms_twilio_api_key_secret',
+    'twilio_sms_phone_number',
+    ...TWILIO_SETTING_KEYS,
+  ]
+  const settings = await prisma.settings.findMany({ where: { key: { in: keys } } })
+  const stored = settings.reduce<Record<string, string>>((result, setting) => {
+    result[setting.key] = setting.value
+    return result
+  }, {})
+  const configuration = {
+    accountSid: process.env.TWILIO_ACCOUNT_SID || stored.sms_twilio_account_sid || stored.twilio_account_sid || '',
+    authToken: process.env.TWILIO_AUTH_TOKEN || stored.sms_twilio_auth_token || stored.twilio_auth_token || '',
+    apiKeySid: process.env.TWILIO_API_KEY_SID || stored.sms_twilio_api_key_sid || stored.twilio_api_key_sid || '',
+    apiKeySecret: process.env.TWILIO_API_KEY_SECRET || stored.sms_twilio_api_key_secret || stored.twilio_api_key_secret || '',
+    smsPhoneNumber: process.env.TWILIO_SMS_PHONE_NUMBER || stored.twilio_sms_phone_number || '',
+  }
+  const configured = Boolean(
+    configuration.accountSid
+    && (configuration.authToken || (configuration.apiKeySid && configuration.apiKeySecret))
+    && configuration.smsPhoneNumber,
+  )
+
+  return { ...configuration, configured }
+}
+
 export const sendWhatsAppMessage = async (to: string, message: string) => {
   const configuration = await getWhatsAppConfiguration()
   if (!configuration.configured) {
