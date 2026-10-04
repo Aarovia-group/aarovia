@@ -11,6 +11,39 @@ import { Plus, Download, Upload, Phone, Mail, MessageSquare, Users, LayoutList, 
 import Link from 'next/link'
 import { useForm } from 'react-hook-form'
 
+const LEAD_IMPORT_HEADERS = ['name', 'mobile', 'email', 'budget', 'city', 'source', 'status', 'propertyType', 'remarks', 'nextFollowupDate']
+const LEAD_IMPORT_TEMPLATE = [
+  LEAD_IMPORT_HEADERS.join(','),
+  'Sample Lead,+919876543210,sample@example.com,5000000,Bengaluru,WEBSITE,NEW,APARTMENT,Interested in a 2-bedroom apartment,',
+].join('\n')
+
+const parseCsvLine = (line: string) => {
+  const values: string[] = []
+  let current = ''
+  let quoted = false
+
+  for (let index = 0; index < line.length; index += 1) {
+    const character = line[index]
+    if (character === '"') {
+      if (quoted && line[index + 1] === '"') {
+        current += '"'
+        index += 1
+      } else {
+        quoted = !quoted
+      }
+    } else if (character === ',' && !quoted) {
+      values.push(current.trim())
+      current = ''
+    } else {
+      current += character
+    }
+  }
+
+  if (quoted) throw new Error('CSV contains an unclosed quoted value')
+  values.push(current.trim())
+  return values
+}
+
 export default function LeadsPage() {
   const queryClient = useQueryClient()
   const [view, setView] = useState<'list' | 'pipeline'>('list')
@@ -19,6 +52,11 @@ export default function LeadsPage() {
   const [statusFilter, setStatusFilter] = useState('')
   const [sourceFilter, setSourceFilter] = useState('')
   const [showCreate, setShowCreate] = useState(false)
+  const [showImport, setShowImport] = useState(false)
+  const [importFile, setImportFile] = useState<File | null>(null)
+  const [importError, setImportError] = useState('')
+  const [importSummary, setImportSummary] = useState<any>(null)
+  const [isImporting, setIsImporting] = useState(false)
 
   const { data, isLoading } = useQuery({
     queryKey: ['leads', page, search, statusFilter, sourceFilter],
@@ -49,6 +87,84 @@ export default function LeadsPage() {
     },
   })
 
+  const downloadImportTemplate = () => {
+    const url = URL.createObjectURL(new Blob([LEAD_IMPORT_TEMPLATE], { type: 'text/csv;charset=utf-8' }))
+    const anchor = document.createElement('a')
+    anchor.href = url
+    anchor.download = 'lead-import-template.csv'
+    anchor.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const handleImport = async () => {
+    if (!importFile) {
+      setImportError('Select a CSV file to import')
+      return
+    }
+
+    try {
+      setImportError('')
+      setImportSummary(null)
+      setIsImporting(true)
+      const lines = (await importFile.text()).replace(/^\uFEFF/, '').split(/\r?\n/).filter(line => line.trim())
+      if (lines.length < 2) throw new Error('CSV must contain the template headers and at least one lead')
+
+      const headers = parseCsvLine(lines[0])
+      if (headers.length !== LEAD_IMPORT_HEADERS.length || headers.some((header, index) => header !== LEAD_IMPORT_HEADERS[index])) {
+        throw new Error(`CSV headers must match: ${LEAD_IMPORT_HEADERS.join(',')}`)
+      }
+      if (lines.length - 1 > 1000) throw new Error('Import up to 1,000 leads per CSV file')
+
+      const leads = lines.slice(1).map((line, index) => {
+        const values = parseCsvLine(line)
+        if (values.length !== headers.length) throw new Error(`Row ${index + 2} has ${values.length} values; expected ${headers.length}`)
+        const lead = headers.reduce<Record<string, string>>((record, header, valueIndex) => {
+          record[header] = values[valueIndex]
+          return record
+        }, {})
+        if (!lead.name) throw new Error(`Row ${index + 2} is missing a lead name`)
+        if (!lead.mobile) throw new Error(`Row ${index + 2} is missing a mobile number`)
+        if (lead.budget && (!Number.isFinite(Number(lead.budget)) || Number(lead.budget) < 0)) {
+          throw new Error(`Row ${index + 2} has an invalid budget`)
+        }
+        if (lead.source && !LEAD_SOURCES.some(source => source.value === lead.source.toUpperCase())) {
+          throw new Error(`Row ${index + 2} has an invalid source`)
+        }
+        if (lead.status && !LEAD_STATUSES.some(status => status.value === lead.status.toUpperCase())) {
+          throw new Error(`Row ${index + 2} has an invalid status`)
+        }
+        if (lead.propertyType && !PROPERTY_TYPES.some(type => type.value === lead.propertyType.toUpperCase())) {
+          throw new Error(`Row ${index + 2} has an invalid property type`)
+        }
+        if (lead.nextFollowupDate && Number.isNaN(Date.parse(lead.nextFollowupDate))) {
+          throw new Error(`Row ${index + 2} has an invalid next follow-up date`)
+        }
+        return {
+          ...lead,
+          source: lead.source.toUpperCase() || 'WEBSITE',
+          status: lead.status.toUpperCase() || 'NEW',
+          propertyType: lead.propertyType ? lead.propertyType.toUpperCase() : null,
+          budget: lead.budget || null,
+          email: lead.email || null,
+          city: lead.city || null,
+          remarks: lead.remarks || null,
+          nextFollowupDate: lead.nextFollowupDate || null,
+        }
+      })
+
+      const response = await leadApi.bulkImport(leads)
+      const result = response.data?.data
+      if (!result) throw new Error('Import response was incomplete; refresh the lead list before retrying')
+      setImportSummary(result)
+      setImportFile(null)
+      queryClient.invalidateQueries({ queryKey: ['leads'] })
+    } catch (error: any) {
+      setImportError(error.response?.data?.message || error.message || 'Lead import failed')
+    } finally {
+      setIsImporting(false)
+    }
+  }
+
   const leads = data?.data?.data || []
   const meta = data?.data?.meta || {}
   const pipeline = pipelineData?.data?.data || []
@@ -63,7 +179,7 @@ export default function LeadsPage() {
       subtitle={`${meta.total || 0} total leads`}
       actions={
         <div className="flex items-center gap-2">
-          <Button variant="secondary" size="sm" icon={<Upload className="w-3.5 h-3.5" />}>Import</Button>
+          <Button variant="secondary" size="sm" icon={<Upload className="w-3.5 h-3.5" />} onClick={() => { setImportFile(null); setImportError(''); setImportSummary(null); setShowImport(true) }}>Import</Button>
           <Button variant="secondary" size="sm" icon={<Download className="w-3.5 h-3.5" />}>Export</Button>
           <Button size="sm" icon={<Plus className="w-3.5 h-3.5" />} onClick={() => setShowCreate(true)}>Add Lead</Button>
         </div>
@@ -111,7 +227,7 @@ export default function LeadsPage() {
               <Tr key={lead.id}>
                 <Td>
                   <div>
-                    <Link href={`/leads/${lead.id}`} className="font-medium text-white hover:text-gold transition-colors">{lead.name}</Link>
+                    <Link href={`/leads/${lead.id}`} className="lead-name-link font-medium text-[#172033] hover:text-gold transition-colors">{lead.name || 'Unnamed lead'}</Link>
                     {lead.email && <p className="text-[10px] text-slate">{lead.email}</p>}
                     {lead.city && <p className="text-[10px] text-slate">{lead.city}</p>}
                   </div>
@@ -242,6 +358,35 @@ export default function LeadsPage() {
             <Button type="button" variant="ghost" onClick={() => { setShowCreate(false); reset() }}>Cancel</Button>
           </div>
         </form>
+      </Modal>
+
+      <Modal open={showImport} onClose={() => { setShowImport(false); setImportFile(null); setImportError(''); setImportSummary(null) }} title="Import Leads" size="lg">
+        <div className="space-y-4">
+          <p className="text-sm text-slate-light">Download the sample CSV, fill in each lead&apos;s name and mobile number, then upload it. Optional columns can be left blank.</p>
+          <div className="rounded-lg border border-navy-border bg-navy-mid p-3">
+            <p className="text-xs font-medium text-slate-light mb-2">CSV columns</p>
+            <p className="text-xs font-mono text-slate break-all">{LEAD_IMPORT_HEADERS.join(',')}</p>
+          </div>
+          <input
+            type="file"
+            accept=".csv,text/csv"
+            onChange={event => { setImportFile(event.target.files?.[0] || null); setImportError(''); setImportSummary(null) }}
+            className="w-full text-sm text-slate-light file:mr-3 file:rounded-md file:border-0 file:bg-amber-50 file:px-3 file:py-2 file:text-xs file:font-medium file:text-gold"
+          />
+          {importError && <p role="alert" className="rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-400">{importError}</p>}
+          {importSummary && (
+            <div role="status" className="rounded-lg border border-green-500/30 bg-green-500/10 p-3 text-sm text-green-700">
+              <p>Created: {importSummary.created}</p>
+              <p>Duplicates imported: {importSummary.duplicates}</p>
+              <p>Rows with errors: {importSummary.errors}</p>
+              {importSummary.rowErrors?.length > 0 && <p className="mt-2 text-xs">{importSummary.rowErrors.map((rowError: any) => `Row ${rowError.row}: ${rowError.message}`).join('; ')}</p>}
+            </div>
+          )}
+          <div className="flex flex-wrap gap-3 pt-2">
+            <Button onClick={handleImport} loading={isImporting} disabled={!importFile} className="flex-1">Upload CSV</Button>
+            <Button type="button" variant="secondary" icon={<Download className="w-3.5 h-3.5" />} onClick={downloadImportTemplate}>Download Sample CSV</Button>
+          </div>
+        </div>
       </Modal>
     </AppLayout>
   )

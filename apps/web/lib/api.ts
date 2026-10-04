@@ -152,6 +152,7 @@ export const settingsApi = {
 
 export const leadApi = {
   getAll: (params?: any) => api.get('/leads', { params }),
+  bulkImport: (leads: any[]) => api.post('/leads/bulk-import', { leads }),
   getById: (id: string) => api.get(`/leads/${id}`),
   getPipeline: () => api.get('/leads/pipeline'),
   create: (data: any) => api.post('/leads', data),

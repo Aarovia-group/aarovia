@@ -1,4 +1,5 @@
 import { Request, Response } from 'express'
+import { LeadSource, LeadStatus, PropertyType } from '@prisma/client'
 import prisma from '../utils/prisma'
 import { AuthRequest } from '../middleware/auth.middleware'
 
@@ -283,16 +284,81 @@ export const getPipelineLeads = async (req: AuthRequest, res: Response) => {
 
 export const bulkImportLeads = async (req: AuthRequest, res: Response) => {
   try {
-    const { leads } = req.body
-    const results = { created: 0, duplicates: 0, errors: 0 }
+    const leads = req.body?.leads
+    if (!Array.isArray(leads) || leads.length === 0) {
+      return res.status(400).json({ success: false, message: 'Provide at least one lead to import' })
+    }
+    if (leads.length > 1000) {
+      return res.status(400).json({ success: false, message: 'Import up to 1,000 leads per request' })
+    }
 
-    for (const leadData of leads) {
+    const validSources: string[] = Object.values(LeadSource)
+    const validStatuses: string[] = Object.values(LeadStatus)
+    const validPropertyTypes: string[] = Object.values(PropertyType)
+    const results: { created: number; duplicates: number; errors: number; rowErrors: { row: number; message: string }[] } = {
+      created: 0,
+      duplicates: 0,
+      errors: 0,
+      rowErrors: [],
+    }
+
+    for (const [index, leadData] of leads.entries()) {
+      let name = ''
+      let mobile = ''
+      let source = ''
+      let status = ''
+      let propertyType: string | null = null
+      let budget: number | null = null
+      let nextFollowupDate: Date | null = null
+
       try {
-        const duplicate = await prisma.lead.findFirst({ where: { mobile: leadData.mobile, isActive: true } })
+        if (!leadData || typeof leadData !== 'object' || Array.isArray(leadData)) {
+          throw new Error('Invalid lead data')
+        }
+        name = typeof leadData.name === 'string' ? leadData.name.trim() : ''
+        mobile = typeof leadData.mobile === 'string' ? leadData.mobile.trim() : ''
+        source = typeof leadData.source === 'string' && leadData.source ? leadData.source.toUpperCase() : 'WEBSITE'
+        status = typeof leadData.status === 'string' && leadData.status ? leadData.status.toUpperCase() : 'NEW'
+        propertyType = typeof leadData.propertyType === 'string' && leadData.propertyType
+          ? leadData.propertyType.toUpperCase()
+          : null
+        budget = leadData.budget === null || leadData.budget === undefined || leadData.budget === ''
+          ? null
+          : Number(leadData.budget)
+        nextFollowupDate = leadData.nextFollowupDate
+          ? new Date(leadData.nextFollowupDate)
+          : null
+
+        if (!name || !mobile) throw new Error('Name and mobile are required')
+        if (name.length > 200 || mobile.length > 40) throw new Error('Name or mobile exceeds the allowed length')
+        if (!validSources.includes(source)) throw new Error('Invalid lead source')
+        if (!validStatuses.includes(status)) throw new Error('Invalid lead status')
+        if (propertyType && !validPropertyTypes.includes(propertyType)) throw new Error('Invalid property type')
+        if (budget !== null && (!Number.isFinite(budget) || budget < 0)) throw new Error('Invalid budget')
+        if (nextFollowupDate && Number.isNaN(nextFollowupDate.getTime())) throw new Error('Invalid next follow-up date')
+      } catch (error) {
+        results.errors++
+        results.rowErrors.push({
+          row: index + 2,
+          message: error instanceof Error ? error.message : 'Invalid lead data',
+        })
+        continue
+      }
+
+      try {
+        const duplicate = await prisma.lead.findFirst({ where: { mobile, isActive: true } })
         await prisma.lead.create({
           data: {
-            ...leadData,
-            budget: leadData.budget ? parseFloat(leadData.budget) : null,
+            name,
+            mobile,
+            email: typeof leadData.email === 'string' && leadData.email.trim() ? leadData.email.trim() : null,
+            budget,
+            city: typeof leadData.city === 'string' && leadData.city.trim() ? leadData.city.trim() : null,
+            source: source as LeadSource,
+            status: status as LeadStatus,
+            propertyType: propertyType as PropertyType | null,
+            remarks: typeof leadData.remarks === 'string' && leadData.remarks.trim() ? leadData.remarks.trim() : null,
+            nextFollowupDate,
             assignedToId: req.user?.id,
             createdById: req.user?.id,
             isDuplicate: !!duplicate,
@@ -301,6 +367,7 @@ export const bulkImportLeads = async (req: AuthRequest, res: Response) => {
         duplicate ? results.duplicates++ : results.created++
       } catch {
         results.errors++
+        results.rowErrors.push({ row: index + 2, message: 'Could not save lead; verify its values and check for duplicates' })
       }
     }
 
