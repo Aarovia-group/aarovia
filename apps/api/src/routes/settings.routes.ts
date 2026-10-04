@@ -34,11 +34,28 @@ const adsSecretKeys = new Set<string>([
 ])
 
 const brandingKeys = ['brand_company_name', 'brand_logo_url', 'crm_domain', 'brand_accent_color'] as const
+const protectedSettingKeys = [
+  'wa_access_token',
+  'twilio_auth_token',
+  'twilio_api_key_secret',
+  'gmail_app_password',
+  'smtp_pass',
+  'zoho_app_password',
+  'meta_app_secret',
+  'meta_lead_verify_token',
+  'meta_lead_access_token',
+  'meta_ads_access_token',
+  'google_lead_webhook_key',
+  'google_ads_client_secret',
+  'google_ads_refresh_token',
+  'google_ads_developer_token',
+  ...adsSecretKeys,
+]
 
 router.get('/', async (req, res) => {
   try {
     const settings = await prisma.settings.findMany({
-      where: { key: { notIn: ['wa_access_token', 'twilio_auth_token', 'twilio_api_key_secret', ...adsSecretKeys] } },
+      where: { key: { notIn: protectedSettingKeys } },
     })
     const map = settings.reduce((acc: any, s) => { acc[s.key] = s.value; return acc }, {})
     res.json({ success: true, data: map })
@@ -130,6 +147,92 @@ router.get('/ads', authorize('SUPER_ADMIN', 'ADMIN'), async (_req, res) => {
   }
 })
 
+router.get('/email', authorize('SUPER_ADMIN', 'ADMIN'), async (_req, res) => {
+  try {
+    const settings = await prisma.settings.findMany({
+      where: { key: { in: ['zoho_email', 'zoho_smtp_host', 'zoho_smtp_port', 'email_from_name', 'zoho_app_password'] } },
+    })
+    const values = settings.reduce<Record<string, string>>((result, setting) => {
+      result[setting.key] = setting.value
+      return result
+    }, {})
+    res.json({
+      success: true,
+      data: {
+        zohoEmail: values.zoho_email || 'admin@aarovia.co.in',
+        smtpHost: values.zoho_smtp_host || 'smtp.zoho.in',
+        smtpPort: Number(values.zoho_smtp_port || 465),
+        fromName: values.email_from_name || 'Aarovia Real Estates',
+        appPasswordConfigured: Boolean(values.zoho_app_password),
+        configured: Boolean(values.zoho_email && values.zoho_app_password),
+      },
+    })
+  } catch {
+    res.status(500).json({ success: false, message: 'Failed to fetch Zoho email settings' })
+  }
+})
+
+router.post('/email', authorize('SUPER_ADMIN', 'ADMIN'), async (req, res) => {
+  try {
+    const { zohoEmail, zohoAppPassword, smtpHost, smtpPort, fromName } = req.body || {}
+    const email = typeof zohoEmail === 'string' ? zohoEmail.trim().toLowerCase() : ''
+    const host = typeof smtpHost === 'string' ? smtpHost.trim().toLowerCase() : ''
+    const port = Number(smtpPort)
+    const displayName = typeof fromName === 'string' ? fromName.trim() : ''
+    const password = typeof zohoAppPassword === 'string' ? zohoAppPassword.trim() : ''
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return res.status(400).json({ success: false, message: 'Enter a valid Zoho email address' })
+    }
+    if (!/^[a-z0-9.-]+\.[a-z]{2,}$/i.test(host)) {
+      return res.status(400).json({ success: false, message: 'Enter a valid Zoho SMTP hostname' })
+    }
+    if (![465, 587].includes(port)) {
+      return res.status(400).json({ success: false, message: 'Zoho SMTP port must be 465 or 587' })
+    }
+    if (!displayName) {
+      return res.status(400).json({ success: false, message: 'From name is required' })
+    }
+    if (password.length > 512) {
+      return res.status(400).json({ success: false, message: 'Zoho app password is too long' })
+    }
+
+    const emailSettings = [
+      ['zoho_email', email],
+      ['zoho_smtp_host', host],
+      ['zoho_smtp_port', String(port)],
+      ['email_from_name', displayName],
+    ] as const
+    const existingPassword = await prisma.settings.findUnique({ where: { key: 'zoho_app_password' } })
+    if (!password && !existingPassword?.value) {
+      return res.status(400).json({ success: false, message: 'Email password is required for the first setup' })
+    }
+
+    await prisma.$transaction(async (transaction) => {
+      for (const [key, value] of emailSettings) {
+        await transaction.settings.upsert({
+          where: { key },
+          update: { value, group: 'email' },
+          create: { key, value, group: 'email' },
+        })
+      }
+      if (password) {
+        await transaction.settings.upsert({
+          where: { key: 'zoho_app_password' },
+          update: { value: password, group: 'email' },
+          create: { key: 'zoho_app_password', value: password, group: 'email' },
+        })
+      }
+      await transaction.settings.deleteMany({
+        where: { key: { in: ['gmail_user', 'gmail_app_password', 'smtp_user', 'smtp_pass', 'from_name'] } },
+      })
+    })
+    res.json({ success: true, message: 'Zoho SMTP settings saved' })
+  } catch {
+    res.status(500).json({ success: false, message: 'Failed to save Zoho email settings' })
+  }
+})
+
 router.post('/ads', authorize('SUPER_ADMIN', 'ADMIN'), async (req, res) => {
   try {
     const body = req.body || {}
@@ -185,18 +288,6 @@ router.get('/whatsapp', authorize('SUPER_ADMIN', 'ADMIN'), async (_req, res) => 
   } catch {
     res.status(500).json({ success: false, message: 'Failed to fetch Meta WhatsApp API settings' })
   }
-})
-
-router.post('/email', authorize('SUPER_ADMIN', 'ADMIN'), async (req, res) => {
-  try {
-    const { gmailUser, gmailAppPassword, fromName } = req.body
-    await Promise.all([
-      prisma.settings.upsert({ where: { key: 'gmail_user' }, update: { value: gmailUser }, create: { key: 'gmail_user', value: gmailUser, group: 'email' } }),
-      prisma.settings.upsert({ where: { key: 'gmail_app_password' }, update: { value: gmailAppPassword }, create: { key: 'gmail_app_password', value: gmailAppPassword, group: 'email' } }),
-      prisma.settings.upsert({ where: { key: 'from_name' }, update: { value: fromName }, create: { key: 'from_name', value: fromName, group: 'email' } }),
-    ])
-    res.json({ success: true, message: 'Email config saved' })
-  } catch (e) { res.status(500).json({ success: false, message: 'Failed to save email config' }) }
 })
 
 router.post('/whatsapp', authorize('SUPER_ADMIN', 'ADMIN'), async (req, res) => {

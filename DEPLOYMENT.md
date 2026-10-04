@@ -23,13 +23,6 @@
 - `COOKIE_DOMAIN=.aarovia.co.in`
 - `JWT_EXPIRES_IN=7d`
 - `FRONTEND_URL=https://aarovia.co.in,https://www.aarovia.co.in`
-- `SMTP_HOST` - SMTP hostname (optional if using Gmail)
-- `SMTP_PORT` - SMTP port (465 or 587)
-- `SMTP_SECURE=true` or `false`
-- `SMTP_USER` - SMTP username / API key
-- `SMTP_PASS` - SMTP password / API secret
-- `GMAIL_USER` - Gmail address (optional; use with `GMAIL_APP_PASSWORD`)
-- `GMAIL_APP_PASSWORD` - Gmail App Password (optional; use this instead of `SMTP_PASS` when sending through Gmail)
 - `CLOUDINARY_CLOUD_NAME`
 - `CLOUDINARY_API_KEY`
 - `CLOUDINARY_API_SECRET`
@@ -74,7 +67,7 @@ Vercel builds do not run database migrations. This keeps a code build from faili
 
 ## Notes
 - `apps/api/src/index.ts` already allows production CORS for `https://aarovia.co.in`.
-- Email sends now support both Gmail and custom SMTP providers.
+- Configure Zoho Mail in Settings using `admin@aarovia.co.in`, the Zoho SMTP host for the mailbox's data center (Aarovia India: `smtp.zoho.in`), port 465 (SSL) or 587 (STARTTLS), and the password Zoho accepts for SMTP authentication. The CRM does not create Zoho mailboxes; create and verify the mailbox in Zoho Mail first.
 - Make sure `FRONTEND_URL` and `NEXT_PUBLIC_APP_URL` use `https://aarovia.co.in`.
 - For local testing, use `http://localhost:5000` for API and `http://localhost:3000` for frontend.
 - The API now uses HTTP-only refresh cookies for session persistence, so frontend requests must include `credentials` and the API must allow `Access-Control-Allow-Credentials`.

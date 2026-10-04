@@ -55,10 +55,10 @@ export const sendEmailNotification = async (
   body: string
 ) => {
   try {
-    const transporter = createTransporter()
+    const { transporter, email, fromName } = await createTransporter()
 
     await transporter.sendMail({
-      from: `"Aarovia CRM" <${process.env.SMTP_USER || process.env.GMAIL_USER}>`,
+      from: `"${fromName}" <${email}>`,
       to,
       subject,
       html: body,

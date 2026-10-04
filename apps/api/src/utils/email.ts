@@ -1,33 +1,44 @@
 import nodemailer from 'nodemailer'
+import prisma from './prisma'
 
-const getSmtpOptions = () => {
-  const user = process.env.SMTP_USER || process.env.GMAIL_USER
-  const pass = process.env.SMTP_PASS || process.env.GMAIL_APP_PASSWORD
-  const host = process.env.SMTP_HOST
-  const port = process.env.SMTP_PORT ? Number(process.env.SMTP_PORT) : undefined
-  const secure = process.env.SMTP_SECURE ? process.env.SMTP_SECURE === 'true' : undefined
+const emailSettingKeys = ['zoho_email', 'zoho_app_password', 'zoho_smtp_host', 'zoho_smtp_port', 'email_from_name']
 
-  if (!user || !pass) {
-    throw new Error('SMTP credentials are not configured. Set SMTP_USER/SMTP_PASS or GMAIL_USER/GMAIL_APP_PASSWORD.')
-  }
+export const getEmailConfiguration = async () => {
+  const settings = await prisma.settings.findMany({ where: { key: { in: emailSettingKeys } } })
+  const values = settings.reduce<Record<string, string>>((result, setting) => {
+    result[setting.key] = setting.value
+    return result
+  }, {})
 
-  if (host) {
-    return {
-      host,
-      port: port || 465,
-      secure: secure ?? true,
-      auth: { user, pass },
-      tls: { rejectUnauthorized: false },
-    }
+  const email = values.zoho_email || ''
+  const password = values.zoho_app_password || ''
+  const host = values.zoho_smtp_host || 'smtp.zoho.in'
+  const port = Number(values.zoho_smtp_port || 465)
+
+  if (!email || !password || !host || ![465, 587].includes(port)) {
+    throw new Error('Zoho SMTP is not fully configured. Save the Zoho email, app password, host, and SMTP port in Settings.')
   }
 
   return {
-    service: 'gmail',
-    auth: { user, pass },
-    tls: { rejectUnauthorized: false },
+    email,
+    password,
+    host,
+    port,
+    fromName: values.email_from_name || 'Aarovia Real Estates',
   }
 }
 
-export const createTransporter = () => {
-  return nodemailer.createTransport(getSmtpOptions())
+export const createTransporter = async () => {
+  const configuration = await getEmailConfiguration()
+  return {
+    transporter: nodemailer.createTransport({
+      host: configuration.host,
+      port: configuration.port,
+      secure: configuration.port === 465,
+      requireTLS: configuration.port === 587,
+      auth: { user: configuration.email, pass: configuration.password },
+    }),
+    email: configuration.email,
+    fromName: configuration.fromName,
+  }
 }

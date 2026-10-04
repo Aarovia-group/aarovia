@@ -208,13 +208,13 @@ export default function EmailPage() {
             </Card>
 
             <Card>
-              <CardHeader><CardTitle>Gmail SMTP Status</CardTitle></CardHeader>
+              <CardHeader><CardTitle>Zoho SMTP Status</CardTitle></CardHeader>
               <CardContent>
                 <div className="flex items-center gap-2 text-sm">
-                  <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                  <span className="text-green-400 text-xs">Connected & Active</span>
+                  <div className="w-2 h-2 rounded-full bg-slate-500" />
+                  <span className="text-slate text-xs">Check configuration in Settings</span>
                 </div>
-                <p className="text-[10px] text-slate mt-2">Configured via Gmail App Password</p>
+                <p className="text-[10px] text-slate mt-2">Configure Zoho SMTP using the mailbox app password.</p>
                 <Button variant="ghost" size="sm" className="w-full mt-3 text-xs" onClick={() => window.location.href = '/settings'}>
                   Configure SMTP →
                 </Button>

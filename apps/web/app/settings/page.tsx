@@ -13,7 +13,7 @@ import api, { uploadApi } from '@/lib/api'
 
 type ProfileFormValues = { name: string; phone: string }
 type PasswordFormValues = { currentPassword: string; newPassword: string; confirmPassword: string }
-type EmailFormValues = { gmailUser: string; gmailAppPassword: string; fromName: string }
+type EmailFormValues = { zohoEmail: string; zohoAppPassword: string; smtpHost: string; smtpPort: number; fromName: string }
 type WAFormValues = { phoneId: string; accessToken: string; businessId: string }
 type TwilioWAFormValues = { accountSid: string; authToken: string; apiKeySid: string; apiKeySecret: string; phoneNumber: string; smsPhoneNumber: string; templateSid: string }
 type ProjectFormValues = { name: string; location: string; city: string; state: string; description: string; reraNumber: string }
@@ -47,7 +47,9 @@ export default function SettingsPage() {
   })
 
   const { register: regPw, handleSubmit: handlePw } = useForm<PasswordFormValues>()
-  const { register: regEmail, handleSubmit: handleEmail } = useForm<EmailFormValues>()
+  const { register: regEmail, handleSubmit: handleEmail, reset: resetEmail } = useForm<EmailFormValues>({
+    defaultValues: { zohoEmail: 'admin@aarovia.co.in', zohoAppPassword: '', smtpHost: 'smtp.zoho.in', smtpPort: 465, fromName: 'Aarovia Real Estates' },
+  })
   const { register: regWA, handleSubmit: handleWA, reset: resetWA } = useForm<WAFormValues>()
   const { register: regTwilioWA, handleSubmit: handleTwilioWA, reset: resetTwilioWA } = useForm<TwilioWAFormValues>()
   const { register: regAds, handleSubmit: handleAds, reset: resetAds } = useForm<AdsFormValues>()
@@ -67,6 +69,11 @@ export default function SettingsPage() {
     queryKey: ['ads-settings'],
     queryFn: () => api.get('/settings/ads'),
     enabled: activeTab === 'ads',
+  })
+  const { data: emailSettingsData, isLoading: emailSettingsLoading, isError: emailSettingsError } = useQuery({
+    queryKey: ['email-settings'],
+    queryFn: () => api.get('/settings/email'),
+    enabled: activeTab === 'email',
   })
   const projectsQuery = useQuery({
     queryKey: ['projects'],
@@ -176,6 +183,19 @@ export default function SettingsPage() {
     if (settings) resetBranding(settings)
   }, [brandingQuery.data, resetBranding])
 
+  useEffect(() => {
+    const settings = emailSettingsData?.data?.data
+    if (settings) {
+      resetEmail({
+        zohoEmail: settings.zohoEmail || 'admin@aarovia.co.in',
+        zohoAppPassword: '',
+        smtpHost: settings.smtpHost || 'smtp.zoho.in',
+        smtpPort: settings.smtpPort || 465,
+        fromName: settings.fromName || 'Aarovia Real Estates',
+      })
+    }
+  }, [emailSettingsData, resetEmail])
+
   const onBrandingLogoChange = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     event.target.value = ''
@@ -209,8 +229,9 @@ export default function SettingsPage() {
   const onEmailSave = async (data: any) => {
     try {
       await api.post('/settings/email', data)
-      toast.success('Email configuration saved')
-    } catch { toast.error('Failed to save email config') }
+      queryClient.invalidateQueries({ queryKey: ['email-settings'] })
+      toast.success('Zoho email configuration saved')
+    } catch (error: any) { toast.error(error.response?.data?.message || 'Failed to save Zoho email config') }
   }
 
   const onWASave = async (data: any) => {
@@ -332,29 +353,47 @@ export default function SettingsPage() {
           {activeTab === 'email' && (
             <Card>
               <CardHeader>
-                <CardTitle><Mail className="w-4 h-4 text-gold" />Gmail SMTP Configuration</CardTitle>
+                <CardTitle><Mail className="w-4 h-4 text-gold" />Zoho Mail SMTP Configuration</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg px-4 py-3 mb-5 text-xs text-blue-400">
-                  <strong>Setup:</strong> Use a Gmail account with App Password (not your account password). Enable 2FA first, then create an App Password in Google Account settings.
+                  Enter the Zoho email address and the password Zoho allows for SMTP sign-in. Credentials are saved by the CRM backend and the password is not displayed after saving.
+                </div>
+                {emailSettingsLoading && <p className="text-xs text-slate mb-4">Loading Zoho email settings...</p>}
+                {emailSettingsError && <p className="text-xs text-red-400 mb-4">Could not load Zoho email settings. Retry before changing configuration.</p>}
+                <div className={`rounded-lg border px-4 py-3 mb-5 text-xs ${emailSettingsData?.data?.data?.configured ? 'border-green-500/30 bg-green-500/10 text-green-400' : 'border-amber-500/30 bg-amber-500/10 text-amber-300'}`}>
+                  {emailSettingsData?.data?.data?.configured
+                    ? 'Zoho SMTP credentials are saved. Passwords are never displayed.'
+                    : 'Zoho SMTP is not configured yet. Save the mailbox and its app password to enable email sending.'}
                 </div>
                 <form onSubmit={handleEmail(onEmailSave)} className="space-y-4 max-w-md">
                   <div>
-                    <label className="block text-xs font-medium text-slate-light mb-1.5">Gmail Address</label>
-                    <input {...regEmail('gmailUser')} type="email" placeholder="youremail@gmail.com" className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white placeholder:text-slate/40 focus:outline-none focus:ring-1 focus:ring-gold/50" />
+                    <label className="block text-xs font-medium text-slate-light mb-1.5">Email Address</label>
+                    <input {...regEmail('zohoEmail', { required: true })} type="email" autoComplete="email" placeholder="admin@aarovia.co.in" className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white placeholder:text-slate/40 focus:outline-none focus:ring-1 focus:ring-gold/50" />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-slate-light mb-1.5">App Password</label>
+                    <label className="block text-xs font-medium text-slate-light mb-1.5">Email Password</label>
                     <div className="relative">
-                      <input {...regEmail('gmailAppPassword')} type={showPass ? 'text' : 'password'} placeholder="xxxx xxxx xxxx xxxx" className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 pr-10 text-sm text-white placeholder:text-slate/40 focus:outline-none focus:ring-1 focus:ring-gold/50 font-mono" />
+                      <input {...regEmail('zohoAppPassword')} type={showPass ? 'text' : 'password'} autoComplete="new-password" placeholder={emailSettingsData?.data?.data?.appPasswordConfigured ? 'Saved; blank keeps current password' : 'Enter email password'} className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 pr-10 text-sm text-white placeholder:text-slate/40 focus:outline-none focus:ring-1 focus:ring-gold/50 font-mono" />
                       <button type="button" onClick={() => setShowPass(!showPass)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate hover:text-white">
                         {showPass ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                       </button>
                     </div>
                   </div>
                   <div>
+                    <label className="block text-xs font-medium text-slate-light mb-1.5">Zoho SMTP Host</label>
+                    <input {...regEmail('smtpHost', { required: true })} placeholder="smtp.zoho.in" className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white font-mono placeholder:text-slate/40 focus:outline-none focus:ring-1 focus:ring-gold/50" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-light mb-1.5">SMTP Port</label>
+                    <select {...regEmail('smtpPort', { valueAsNumber: true })} className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-gold/50">
+                      <option value={465}>465 — SSL</option>
+                      <option value={587}>587 — STARTTLS</option>
+                    </select>
+                  </div>
+                  <div>
                     <label className="block text-xs font-medium text-slate-light mb-1.5">From Name</label>
-                    <input {...regEmail('fromName')} placeholder="Aarovia Real Estates" className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white placeholder:text-slate/40 focus:outline-none focus:ring-1 focus:ring-gold/50" />
+                    <input {...regEmail('fromName', { required: true })} placeholder="Aarovia Real Estates" className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white placeholder:text-slate/40 focus:outline-none focus:ring-1 focus:ring-gold/50" />
                   </div>
                   <div className="flex gap-3">
                     <Button type="submit" icon={<Save className="w-3.5 h-3.5" />}>Save Config</Button>

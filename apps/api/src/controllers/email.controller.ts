@@ -30,9 +30,9 @@ export const sendProjectDetails = async (req: any, res: any) => {
       senderName: req.user?.name,
     })
 
-    const transporter = createTransporter()
+    const { transporter, email, fromName } = await createTransporter()
     await transporter.sendMail({
-      from: `"${req.user?.name} | Aarovia Real Estates" <${process.env.SMTP_USER || process.env.GMAIL_USER}>`,
+      from: `"${fromName}" <${email}>`,
       to: recipientEmail,
       subject: `${project?.name || 'Premium Property'} - Project Details from Aarovia Real Estates`,
       html: emailBody,
@@ -54,7 +54,8 @@ export const sendProjectDetails = async (req: any, res: any) => {
 
     res.json({ success: true, message: 'Email sent successfully' })
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Failed to send email', error })
+    console.error('[Email] Failed to send project details', error)
+    res.status(500).json({ success: false, message: 'Failed to send email' })
   }
 }
 
@@ -70,9 +71,9 @@ export const sendQuotationEmail = async (req: any, res: any) => {
     const recipientEmail = toEmail || quotation.lead?.email
     if (!recipientEmail) return res.status(400).json({ success: false, message: 'No email address' })
 
-    const transporter = createTransporter()
+    const { transporter, email, fromName } = await createTransporter()
     await transporter.sendMail({
-      from: `"Aarovia Real Estates" <${process.env.SMTP_USER || process.env.GMAIL_USER}>`,
+      from: `"${fromName}" <${email}>`,
       to: recipientEmail,
       subject: `Quotation ${quotation.quotationNumber} - Aarovia Real Estates`,
       html: generateQuotationEmail(quotation),
@@ -87,7 +88,8 @@ export const sendQuotationEmail = async (req: any, res: any) => {
 
     res.json({ success: true, message: 'Quotation email sent' })
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Failed to send quotation email', error })
+    console.error('[Email] Failed to send quotation', error)
+    res.status(500).json({ success: false, message: 'Failed to send quotation email' })
   }
 }
 
