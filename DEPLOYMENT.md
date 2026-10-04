@@ -64,10 +64,11 @@
 
 1. Create a managed PostgreSQL instance.
 2. Set `DATABASE_URL` in the API project.
-3. Run migrations in production:
+3. Run production migrations explicitly before deploying schema changes:
 ```bash
-npx prisma migrate deploy
+npm run db:deploy --workspace=apps/api
 ```
+Vercel builds do not run database migrations. This keeps a code build from failing or changing the live schema implicitly.
 4. Do not run the development seed against production. Provision production users through a trusted administrative process with unique, strong passwords.
 
 ## Notes
