@@ -214,7 +214,7 @@ export default function EmailPage() {
                   <div className="w-2 h-2 rounded-full bg-slate-500" />
                   <span className="text-slate text-xs">Check configuration in Settings</span>
                 </div>
-                <p className="text-[10px] text-slate mt-2">Configure Zoho SMTP using the mailbox app password.</p>
+                <p className="text-[10px] text-slate mt-2">Configure Zoho SMTP using the mailbox email address and password.</p>
                 <Button variant="ghost" size="sm" className="w-full mt-3 text-xs" onClick={() => window.location.href = '/settings'}>
                   Configure SMTP →
                 </Button>

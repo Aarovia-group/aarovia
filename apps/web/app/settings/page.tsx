@@ -364,7 +364,7 @@ export default function SettingsPage() {
                 <div className={`rounded-lg border px-4 py-3 mb-5 text-xs ${emailSettingsData?.data?.data?.configured ? 'border-green-500/30 bg-green-500/10 text-green-400' : 'border-amber-500/30 bg-amber-500/10 text-amber-300'}`}>
                   {emailSettingsData?.data?.data?.configured
                     ? 'Zoho SMTP credentials are saved. Passwords are never displayed.'
-                    : 'Zoho SMTP is not configured yet. Save the mailbox and its app password to enable email sending.'}
+                    : 'Zoho SMTP is not configured yet. Save the email address and password to enable email sending.'}
                 </div>
                 <form onSubmit={handleEmail(onEmailSave)} className="space-y-4 max-w-md">
                   <div>
