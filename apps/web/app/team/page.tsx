@@ -32,11 +32,11 @@ export default function TeamPage() {
 
   const { data, isLoading } = useQuery({
     queryKey: ['users', search, roleFilter],
-    queryFn: () => api.get('/api/users', { params: { search: search || undefined, role: roleFilter || undefined } }),
+    queryFn: () => api.get('/users', { params: { search: search || undefined, role: roleFilter || undefined } }),
   })
 
   const createMutation = useMutation({
-    mutationFn: (d: any) => api.post('/api/auth/register', d),
+    mutationFn: (d: any) => api.post('/auth/register', d),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] })
       setShowCreate(false)
@@ -47,7 +47,7 @@ export default function TeamPage() {
   })
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, ...d }: any) => api.put(`/api/users/${id}`, d),
+    mutationFn: ({ id, ...d }: any) => api.put(`/users/${id}`, d),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] })
       toast.success('User updated successfully')
@@ -56,7 +56,7 @@ export default function TeamPage() {
   })
 
   const resetPasswordMutation = useMutation({
-    mutationFn: ({ id, newPassword }: any) => api.patch(`/api/users/${id}/reset-password`, { newPassword }),
+    mutationFn: ({ id, newPassword }: any) => api.patch(`/users/${id}/reset-password`, { newPassword }),
     onSuccess: () => {
       toast.success('Password reset successfully')
       setEditUser(null)
@@ -65,7 +65,7 @@ export default function TeamPage() {
   })
 
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => api.delete(`/api/users/${id}`),
+    mutationFn: (id: string) => api.delete(`/users/${id}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] })
       setDeleteUser(null)
@@ -75,7 +75,7 @@ export default function TeamPage() {
   })
 
   const toggleActiveMutation = useMutation({
-    mutationFn: ({ id, isActive }: any) => api.put(`/api/users/${id}`, { isActive }),
+    mutationFn: ({ id, isActive }: any) => api.put(`/users/${id}`, { isActive }),
     onSuccess: (_, variables: any) => {
       queryClient.invalidateQueries({ queryKey: ['users'] })
       toast.success(variables.isActive ? 'User activated successfully' : 'User deactivated successfully')

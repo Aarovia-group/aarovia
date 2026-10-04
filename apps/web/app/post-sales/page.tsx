@@ -25,17 +25,17 @@ export default function PostSalesPage() {
 
   const { data, isLoading } = useQuery({
     queryKey: ['post-sales-bookings', search, agmtFilter],
-    queryFn: () => api.get('/api/bookings', { params: { search: search || undefined, agreementStatus: agmtFilter || undefined, limit: 50 } }),
+    queryFn: () => api.get('/bookings', { params: { search: search || undefined, agreementStatus: agmtFilter || undefined, limit: 50 } }),
   })
 
   const { data: dueData } = useQuery({
     queryKey: ['due-collections'],
-    queryFn: () => api.get('/api/collections/due'),
+    queryFn: () => api.get('/collections/due'),
     enabled: activeTab === 'due',
   })
 
   const updateAgmtMutation = useMutation({
-    mutationFn: ({ id, agreementStatus }: any) => api.put(`/api/bookings/${id}`, { agreementStatus }),
+    mutationFn: ({ id, agreementStatus }: any) => api.put(`/bookings/${id}`, { agreementStatus }),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['post-sales-bookings'] }); toast.success('Agreement status updated') },
     onError: () => toast.error('Failed to update status'),
   })

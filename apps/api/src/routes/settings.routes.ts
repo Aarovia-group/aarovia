@@ -6,14 +6,84 @@ import { getWhatsAppConfiguration } from '../services/whatsapp.service'
 const router = Router()
 router.use(authenticate)
 
+const adsSettingKeys = [
+  'meta_app_id',
+  'meta_app_secret',
+  'meta_lead_verify_token',
+  'meta_lead_access_token',
+  'meta_ads_access_token',
+  'meta_ad_account_id',
+  'google_lead_webhook_key',
+  'google_ads_client_id',
+  'google_ads_client_secret',
+  'google_ads_refresh_token',
+  'google_ads_developer_token',
+  'google_ads_customer_id',
+  'google_ads_login_customer_id',
+] as const
+
+const adsSecretKeys = new Set<string>([
+  'meta_app_secret',
+  'meta_lead_verify_token',
+  'meta_lead_access_token',
+  'meta_ads_access_token',
+  'google_lead_webhook_key',
+  'google_ads_client_secret',
+  'google_ads_refresh_token',
+  'google_ads_developer_token',
+])
+
 router.get('/', async (req, res) => {
   try {
     const settings = await prisma.settings.findMany({
-      where: { key: { notIn: ['wa_access_token', 'twilio_auth_token', 'twilio_api_key_secret'] } },
+      where: { key: { notIn: ['wa_access_token', 'twilio_auth_token', 'twilio_api_key_secret', ...adsSecretKeys] } },
     })
     const map = settings.reduce((acc: any, s) => { acc[s.key] = s.value; return acc }, {})
     res.json({ success: true, data: map })
   } catch (e) { res.status(500).json({ success: false, message: 'Failed to fetch settings' }) }
+})
+
+router.get('/ads', authorize('SUPER_ADMIN', 'ADMIN'), async (_req, res) => {
+  try {
+    const settings = await prisma.settings.findMany({ where: { key: { in: [...adsSettingKeys] } } })
+    const values = settings.reduce<Record<string, string>>((result, setting) => {
+      result[setting.key] = setting.value
+      return result
+    }, {})
+    const data = Object.fromEntries(adsSettingKeys.map((key) => [
+      adsSecretKeys.has(key) ? `${key}_configured` : key,
+      adsSecretKeys.has(key) ? Boolean(values[key]) : values[key] || '',
+    ]))
+    Object.assign(data, {
+      metaConfigured: Boolean(values.meta_app_id && values.meta_app_secret && (values.meta_lead_access_token || values.meta_ads_access_token)),
+      googleConfigured: Boolean(values.google_ads_client_id && values.google_ads_client_secret && values.google_ads_refresh_token && values.google_ads_developer_token && values.google_ads_customer_id),
+    })
+    res.json({ success: true, data })
+  } catch {
+    res.status(500).json({ success: false, message: 'Failed to fetch Ads settings' })
+  }
+})
+
+router.post('/ads', authorize('SUPER_ADMIN', 'ADMIN'), async (req, res) => {
+  try {
+    const body = req.body || {}
+    if (adsSettingKeys.some((key) => body[key] !== undefined && typeof body[key] !== 'string')) {
+      return res.status(400).json({ success: false, message: 'Ads settings must be submitted as text values' })
+    }
+    const updates = adsSettingKeys.flatMap((key) => {
+      const value = body[key]
+      if (typeof value !== 'string' || !value.trim()) return []
+      return [prisma.settings.upsert({
+        where: { key },
+        update: { value: value.trim(), group: 'ads' },
+        create: { key, value: value.trim(), group: 'ads' },
+      })]
+    })
+    await prisma.$transaction(updates)
+    res.json({ success: true, message: 'Ads credentials saved' })
+  } catch {
+    res.status(500).json({ success: false, message: 'Failed to save Ads settings' })
+  }
 })
 
 router.get('/whatsapp/status', async (_req, res) => {

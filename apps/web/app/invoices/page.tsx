@@ -26,16 +26,16 @@ export default function InvoicesPage() {
 
   const { data, isLoading } = useQuery({
     queryKey: ['invoices', search, statusFilter],
-    queryFn: () => api.get('/api/invoices', { params: { search: search || undefined, status: statusFilter || undefined } }),
+    queryFn: () => api.get('/invoices', { params: { search: search || undefined, status: statusFilter || undefined } }),
   })
 
   const updateStatusMutation = useMutation({
-    mutationFn: ({ id, status }: any) => api.patch(`/api/invoices/${id}/status`, { status }),
+    mutationFn: ({ id, status }: any) => api.patch(`/invoices/${id}/status`, { status }),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['invoices'] }); toast.success('Invoice updated') },
   })
 
   const createMutation = useMutation({
-    mutationFn: (d: any) => api.post('/api/invoices', d),
+    mutationFn: (d: any) => api.post('/invoices', d),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['invoices'] }); setShowCreate(false); toast.success('Invoice created') },
     onError: () => toast.error('Failed to create invoice'),
   })

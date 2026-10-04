@@ -31,7 +31,7 @@ export default function CreateInvoicePage() {
   })
 
   const createMutation = useMutation({
-    mutationFn: (d: any) => api.post('/api/invoices', d),
+    mutationFn: (d: any) => api.post('/invoices', d),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['booking', bookingId] })
       queryClient.invalidateQueries({ queryKey: ['invoices'] })

@@ -39,7 +39,7 @@ export default function NewLeadPage() {
 
   const { data: usersData } = useQuery({
     queryKey: ['users-exec'],
-    queryFn: () => api.get('/api/users', { params: { role: 'SALES_EXECUTIVE', limit: 50 } }),
+    queryFn: () => api.get('/users', { params: { role: 'SALES_EXECUTIVE', limit: 50 } }),
   })
   const users = usersData?.data?.data || []
 

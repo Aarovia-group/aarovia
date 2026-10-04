@@ -1,11 +1,11 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { Button, Card, CardHeader, CardTitle, CardContent } from '@/components/ui/index'
 import { toast } from '@/components/ui/toaster'
-import { Settings, Mail, MessageSquare, Building2, Shield, User, Palette, Save, Eye, EyeOff, CheckCircle, Megaphone } from 'lucide-react'
+import { Settings, Mail, MessageSquare, Building2, Shield, User, Palette, Save, Eye, EyeOff, CheckCircle, Megaphone, Plus } from 'lucide-react'
 import { useAuthStore } from '@/lib/store/auth.store'
 import { useForm } from 'react-hook-form'
 import api from '@/lib/api'
@@ -15,6 +15,7 @@ type PasswordFormValues = { currentPassword: string; newPassword: string; confir
 type EmailFormValues = { gmailUser: string; gmailAppPassword: string; fromName: string }
 type WAFormValues = { phoneId: string; accessToken: string; businessId: string }
 type TwilioWAFormValues = { accountSid: string; authToken: string; apiKeySid: string; apiKeySecret: string; phoneNumber: string; templateSid: string }
+type ProjectFormValues = { name: string; location: string; city: string; state: string; description: string; reraNumber: string }
 type AdsFormValues = {
   metaAppId: string; metaAppSecret: string; metaLeadVerifyToken: string; metaLeadAccessToken: string; metaAdsAccessToken: string; metaAdAccountId: string
   googleLeadWebhookKey: string; googleAdsClientId: string; googleAdsClientSecret: string; googleAdsRefreshToken: string
@@ -48,15 +49,35 @@ export default function SettingsPage() {
   const { register: regWA, handleSubmit: handleWA, reset: resetWA } = useForm<WAFormValues>()
   const { register: regTwilioWA, handleSubmit: handleTwilioWA, reset: resetTwilioWA } = useForm<TwilioWAFormValues>()
   const { register: regAds, handleSubmit: handleAds, reset: resetAds } = useForm<AdsFormValues>()
+  const canManageProjects = user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN'
   const [hasSavedWAToken, setHasSavedWAToken] = useState(false)
   const [hasSavedTwilioAuthToken, setHasSavedTwilioAuthToken] = useState(false)
   const [hasSavedTwilioApiKeySecret, setHasSavedTwilioApiKeySecret] = useState(false)
   const [waSettings, setWaSettings] = useState<any>(null)
   const [twilioWhatsAppSettings, setTwilioWhatsAppSettings] = useState<any>(null)
-  const { data: adsSettingsData } = useQuery({
+  const [showProjectForm, setShowProjectForm] = useState(false)
+  const { register: regProject, handleSubmit: handleProjectSubmit, reset: resetProject } = useForm<ProjectFormValues>()
+  const { data: adsSettingsData, isLoading: adsSettingsLoading, isError: adsSettingsError } = useQuery({
     queryKey: ['ads-settings'],
     queryFn: () => api.get('/settings/ads'),
     enabled: activeTab === 'ads',
+  })
+  const projectsQuery = useQuery({
+    queryKey: ['projects'],
+    queryFn: () => api.get('/projects', { params: { isActive: true } }),
+    enabled: activeTab === 'projects',
+  })
+  const createProjectMutation = useMutation({
+    mutationFn: (data: ProjectFormValues) => api.post('/projects', {
+      ...data,
+    }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['projects'] })
+      resetProject()
+      setShowProjectForm(false)
+      toast.success('Project added successfully')
+    },
+    onError: (error: any) => toast.error(error.response?.data?.message || 'Failed to add project'),
   })
 
   useEffect(() => {
@@ -101,16 +122,16 @@ export default function SettingsPage() {
     if (!settings) return
     resetAds({
       metaAppId: settings.meta_app_id || '',
-      metaAppSecret: settings.meta_app_secret || '',
-      metaLeadVerifyToken: settings.meta_lead_verify_token || '',
-      metaLeadAccessToken: settings.meta_lead_access_token || '',
-      metaAdsAccessToken: settings.meta_ads_access_token || '',
+      metaAppSecret: '',
+      metaLeadVerifyToken: '',
+      metaLeadAccessToken: '',
+      metaAdsAccessToken: '',
       metaAdAccountId: settings.meta_ad_account_id || '',
-      googleLeadWebhookKey: settings.google_lead_webhook_key || '',
+      googleLeadWebhookKey: '',
       googleAdsClientId: settings.google_ads_client_id || '',
-      googleAdsClientSecret: settings.google_ads_client_secret || '',
-      googleAdsRefreshToken: settings.google_ads_refresh_token || '',
-      googleAdsDeveloperToken: settings.google_ads_developer_token || '',
+      googleAdsClientSecret: '',
+      googleAdsRefreshToken: '',
+      googleAdsDeveloperToken: '',
       googleAdsCustomerId: settings.google_ads_customer_id || '',
       googleAdsLoginCustomerId: settings.google_ads_login_customer_id || '',
     })
@@ -181,15 +202,6 @@ export default function SettingsPage() {
       queryClient.invalidateQueries({ queryKey: ['ads-settings'] })
       toast.success('Ads credentials saved and integrations activated')
     } catch (error: any) { toast.error(error.response?.data?.message || 'Failed to save Ads credentials') }
-  }
-
-  const connectAds = async (provider: 'meta' | 'google') => {
-    try {
-      const response = await api.get(`/ad-integrations/${provider}/connect`)
-      window.location.href = response.data.data.url
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || `Unable to connect ${provider === 'meta' ? 'Meta' : 'Google Ads'}`)
-    }
   }
 
   const sendTestEmail = async () => {
@@ -405,14 +417,14 @@ export default function SettingsPage() {
                 <CardTitle><Megaphone className="w-4 h-4 text-gold" />Meta & Google Ads Integrations</CardTitle>
               </CardHeader>
               <CardContent>
+                {adsSettingsLoading && <p className="text-xs text-slate mb-4">Loading Ads settings...</p>}
+                {adsSettingsError && <p className="text-xs text-red-400 mb-4">Could not load Ads settings. Please retry before changing saved configuration.</p>}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-5">
-                  <div className={`rounded-lg border px-4 py-3 text-xs flex items-center justify-between gap-3 ${adsSettingsData?.data?.data?.metaActive ? 'border-green-500/30 bg-green-500/10 text-green-400' : 'border-navy-border bg-navy text-slate'}`}>
-                    <span>Meta Ads: {adsSettingsData?.data?.data?.metaActive ? 'Active' : 'Not connected'}</span>
-                    <Button type="button" variant="secondary" size="sm" onClick={() => connectAds('meta')}>Connect Meta</Button>
+                  <div className={`rounded-lg border px-4 py-3 text-xs ${adsSettingsData?.data?.data?.metaConfigured ? 'border-green-500/30 bg-green-500/10 text-green-400' : 'border-navy-border bg-navy text-slate'}`}>
+                    Meta Ads credentials: {adsSettingsData?.data?.data?.metaConfigured ? 'Configured' : 'Incomplete'}
                   </div>
-                  <div className={`rounded-lg border px-4 py-3 text-xs flex items-center justify-between gap-3 ${adsSettingsData?.data?.data?.googleActive ? 'border-green-500/30 bg-green-500/10 text-green-400' : 'border-navy-border bg-navy text-slate'}`}>
-                    <span>Google Ads: {adsSettingsData?.data?.data?.googleActive ? 'Active' : 'Not connected'}</span>
-                    <Button type="button" variant="secondary" size="sm" onClick={() => connectAds('google')}>Connect Google Ads</Button>
+                  <div className={`rounded-lg border px-4 py-3 text-xs ${adsSettingsData?.data?.data?.googleConfigured ? 'border-green-500/30 bg-green-500/10 text-green-400' : 'border-navy-border bg-navy text-slate'}`}>
+                    Google Ads credentials: {adsSettingsData?.data?.data?.googleConfigured ? 'Configured' : 'Incomplete'}
                   </div>
                 </div>
                 <form onSubmit={handleAds(onAdsSave)} className="space-y-6">
@@ -420,22 +432,22 @@ export default function SettingsPage() {
                     <h3 className="text-sm font-medium text-white mb-3">Meta Lead Ads</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div><label className="block text-xs font-medium text-slate-light mb-1.5">Meta App ID</label><input {...regAds('metaAppId')} placeholder="Meta Developer App ID" className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white font-mono placeholder:text-slate/40 focus:outline-none focus:ring-1 focus:ring-gold/50" /></div>
-                      <div><label className="block text-xs font-medium text-slate-light mb-1.5">Meta App Secret</label><input {...regAds('metaAppSecret')} type="password" autoComplete="new-password" placeholder="Meta Developer App Secret" className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white font-mono placeholder:text-slate/40 focus:outline-none focus:ring-1 focus:ring-gold/50" /></div>
-                      <div><label className="block text-xs font-medium text-slate-light mb-1.5">Webhook Verify Token</label><input {...regAds('metaLeadVerifyToken')} type="password" autoComplete="new-password" placeholder="Meta webhook verification token" className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white font-mono placeholder:text-slate/40 focus:outline-none focus:ring-1 focus:ring-gold/50" /></div>
+                      <div><label className="block text-xs font-medium text-slate-light mb-1.5">Meta App Secret</label><input {...regAds('metaAppSecret')} type="password" autoComplete="new-password" placeholder={adsSettingsData?.data?.data?.meta_app_secret_configured ? 'Saved; blank keeps current secret' : 'Meta Developer App Secret'} className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white font-mono placeholder:text-slate/40 focus:outline-none focus:ring-1 focus:ring-gold/50" /></div>
+                      <div><label className="block text-xs font-medium text-slate-light mb-1.5">Webhook Verify Token</label><input {...regAds('metaLeadVerifyToken')} type="password" autoComplete="new-password" placeholder={adsSettingsData?.data?.data?.meta_lead_verify_token_configured ? 'Saved; blank keeps current secret' : 'Meta webhook verification token'} className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white font-mono placeholder:text-slate/40 focus:outline-none focus:ring-1 focus:ring-gold/50" /></div>
                       <div><label className="block text-xs font-medium text-slate-light mb-1.5">Ad Account ID</label><input {...regAds('metaAdAccountId')} placeholder="act_123... or 123..." className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white font-mono placeholder:text-slate/40 focus:outline-none focus:ring-1 focus:ring-gold/50" /></div>
-                      <div><label className="block text-xs font-medium text-slate-light mb-1.5">Lead Page Access Token</label><input {...regAds('metaLeadAccessToken')} type="password" autoComplete="new-password" placeholder="Meta Page access token" className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white font-mono placeholder:text-slate/40 focus:outline-none focus:ring-1 focus:ring-gold/50" /></div>
-                      <div><label className="block text-xs font-medium text-slate-light mb-1.5">Ads Reporting Access Token</label><input {...regAds('metaAdsAccessToken')} type="password" autoComplete="new-password" placeholder="Meta Ads access token" className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white font-mono placeholder:text-slate/40 focus:outline-none focus:ring-1 focus:ring-gold/50" /></div>
+                      <div><label className="block text-xs font-medium text-slate-light mb-1.5">Lead Page Access Token</label><input {...regAds('metaLeadAccessToken')} type="password" autoComplete="new-password" placeholder={adsSettingsData?.data?.data?.meta_lead_access_token_configured ? 'Saved; blank keeps current token' : 'Meta Page access token'} className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white font-mono placeholder:text-slate/40 focus:outline-none focus:ring-1 focus:ring-gold/50" /></div>
+                      <div><label className="block text-xs font-medium text-slate-light mb-1.5">Ads Reporting Access Token</label><input {...regAds('metaAdsAccessToken')} type="password" autoComplete="new-password" placeholder={adsSettingsData?.data?.data?.meta_ads_access_token_configured ? 'Saved; blank keeps current token' : 'Meta Ads access token'} className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white font-mono placeholder:text-slate/40 focus:outline-none focus:ring-1 focus:ring-gold/50" /></div>
                     </div>
                   </div>
                   <div>
                     <h3 className="text-sm font-medium text-white mb-3">Google Lead Forms & Ads</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div><label className="block text-xs font-medium text-slate-light mb-1.5">Lead Webhook Key</label><input {...regAds('googleLeadWebhookKey')} type="password" autoComplete="new-password" placeholder="Optional webhook key" className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white font-mono placeholder:text-slate/40 focus:outline-none focus:ring-1 focus:ring-gold/50" /></div>
+                      <div><label className="block text-xs font-medium text-slate-light mb-1.5">Lead Webhook Key</label><input {...regAds('googleLeadWebhookKey')} type="password" autoComplete="new-password" placeholder={adsSettingsData?.data?.data?.google_lead_webhook_key_configured ? 'Saved; blank keeps current key' : 'Optional webhook key'} className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white font-mono placeholder:text-slate/40 focus:outline-none focus:ring-1 focus:ring-gold/50" /></div>
                       <div><label className="block text-xs font-medium text-slate-light mb-1.5">Customer ID</label><input {...regAds('googleAdsCustomerId')} placeholder="123-456-7890" className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white font-mono placeholder:text-slate/40 focus:outline-none focus:ring-1 focus:ring-gold/50" /></div>
                       <div><label className="block text-xs font-medium text-slate-light mb-1.5">OAuth Client ID</label><input {...regAds('googleAdsClientId')} placeholder="Google OAuth client ID" className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white font-mono placeholder:text-slate/40 focus:outline-none focus:ring-1 focus:ring-gold/50" /></div>
-                      <div><label className="block text-xs font-medium text-slate-light mb-1.5">OAuth Client Secret</label><input {...regAds('googleAdsClientSecret')} type="password" autoComplete="new-password" placeholder="Google Ads OAuth client secret" className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white font-mono placeholder:text-slate/40 focus:outline-none focus:ring-1 focus:ring-gold/50" /></div>
-                      <div><label className="block text-xs font-medium text-slate-light mb-1.5">OAuth Refresh Token</label><input {...regAds('googleAdsRefreshToken')} type="password" autoComplete="new-password" placeholder="Google Ads refresh token" className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white font-mono placeholder:text-slate/40 focus:outline-none focus:ring-1 focus:ring-gold/50" /></div>
-                      <div><label className="block text-xs font-medium text-slate-light mb-1.5">Developer Token</label><input {...regAds('googleAdsDeveloperToken')} type="password" autoComplete="new-password" placeholder="Google Ads developer token" className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white font-mono placeholder:text-slate/40 focus:outline-none focus:ring-1 focus:ring-gold/50" /></div>
+                      <div><label className="block text-xs font-medium text-slate-light mb-1.5">OAuth Client Secret</label><input {...regAds('googleAdsClientSecret')} type="password" autoComplete="new-password" placeholder={adsSettingsData?.data?.data?.google_ads_client_secret_configured ? 'Saved; blank keeps current secret' : 'Google Ads OAuth client secret'} className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white font-mono placeholder:text-slate/40 focus:outline-none focus:ring-1 focus:ring-gold/50" /></div>
+                      <div><label className="block text-xs font-medium text-slate-light mb-1.5">OAuth Refresh Token</label><input {...regAds('googleAdsRefreshToken')} type="password" autoComplete="new-password" placeholder={adsSettingsData?.data?.data?.google_ads_refresh_token_configured ? 'Saved; blank keeps current token' : 'Google Ads refresh token'} className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white font-mono placeholder:text-slate/40 focus:outline-none focus:ring-1 focus:ring-gold/50" /></div>
+                      <div><label className="block text-xs font-medium text-slate-light mb-1.5">Developer Token</label><input {...regAds('googleAdsDeveloperToken')} type="password" autoComplete="new-password" placeholder={adsSettingsData?.data?.data?.google_ads_developer_token_configured ? 'Saved; blank keeps current token' : 'Google Ads developer token'} className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white font-mono placeholder:text-slate/40 focus:outline-none focus:ring-1 focus:ring-gold/50" /></div>
                       <div><label className="block text-xs font-medium text-slate-light mb-1.5">Login Customer ID (optional)</label><input {...regAds('googleAdsLoginCustomerId')} placeholder="Manager account ID" className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white font-mono placeholder:text-slate/40 focus:outline-none focus:ring-1 focus:ring-gold/50" /></div>
                     </div>
                   </div>
@@ -517,14 +529,70 @@ export default function SettingsPage() {
             <Card>
               <CardHeader>
                 <CardTitle><Building2 className="w-4 h-4 text-gold" />Project Management</CardTitle>
-                <Button size="sm" icon={<Building2 className="w-3.5 h-3.5" />}>Add Project</Button>
+                {canManageProjects && (
+                  <Button size="sm" icon={<Plus className="w-3.5 h-3.5" />} onClick={() => setShowProjectForm((visible) => !visible)}>
+                    {showProjectForm ? 'Cancel' : 'Add Project'}
+                  </Button>
+                )}
               </CardHeader>
               <CardContent>
-                <div className="text-sm text-slate text-center py-8">
-                  <Building2 className="w-8 h-8 mx-auto mb-2 text-slate/30" />
-                  <p>Manage your real estate projects here.</p>
-                  <p className="text-xs mt-1">Projects are linked to leads, inventory, and quotations.</p>
-                </div>
+                {showProjectForm && canManageProjects && (
+                  <form onSubmit={handleProjectSubmit((data) => createProjectMutation.mutate(data))} className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 rounded-lg border border-navy-border bg-navy p-4">
+                    <div>
+                      <label className="block text-xs font-medium text-slate-light mb-1.5">Project Name</label>
+                      <input {...regProject('name', { required: true })} required placeholder="Project name" className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white placeholder:text-slate/40" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-slate-light mb-1.5">Location</label>
+                      <input {...regProject('location', { required: true })} required placeholder="Area or locality" className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white placeholder:text-slate/40" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-slate-light mb-1.5">City</label>
+                      <input {...regProject('city', { required: true })} required placeholder="City" className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white placeholder:text-slate/40" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-slate-light mb-1.5">State</label>
+                      <input {...regProject('state', { required: true })} required placeholder="State" className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white placeholder:text-slate/40" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-slate-light mb-1.5">RERA Number (optional)</label>
+                      <input {...regProject('reraNumber')} placeholder="RERA registration" className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white placeholder:text-slate/40" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-slate-light mb-1.5">Description (optional)</label>
+                      <input {...regProject('description')} placeholder="Short project description" className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white placeholder:text-slate/40" />
+                    </div>
+                    <div className="md:col-span-2 flex justify-end">
+                      <Button type="submit" loading={createProjectMutation.isPending} icon={<Save className="w-3.5 h-3.5" />}>Save Project</Button>
+                    </div>
+                  </form>
+                )}
+                {projectsQuery.isLoading ? (
+                  <p className="text-sm text-slate py-6 text-center">Loading projects...</p>
+                ) : projectsQuery.isError ? (
+                  <p className="text-sm text-red-400 py-6 text-center">Could not load projects. Please try again.</p>
+                ) : (projectsQuery.data?.data?.data || []).length === 0 ? (
+                  <div className="text-sm text-slate text-center py-8">
+                    <Building2 className="w-8 h-8 mx-auto mb-2 text-slate/30" />
+                    <p>No active projects found.</p>
+                    <p className="text-xs mt-1">Projects can be linked to leads, inventory, and quotations.</p>
+                  </div>
+                ) : (
+                  <div className="divide-y divide-navy-border">
+                    {(projectsQuery.data?.data?.data || []).map((project: any) => (
+                      <div key={project.id} className="flex items-center justify-between gap-4 py-4">
+                        <div>
+                          <p className="text-sm font-medium text-white">{project.name}</p>
+                          <p className="text-xs text-slate mt-1">{[project.location, project.city, project.state].filter(Boolean).join(', ')}</p>
+                        </div>
+                        <div className="flex gap-4 text-xs text-slate">
+                          <span>{project._count?.inventory || 0} units</span>
+                          <span>{project._count?.leads || 0} leads</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
           )}
