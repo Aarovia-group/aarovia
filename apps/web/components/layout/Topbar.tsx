@@ -32,7 +32,7 @@ export function Topbar({ title, subtitle, actions, unreadCount = 0, onMenuClick 
   }
 
   return (
-    <header className="h-14 bg-white/90 backdrop-blur border-b border-[#e3e9ef] flex items-center px-4 md:px-5 gap-2 md:gap-3 flex-shrink-0 z-10">
+    <header className="min-h-14 bg-white/90 backdrop-blur border-b border-[#e3e9ef] flex flex-wrap items-center px-4 md:px-5 gap-2 md:gap-3 flex-shrink-0 z-10">
       <button
         type="button"
         onClick={onMenuClick}
@@ -107,6 +107,12 @@ export function Topbar({ title, subtitle, actions, unreadCount = 0, onMenuClick 
             </>
           )}
         </div>
+
+        {actions && (
+          <div className="flex md:hidden w-full items-center gap-2 overflow-x-auto pb-2 [&>*]:shrink-0">
+            {actions}
+          </div>
+        )}
     </header>
   )
 }
