@@ -18,7 +18,6 @@ export default function LeadDetailPage() {
   const queryClient = useQueryClient()
   const [activeTab, setActiveTab] = useState<'activity' | 'calls' | 'notes' | 'quotations' | 'visits'>('activity')
   const [showStatusModal, setShowStatusModal] = useState(false)
-  const [showCallModal, setShowCallModal] = useState(false)
   const [showNoteModal, setShowNoteModal] = useState(false)
   const [showVisitModal, setShowVisitModal] = useState(false)
   const [showEmailModal, setShowEmailModal] = useState(false)
@@ -36,11 +35,6 @@ export default function LeadDetailPage() {
     mutationFn: (data: any) => leadApi.updateStatus(id, data),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['lead', id] }); setShowStatusModal(false); toast.success('Status updated') },
     onError: () => toast.error('Failed to update status'),
-  })
-
-  const addCallMutation = useMutation({
-    mutationFn: (data: any) => leadApi.addCallLog(id, data),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['lead', id] }); setShowCallModal(false); toast.success('Call logged') },
   })
 
   const addNoteMutation = useMutation({
@@ -123,7 +117,6 @@ export default function LeadDetailPage() {
           <a href={`tel:${lead.mobile}`} className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md bg-green-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-green-500">
             <Phone className="w-3.5 h-3.5" />Call Client
           </a>
-          <Button variant="secondary" size="sm" icon={<Phone className="w-3.5 h-3.5" />} onClick={() => setShowCallModal(true)}>Log Call</Button>
           <Button variant="secondary" size="sm" icon={<MessageSquare className="w-3.5 h-3.5" />} onClick={() => setShowSmsModal(true)}>Send SMS</Button>
           <Button variant="secondary" size="sm" icon={<MessageSquare className="w-3.5 h-3.5" />} onClick={() => sendWAMutation.mutate()} loading={sendWAMutation.isPending}>WhatsApp</Button>
           <Button variant="secondary" size="sm" icon={<Mail className="w-3.5 h-3.5" />} onClick={() => setShowEmailModal(true)}>Send Email</Button>
@@ -399,28 +392,6 @@ export default function LeadDetailPage() {
             I confirm this lead has consented to receive SMS messages.
           </label>
           <Button type="submit" loading={sendSmsMutation.isPending} className="w-full">Send SMS</Button>
-        </form>
-      </Modal>
-
-      {/* Log Call Modal */}
-      <Modal open={showCallModal} onClose={() => setShowCallModal(false)} title="Log Call" size="sm">
-        <form onSubmit={handleSubmit((d) => addCallMutation.mutate(d))} className="space-y-4">
-          <div>
-            <label className="block text-xs font-medium text-slate-light mb-1.5">Call Outcome</label>
-            <select {...register('outcome')} className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-gold/50">
-              <option value="">Select outcome</option>
-              {['Connected', 'Not Answered', 'Busy', 'Wrong Number', 'Call Back Later', 'Interested', 'Not Interested'].map(o => <option key={o} value={o}>{o}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-slate-light mb-1.5">Duration (seconds)</label>
-            <input {...register('duration')} type="number" placeholder="Call duration in seconds" className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white placeholder:text-slate/40 focus:outline-none focus:ring-1 focus:ring-gold/50" />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-slate-light mb-1.5">Notes</label>
-            <textarea {...register('notes')} rows={3} placeholder="Call notes..." className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white placeholder:text-slate/40 focus:outline-none focus:ring-1 focus:ring-gold/50 resize-none" />
-          </div>
-          <Button type="submit" loading={addCallMutation.isPending} className="w-full">Save Call Log</Button>
         </form>
       </Modal>
 

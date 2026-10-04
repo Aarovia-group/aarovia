@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { getLeads, getLeadById, createLead, updateLead, deleteLead, updateLeadStatus, assignLead, addCallLog, addNote, getPipelineLeads, bulkImportLeads } from '../controllers/lead.controller'
+import { getLeads, getLeadById, createLead, updateLead, deleteLead, updateLeadStatus, assignLead, addNote, getPipelineLeads, bulkImportLeads } from '../controllers/lead.controller'
 import { sendLeadSms } from '../controllers/sms.controller'
 import { authenticate, authorize } from '../middleware/auth.middleware'
 
@@ -15,7 +15,6 @@ router.put('/:id', updateLead)
 router.delete('/:id', authorize('SUPER_ADMIN', 'ADMIN'), deleteLead)
 router.patch('/:id/status', updateLeadStatus)
 router.patch('/:id/assign', authorize('SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER'), assignLead)
-router.post('/:id/call-log', addCallLog)
 router.post('/:id/sms', authorize('SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER', 'SALES_EXECUTIVE', 'TELECALLER', 'CRM_TEAM'), sendLeadSms)
 router.post('/:id/note', addNote)
 

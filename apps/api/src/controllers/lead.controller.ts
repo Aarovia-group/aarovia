@@ -214,29 +214,6 @@ export const assignLead = async (req: AuthRequest, res: Response) => {
   }
 }
 
-export const addCallLog = async (req: AuthRequest, res: Response) => {
-  try {
-    const { id } = req.params
-    const { duration, outcome, notes } = req.body
-
-    const callLog = await prisma.callLog.create({
-      data: { leadId: id, userId: req.user!.id, duration, outcome, notes },
-    })
-
-    await prisma.activity.create({
-      data: {
-        leadId: id, userId: req.user?.id,
-        type: 'CALL_LOGGED',
-        description: `Call logged - ${outcome || 'No outcome'}. Duration: ${duration || 0}s`,
-      },
-    })
-
-    res.status(201).json({ success: true, message: 'Call logged', data: callLog })
-  } catch (error) {
-    res.status(500).json({ success: false, message: 'Failed to log call', error })
-  }
-}
-
 export const addNote = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params

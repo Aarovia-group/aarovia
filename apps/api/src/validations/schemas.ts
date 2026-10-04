@@ -49,13 +49,6 @@ export const updateLeadStatusSchema = z.object({
   remarks: z.string().optional(),
 })
 
-export const addCallLogSchema = z.object({
-  outcome: z.string().optional(),
-  duration: z.number().int().positive().optional().nullable(),
-  notes: z.string().optional(),
-  recordingUrl: z.string().url().optional().nullable(),
-})
-
 // ============================================
 // CUSTOMER VALIDATIONS
 // ============================================
