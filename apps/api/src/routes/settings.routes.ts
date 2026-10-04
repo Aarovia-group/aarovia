@@ -56,7 +56,7 @@ router.get('/branding', async (_req, res) => {
       success: true,
       data: {
         companyName: values.brand_company_name || 'Aarovia',
-        logoUrl: values.brand_logo_url || '',
+        logoUrl: values.brand_logo_url || '/aarovia-mark.png',
         domain: values.crm_domain || 'aarovia.co.in',
         accentColor: values.brand_accent_color || '#C9A84C',
       },
@@ -78,7 +78,11 @@ router.post('/branding', authorize('SUPER_ADMIN', 'ADMIN'), async (req, res) => 
     if (typeof logoUrl !== 'string' || typeof accentColor !== 'string' || !/^#[0-9a-fA-F]{6}$/.test(accentColor)) {
       return res.status(400).json({ success: false, message: 'A valid logo URL and accent color are required' })
     }
-    if (logoUrl) {
+    if (logoUrl.startsWith('/') && !logoUrl.startsWith('//')) {
+      if (!/^\/[a-zA-Z0-9/_\-.]+$/.test(logoUrl)) {
+        return res.status(400).json({ success: false, message: 'Logo path is invalid' })
+      }
+    } else if (logoUrl) {
       let parsedLogoUrl: URL
       try {
         parsedLogoUrl = new URL(logoUrl)

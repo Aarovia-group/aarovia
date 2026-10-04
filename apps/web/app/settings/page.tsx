@@ -2,6 +2,7 @@
 
 import { ChangeEvent, useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import Image from 'next/image'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { Button, Card, CardHeader, CardTitle, CardContent } from '@/components/ui/index'
 import { toast } from '@/components/ui/toaster'
@@ -60,7 +61,7 @@ export default function SettingsPage() {
   const { register: regProject, handleSubmit: handleProjectSubmit, reset: resetProject } = useForm<ProjectFormValues>()
   const logoInputRef = useRef<HTMLInputElement>(null)
   const { register: regBranding, handleSubmit: handleBrandingSubmit, reset: resetBranding, setValue: setBrandingValue, watch: watchBranding } = useForm<BrandingFormValues>({
-    defaultValues: { companyName: 'Aarovia', domain: 'aarovia.co.in', logoUrl: '', accentColor: '#C9A84C' },
+    defaultValues: { companyName: 'Aarovia', domain: 'aarovia.co.in', logoUrl: '/aarovia-mark.png', accentColor: '#C9A84C' },
   })
   const { data: adsSettingsData, isLoading: adsSettingsLoading, isError: adsSettingsError } = useQuery({
     queryKey: ['ads-settings'],
@@ -577,14 +578,13 @@ export default function SettingsPage() {
                       disabled={uploadLogoMutation.isPending}
                       className="w-full border-2 border-dashed border-navy-border rounded-lg p-6 text-center hover:border-gold/40 transition-colors disabled:opacity-50"
                     >
-                      <div
-                        role={watchBranding('logoUrl') ? 'img' : undefined}
-                        aria-label={watchBranding('logoUrl') ? 'Company logo preview' : undefined}
-                        className="w-24 h-16 rounded-xl bg-gradient-to-br from-[#C9A84C] to-[#E8C96A] bg-center bg-contain bg-no-repeat mx-auto mb-3 flex items-center justify-center"
-                        style={watchBranding('logoUrl') ? { backgroundImage: `url("${watchBranding('logoUrl')}")` } : undefined}
-                      >
-                        {!watchBranding('logoUrl') && <span className="font-display font-bold text-[#0A1628] text-lg">{(watchBranding('companyName') || 'A').charAt(0).toUpperCase()}</span>}
-                      </div>
+                      <Image
+                        src={watchBranding('logoUrl') || '/aarovia-mark.png'}
+                        alt={`${watchBranding('companyName') || 'Aarovia'} logo preview`}
+                        width={96}
+                        height={96}
+                        className="w-24 h-16 object-contain mx-auto mb-3"
+                      />
                       <p className="text-xs text-slate">{uploadLogoMutation.isPending ? 'Uploading logo...' : 'Select a company logo'}</p>
                       <p className="text-[10px] text-slate/60 mt-1">PNG, JPEG, or WebP up to 2 MB</p>
                     </button>

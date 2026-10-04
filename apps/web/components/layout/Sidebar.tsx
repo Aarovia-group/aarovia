@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import { usePathname, useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { authApi } from '@/lib/api'
@@ -85,13 +86,15 @@ export function Sidebar({ unreadNotifications = 0, mobileOpen, onMobileClose }: 
       {/* Logo - fixed top */}
       <div className="px-4 py-4 border-b border-[#d8e0e8] flex-shrink-0">
         <Link href="/dashboard" className="flex items-center gap-3">
-          <div
-            role={branding?.logoUrl ? 'img' : undefined}
-            aria-label={branding?.logoUrl ? `${branding.companyName} logo` : undefined}
-            className="w-9 h-9 rounded-lg bg-gradient-to-br from-[#C9A84C] to-[#E8C96A] flex items-center justify-center flex-shrink-0 bg-center bg-contain bg-no-repeat"
-            style={branding?.logoUrl ? { backgroundImage: `url("${branding.logoUrl}")` } : undefined}
-          >
-            {!branding?.logoUrl && <span className="font-bold text-[#0A1628] text-sm">{(branding?.companyName || 'A').charAt(0).toUpperCase()}</span>}
+          <div className="w-10 h-10 flex items-center justify-center flex-shrink-0">
+            <Image
+              src={branding?.logoUrl || '/aarovia-mark.png'}
+              alt={`${branding?.companyName || 'Aarovia'} logo`}
+              width={40}
+              height={40}
+              className="w-full h-full object-contain"
+              priority
+            />
           </div>
           <div>
             <div className="text-sm font-semibold text-[#172033] leading-tight">{branding?.companyName || 'Aarovia'}</div>
