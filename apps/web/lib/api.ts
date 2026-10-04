@@ -158,6 +158,7 @@ export const leadApi = {
   updateStatus: (id: string, data: any) => api.patch(`/leads/${id}/status`, data),
   assign: (id: string, data: any) => api.patch(`/leads/${id}/assign`, data),
   addCallLog: (id: string, data: any) => api.post(`/leads/${id}/call-log`, data),
+  sendSms: (id: string, data: { message: string; consentConfirmed: boolean }) => api.post(`/leads/${id}/sms`, data),
   addNote: (id: string, data: any) => api.post(`/leads/${id}/note`, data),
   scheduleSiteVisit: (id: string, data: any) => api.post(`/leads/${id}/site-visit`, data),
 }

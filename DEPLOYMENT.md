@@ -37,6 +37,7 @@
 - `WHATSAPP_ACCESS_TOKEN` (optional)
 - `WHATSAPP_PROVIDER=META` or `TWILIO` (optional; locks provider selection)
 - `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN` or `TWILIO_API_KEY_SID` + `TWILIO_API_KEY_SECRET`, and `TWILIO_PHONE_NUMBER` (optional)
+- `TWILIO_SMS_PHONE_NUMBER` (optional; must be an SMS-enabled Twilio sender; configure separately from the WhatsApp sender)
 - `TWILIO_WHATSAPP_TEMPLATE_SID` (optional; use a template with a message body variable `{{1}}`)
 
 ### 2. Web Project

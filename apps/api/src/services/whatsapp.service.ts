@@ -8,6 +8,7 @@ const TWILIO_SETTING_KEYS = [
   'twilio_api_key_sid',
   'twilio_api_key_secret',
   'twilio_phone_number',
+  'twilio_sms_phone_number',
   'twilio_whatsapp_template_sid',
 ]
 
@@ -42,6 +43,7 @@ export const getWhatsAppConfiguration = async () => {
     apiKeySid: process.env.TWILIO_API_KEY_SID || stored.twilio_api_key_sid || '',
     apiKeySecret: process.env.TWILIO_API_KEY_SECRET || stored.twilio_api_key_secret || '',
     phoneNumber: process.env.TWILIO_PHONE_NUMBER || stored.twilio_phone_number || '',
+    smsPhoneNumber: process.env.TWILIO_SMS_PHONE_NUMBER || stored.twilio_sms_phone_number || '',
     templateSid: process.env.TWILIO_WHATSAPP_TEMPLATE_SID || stored.twilio_whatsapp_template_sid || '',
   }
   const metaConfigured = Boolean(meta.phoneId && meta.accessToken)

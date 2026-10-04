@@ -183,6 +183,7 @@ router.get('/whatsapp/twilio', authorize('SUPER_ADMIN', 'ADMIN'), async (_req, r
         apiKeySid: configuration.twilio.apiKeySid,
         apiKeySecretConfigured: Boolean(configuration.twilio.apiKeySecret),
         phoneNumber: configuration.twilio.phoneNumber,
+        smsPhoneNumber: configuration.twilio.smsPhoneNumber,
         templateSid: configuration.twilio.templateSid,
         configured: configuration.twilioConfigured,
       },
@@ -204,6 +205,7 @@ router.post('/whatsapp/twilio', authorize('SUPER_ADMIN', 'ADMIN'), async (req, r
       ['apiKeySid', 'twilio_api_key_sid', 'TWILIO_API_KEY_SID'],
       ['apiKeySecret', 'twilio_api_key_secret', 'TWILIO_API_KEY_SECRET'],
       ['phoneNumber', 'twilio_phone_number', 'TWILIO_PHONE_NUMBER'],
+      ['smsPhoneNumber', 'twilio_sms_phone_number', 'TWILIO_SMS_PHONE_NUMBER'],
       ['templateSid', 'twilio_whatsapp_template_sid', 'TWILIO_WHATSAPP_TEMPLATE_SID'],
     ] as const
     const currentSettings = await prisma.settings.findMany({ where: { key: { in: keys.map(([, key]) => key) } } })

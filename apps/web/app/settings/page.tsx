@@ -14,7 +14,7 @@ type ProfileFormValues = { name: string; phone: string }
 type PasswordFormValues = { currentPassword: string; newPassword: string; confirmPassword: string }
 type EmailFormValues = { gmailUser: string; gmailAppPassword: string; fromName: string }
 type WAFormValues = { phoneId: string; accessToken: string; businessId: string }
-type TwilioWAFormValues = { accountSid: string; authToken: string; apiKeySid: string; apiKeySecret: string; phoneNumber: string; templateSid: string }
+type TwilioWAFormValues = { accountSid: string; authToken: string; apiKeySid: string; apiKeySecret: string; phoneNumber: string; smsPhoneNumber: string; templateSid: string }
 type ProjectFormValues = { name: string; location: string; city: string; state: string; description: string; reraNumber: string }
 type AdsFormValues = {
   metaAppId: string; metaAppSecret: string; metaLeadVerifyToken: string; metaLeadAccessToken: string; metaAdsAccessToken: string; metaAdAccountId: string
@@ -109,6 +109,7 @@ export default function SettingsPage() {
           apiKeySid: settings.apiKeySid || '',
           apiKeySecret: '',
           phoneNumber: settings.phoneNumber || '',
+          smsPhoneNumber: settings.smsPhoneNumber || '',
           templateSid: settings.templateSid || '',
         })
       }).catch((error) => {
@@ -399,11 +400,15 @@ export default function SettingsPage() {
                         <input {...regTwilioWA('phoneNumber')} placeholder="+12345678900" className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white font-mono placeholder:text-slate/40 focus:outline-none focus:ring-1 focus:ring-gold/50" />
                       </div>
                       <div>
+                        <label className="block text-xs font-medium text-slate-light mb-1.5">SMS Sender Number</label>
+                        <input {...regTwilioWA('smsPhoneNumber')} placeholder="+12345678900 (SMS-enabled Twilio number)" className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white font-mono placeholder:text-slate/40 focus:outline-none focus:ring-1 focus:ring-gold/50" />
+                      </div>
+                      <div>
                         <label className="block text-xs font-medium text-slate-light mb-1.5">Approved Content Template SID (optional)</label>
                         <input {...regTwilioWA('templateSid')} placeholder="HX..." className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white font-mono placeholder:text-slate/40 focus:outline-none focus:ring-1 focus:ring-gold/50" />
                       </div>
                     </div>
-                    <p className="text-[11px] text-slate mt-3">For template sends, use an approved Content Template SID with body variable <code>{'{{1}}'}</code>. Environment variables override values saved here.</p>
+                    <p className="text-[11px] text-slate mt-3">The SMS sender must be SMS-enabled in Twilio. For WhatsApp template sends, use an approved Content Template SID with body variable <code>{'{{1}}'}</code>. Environment variables override values saved here.</p>
                   </div>
                   <Button type="submit" disabled={Boolean(twilioWhatsAppSettings?.providerLocked && twilioWhatsAppSettings?.provider !== 'TWILIO')} icon={<Save className="w-3.5 h-3.5" />}>Save and Select Twilio WhatsApp</Button>
                 </form>

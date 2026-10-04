@@ -22,6 +22,7 @@ export default function LeadDetailPage() {
   const [showNoteModal, setShowNoteModal] = useState(false)
   const [showVisitModal, setShowVisitModal] = useState(false)
   const [showEmailModal, setShowEmailModal] = useState(false)
+  const [showSmsModal, setShowSmsModal] = useState(false)
 
   const { data, isLoading } = useQuery({
     queryKey: ['lead', id],
@@ -80,6 +81,21 @@ export default function LeadDetailPage() {
     onError: () => toast.error('Failed to send WhatsApp'),
   })
 
+  const { register: registerSms, handleSubmit: handleSmsSubmit, reset: resetSms } = useForm<{
+    message: string
+    consentConfirmed: boolean
+  }>()
+  const sendSmsMutation = useMutation({
+    mutationFn: (data: { message: string; consentConfirmed: boolean }) => leadApi.sendSms(id, data),
+    onSuccess: (response) => {
+      queryClient.invalidateQueries({ queryKey: ['lead', id] })
+      setShowSmsModal(false)
+      resetSms()
+      toast.success(response.data?.message || 'SMS sent successfully')
+    },
+    onError: (error: any) => toast.error(error.response?.data?.message || 'Failed to send SMS'),
+  })
+
   const { register, handleSubmit, reset } = useForm()
 
   if (isLoading) return <AppLayout title="Lead Detail"><div className="flex items-center justify-center h-64"><div className="text-slate">Loading...</div></div></AppLayout>
@@ -91,6 +107,7 @@ export default function LeadDetailPage() {
     CALL_LOGGED: <Phone className="w-3.5 h-3.5 text-orange-400" />,
     EMAIL_SENT: <Mail className="w-3.5 h-3.5 text-green-400" />,
     WHATSAPP_SENT: <MessageSquare className="w-3.5 h-3.5 text-emerald-400" />,
+    SMS_SENT: <MessageSquare className="w-3.5 h-3.5 text-blue-400" />,
     NOTE_ADDED: <FileText className="w-3.5 h-3.5 text-purple-400" />,
     LEAD_ASSIGNED: <User className="w-3.5 h-3.5 text-gold" />,
     BOOKING_CREATED: <CheckCircle className="w-3.5 h-3.5 text-gold" />,
@@ -107,6 +124,7 @@ export default function LeadDetailPage() {
             <Phone className="w-3.5 h-3.5" />Call Client
           </a>
           <Button variant="secondary" size="sm" icon={<Phone className="w-3.5 h-3.5" />} onClick={() => setShowCallModal(true)}>Log Call</Button>
+          <Button variant="secondary" size="sm" icon={<MessageSquare className="w-3.5 h-3.5" />} onClick={() => setShowSmsModal(true)}>Send SMS</Button>
           <Button variant="secondary" size="sm" icon={<MessageSquare className="w-3.5 h-3.5" />} onClick={() => sendWAMutation.mutate()} loading={sendWAMutation.isPending}>WhatsApp</Button>
           <Button variant="secondary" size="sm" icon={<Mail className="w-3.5 h-3.5" />} onClick={() => setShowEmailModal(true)}>Send Email</Button>
           <Button size="sm" icon={<Edit2 className="w-3.5 h-3.5" />} onClick={() => setShowStatusModal(true)}>Update Status</Button>
@@ -354,6 +372,33 @@ export default function LeadDetailPage() {
             <textarea {...register('remarks')} rows={3} placeholder="Add remarks..." className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white placeholder:text-slate/40 focus:outline-none focus:ring-1 focus:ring-gold/50 resize-none" />
           </div>
           <Button type="submit" loading={updateStatusMutation.isPending} className="w-full">Update Status</Button>
+        </form>
+      </Modal>
+
+      <Modal
+        open={showSmsModal}
+        onClose={() => { setShowSmsModal(false); resetSms() }}
+        title={`Send SMS to ${lead.mobile}`}
+        size="sm"
+      >
+        <form onSubmit={handleSmsSubmit((data) => sendSmsMutation.mutate(data))} className="space-y-4">
+          <div>
+            <label className="block text-xs font-medium text-slate-light mb-1.5">Message</label>
+            <textarea
+              {...registerSms('message', { required: true, maxLength: 1600 })}
+              required
+              maxLength={1600}
+              rows={5}
+              placeholder="Write your message..."
+              className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white placeholder:text-slate/40 focus:outline-none focus:ring-1 focus:ring-gold/50 resize-none"
+            />
+            <p className="text-[11px] text-slate mt-1">Sent through Twilio. Messaging charges may apply.</p>
+          </div>
+          <label className="flex items-start gap-2 text-xs text-slate-light">
+            <input {...registerSms('consentConfirmed', { required: true })} type="checkbox" required className="mt-0.5" />
+            I confirm this lead has consented to receive SMS messages.
+          </label>
+          <Button type="submit" loading={sendSmsMutation.isPending} className="w-full">Send SMS</Button>
         </form>
       </Modal>
 
