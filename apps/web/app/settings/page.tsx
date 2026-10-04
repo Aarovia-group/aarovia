@@ -13,7 +13,8 @@ import api from '@/lib/api'
 type ProfileFormValues = { name: string; phone: string }
 type PasswordFormValues = { currentPassword: string; newPassword: string; confirmPassword: string }
 type EmailFormValues = { gmailUser: string; gmailAppPassword: string; fromName: string }
-type WAFormValues = { phoneId: string; accessToken: string; businessId: string; templateName: string; allowRawText: boolean }
+type WAFormValues = { phoneId: string; accessToken: string; businessId: string }
+type TwilioWAFormValues = { accountSid: string; authToken: string; apiKeySid: string; apiKeySecret: string; phoneNumber: string; templateSid: string }
 type AdsFormValues = {
   metaAppId: string; metaAppSecret: string; metaLeadVerifyToken: string; metaLeadAccessToken: string; metaAdsAccessToken: string; metaAdAccountId: string
   googleLeadWebhookKey: string; googleAdsClientId: string; googleAdsClientSecret: string; googleAdsRefreshToken: string
@@ -23,7 +24,8 @@ type AdsFormValues = {
 const TABS = [
   { key: 'profile', label: 'My Profile', icon: User },
   { key: 'email', label: 'Email Config', icon: Mail },
-  { key: 'whatsapp', label: 'WhatsApp API', icon: MessageSquare },
+  { key: 'whatsapp', label: 'Meta WhatsApp API', icon: MessageSquare },
+  { key: 'twilio-whatsapp', label: 'Twilio WhatsApp', icon: MessageSquare },
   { key: 'ads', label: 'Meta & Google Ads', icon: Megaphone },
   { key: 'projects', label: 'Projects', icon: Building2 },
   { key: 'security', label: 'Security', icon: Shield },
@@ -44,8 +46,13 @@ export default function SettingsPage() {
   const { register: regPw, handleSubmit: handlePw } = useForm<PasswordFormValues>()
   const { register: regEmail, handleSubmit: handleEmail } = useForm<EmailFormValues>()
   const { register: regWA, handleSubmit: handleWA, reset: resetWA } = useForm<WAFormValues>()
+  const { register: regTwilioWA, handleSubmit: handleTwilioWA, reset: resetTwilioWA } = useForm<TwilioWAFormValues>()
   const { register: regAds, handleSubmit: handleAds, reset: resetAds } = useForm<AdsFormValues>()
   const [hasSavedWAToken, setHasSavedWAToken] = useState(false)
+  const [hasSavedTwilioAuthToken, setHasSavedTwilioAuthToken] = useState(false)
+  const [hasSavedTwilioApiKeySecret, setHasSavedTwilioApiKeySecret] = useState(false)
+  const [waSettings, setWaSettings] = useState<any>(null)
+  const [twilioWhatsAppSettings, setTwilioWhatsAppSettings] = useState<any>(null)
   const { data: adsSettingsData } = useQuery({
     queryKey: ['ads-settings'],
     queryFn: () => api.get('/settings/ads'),
@@ -53,20 +60,41 @@ export default function SettingsPage() {
   })
 
   useEffect(() => {
-    if (activeTab !== 'whatsapp') return
-    api.get('/settings/whatsapp').then((response) => {
-      const settings = response.data?.data
-      if (!settings) return
-      setHasSavedWAToken(Boolean(settings.hasAccessToken))
-      resetWA({
-        phoneId: settings.phoneId || '',
-        accessToken: '',
-        businessId: settings.businessId || '',
-        templateName: settings.templateName || '',
-        allowRawText: Boolean(settings.allowRawText),
+    if (activeTab === 'whatsapp') {
+      api.get('/settings/whatsapp').then((response) => {
+        const settings = response.data?.data
+        if (!settings) return
+        setWaSettings(settings)
+        setHasSavedWAToken(Boolean(settings.hasAccessToken))
+        resetWA({
+          phoneId: settings.phoneId || '',
+          accessToken: '',
+          businessId: settings.businessId || '',
+        })
+      }).catch((error) => {
+        toast.error(error.response?.data?.message || 'Failed to load Meta WhatsApp API settings')
       })
-    }).catch(() => {})
-  }, [activeTab, resetWA])
+    }
+    if (activeTab === 'twilio-whatsapp') {
+      api.get('/settings/whatsapp/twilio').then((response) => {
+        const settings = response.data?.data
+        if (!settings) return
+        setTwilioWhatsAppSettings(settings)
+        setHasSavedTwilioAuthToken(Boolean(settings.authTokenConfigured))
+        setHasSavedTwilioApiKeySecret(Boolean(settings.apiKeySecretConfigured))
+        resetTwilioWA({
+          accountSid: settings.accountSid || '',
+          authToken: '',
+          apiKeySid: settings.apiKeySid || '',
+          apiKeySecret: '',
+          phoneNumber: settings.phoneNumber || '',
+          templateSid: settings.templateSid || '',
+        })
+      }).catch((error) => {
+        toast.error(error.response?.data?.message || 'Failed to load Twilio WhatsApp settings')
+      })
+    }
+  }, [activeTab, resetWA, resetTwilioWA])
 
   useEffect(() => {
     const settings = adsSettingsData?.data?.data
@@ -113,10 +141,24 @@ export default function SettingsPage() {
   const onWASave = async (data: any) => {
     try {
       const response = await api.post('/settings/whatsapp', data)
+      setWaSettings((current: any) => ({ ...current, configured: true, provider: 'META' }))
       setHasSavedWAToken(Boolean(response.data?.data?.hasAccessToken))
       resetWA({ ...data, accessToken: '' })
-      toast.success('WhatsApp configuration saved')
-    } catch { toast.error('Failed to save WhatsApp config') }
+      queryClient.invalidateQueries({ queryKey: ['whatsapp-status'] })
+      toast.success('Meta WhatsApp API settings saved and selected')
+    } catch (error: any) { toast.error(error.response?.data?.message || 'Failed to save Meta WhatsApp API settings') }
+  }
+
+  const onTwilioWhatsAppSave = async (data: TwilioWAFormValues) => {
+    try {
+      await api.post('/settings/whatsapp/twilio', data)
+      setTwilioWhatsAppSettings((current: any) => ({ ...current, configured: true, provider: 'TWILIO' }))
+      resetTwilioWA({ ...data, authToken: '', apiKeySecret: '' })
+      queryClient.invalidateQueries({ queryKey: ['whatsapp-status'] })
+      toast.success('Twilio WhatsApp settings saved and selected')
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Failed to save Twilio WhatsApp settings')
+    }
   }
 
   const onAdsSave = async (data: AdsFormValues) => {
@@ -268,9 +310,19 @@ export default function SettingsPage() {
           {activeTab === 'whatsapp' && (
             <Card>
               <CardHeader>
-                <CardTitle><MessageSquare className="w-4 h-4 text-gold" />WhatsApp Cloud API</CardTitle>
+                <CardTitle><MessageSquare className="w-4 h-4 text-gold" />Meta WhatsApp API</CardTitle>
               </CardHeader>
               <CardContent>
+                <div className={`rounded-lg border px-4 py-3 mb-5 text-xs ${waSettings?.configured && waSettings?.provider === 'META' ? 'border-green-500/30 bg-green-500/10 text-green-400' : 'border-amber-500/30 bg-amber-500/10 text-amber-300'}`}>
+                  {waSettings?.configured
+                    ? waSettings?.provider === 'META'
+                      ? 'Meta WhatsApp API is configured and selected. Access tokens are never displayed.'
+                      : `Meta credentials are configured, but ${waSettings?.provider || 'another provider'} is selected.`
+                    : 'Add the Meta Phone Number ID and Access Token to configure this sender.'}
+                </div>
+                {waSettings?.providerLocked && (
+                  <p className="text-xs text-amber-300 mb-4">Provider selection is locked to {waSettings.provider} by the WHATSAPP_PROVIDER environment variable.</p>
+                )}
                 <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-4 py-3 mb-5 text-xs text-emerald-400">
                   <strong>Setup:</strong> Create a Meta Developer account → Create App → Add WhatsApp product → Get Phone Number ID and Access Token.
                 </div>
@@ -287,15 +339,61 @@ export default function SettingsPage() {
                     <label className="block text-xs font-medium text-slate-light mb-1.5">Business Account ID</label>
                     <input {...regWA('businessId')} placeholder="WABA ID" className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white font-mono placeholder:text-slate/40 focus:outline-none focus:ring-1 focus:ring-gold/50" />
                   </div>
+                  <Button type="submit" disabled={Boolean(waSettings?.providerLocked && waSettings?.provider !== 'META')} icon={<Save className="w-3.5 h-3.5" />}>Save Meta WhatsApp API Settings</Button>
+                </form>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Twilio WhatsApp Config */}
+          {activeTab === 'twilio-whatsapp' && (
+            <Card>
+              <CardHeader>
+                <CardTitle><MessageSquare className="w-4 h-4 text-gold" />Twilio WhatsApp Setup</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className={`rounded-lg border px-4 py-3 mb-5 text-xs ${twilioWhatsAppSettings?.configured && twilioWhatsAppSettings?.provider === 'TWILIO' ? 'border-green-500/30 bg-green-500/10 text-green-400' : 'border-amber-500/30 bg-amber-500/10 text-amber-300'}`}>
+                  {twilioWhatsAppSettings?.configured
+                    ? twilioWhatsAppSettings?.provider === 'TWILIO'
+                      ? 'Twilio WhatsApp is configured and selected. Secret values are never displayed.'
+                      : `Twilio credentials are configured, but ${twilioWhatsAppSettings?.provider || 'another provider'} is selected.`
+                    : 'Add your Twilio credentials and WhatsApp sender number to configure this sender.'}
+                </div>
+                {twilioWhatsAppSettings?.providerLocked && (
+                  <p className="text-xs text-amber-300 mb-4">Provider selection is locked to {twilioWhatsAppSettings.provider} by the WHATSAPP_PROVIDER environment variable.</p>
+                )}
+                <form onSubmit={handleTwilioWA(onTwilioWhatsAppSave)} className="space-y-5">
                   <div>
-                    <label className="block text-xs font-medium text-slate-light mb-1.5">Approved WhatsApp Template Name / SID</label>
-                    <input {...regWA('templateName')} placeholder="hello_world or HX123..." className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white font-mono placeholder:text-slate/40 focus:outline-none focus:ring-1 focus:ring-gold/50" />
+                    <h3 className="text-sm font-medium text-white mb-3">Twilio WhatsApp Credentials</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-medium text-slate-light mb-1.5">Account SID</label>
+                        <input {...regTwilioWA('accountSid')} placeholder="AC..." className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white font-mono placeholder:text-slate/40 focus:outline-none focus:ring-1 focus:ring-gold/50" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-slate-light mb-1.5">Auth Token</label>
+                        <input {...regTwilioWA('authToken')} type="password" autoComplete="new-password" placeholder={hasSavedTwilioAuthToken ? 'Saved; blank keeps current token' : 'Twilio Auth Token'} className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white font-mono placeholder:text-slate/40 focus:outline-none focus:ring-1 focus:ring-gold/50" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-slate-light mb-1.5">API Key SID (alternative)</label>
+                        <input {...regTwilioWA('apiKeySid')} placeholder="SK..." className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white font-mono placeholder:text-slate/40 focus:outline-none focus:ring-1 focus:ring-gold/50" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-slate-light mb-1.5">API Key Secret</label>
+                        <input {...regTwilioWA('apiKeySecret')} type="password" autoComplete="new-password" placeholder={hasSavedTwilioApiKeySecret ? 'Saved; blank keeps current secret' : 'Twilio API Key Secret'} className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white font-mono placeholder:text-slate/40 focus:outline-none focus:ring-1 focus:ring-gold/50" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-slate-light mb-1.5">WhatsApp Sender Number</label>
+                        <input {...regTwilioWA('phoneNumber')} placeholder="+12345678900" className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white font-mono placeholder:text-slate/40 focus:outline-none focus:ring-1 focus:ring-gold/50" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-slate-light mb-1.5">Approved Content Template SID (optional)</label>
+                        <input {...regTwilioWA('templateSid')} placeholder="HX..." className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white font-mono placeholder:text-slate/40 focus:outline-none focus:ring-1 focus:ring-gold/50" />
+                      </div>
+                    </div>
+                    <p className="text-[11px] text-slate mt-3">For template sends, use an approved Content Template SID with body variable <code>{'{{1}}'}</code>. Environment variables override values saved here.</p>
                   </div>
-                  <label className="flex items-center gap-3 text-sm text-slate-light">
-                    <input type="checkbox" {...regWA('allowRawText')} className="h-4 w-4 rounded border-navy-border bg-navy" />
-                    Allow raw WhatsApp text only for opted-in recipients
-                  </label>
-                  <Button type="submit" icon={<Save className="w-3.5 h-3.5" />}>Save WhatsApp Config</Button>
+                  <Button type="submit" disabled={Boolean(twilioWhatsAppSettings?.providerLocked && twilioWhatsAppSettings?.provider !== 'TWILIO')} icon={<Save className="w-3.5 h-3.5" />}>Save and Select Twilio WhatsApp</Button>
                 </form>
               </CardContent>
             </Card>

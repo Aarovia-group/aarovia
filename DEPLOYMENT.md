@@ -35,6 +35,9 @@
 - `CLOUDINARY_API_SECRET`
 - `WHATSAPP_PHONE_ID` (optional)
 - `WHATSAPP_ACCESS_TOKEN` (optional)
+- `WHATSAPP_PROVIDER=META` or `TWILIO` (optional; locks provider selection)
+- `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN` or `TWILIO_API_KEY_SID` + `TWILIO_API_KEY_SECRET`, and `TWILIO_PHONE_NUMBER` (optional)
+- `TWILIO_WHATSAPP_TEMPLATE_SID` (optional; use a template with a message body variable `{{1}}`)
 
 ### 2. Web Project
 - Root Directory: `apps/web`
@@ -65,10 +68,7 @@
 ```bash
 npx prisma migrate deploy
 ```
-4. Seed if needed:
-```bash
-npx prisma db seed
-```
+4. Do not run the development seed against production. Provision production users through a trusted administrative process with unique, strong passwords.
 
 ## Notes
 - `apps/api/src/index.ts` already allows production CORS for `https://aarovia.co.in`.

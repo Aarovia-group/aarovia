@@ -1,6 +1,6 @@
 import prisma from '../utils/prisma'
 import { createTransporter } from '../utils/email'
-import axios from 'axios'
+import { sendWhatsAppMessage as sendConfiguredWhatsAppMessage } from './whatsapp.service'
 
 interface NotificationPayload {
   userId: string
@@ -75,29 +75,14 @@ export const sendEmailNotification = async (
 // ============================================
 export const sendWhatsAppNotification = async (to: string, message: string) => {
   try {
-    const response = await axios.post(
-      `https://graph.facebook.com/v18.0/${process.env.WHATSAPP_PHONE_ID}/messages`,
-      {
-        messaging_product: 'whatsapp',
-        to: to.replace(/\D/g, ''),
-        type: 'text',
-        text: { body: message },
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${process.env.WHATSAPP_ACCESS_TOKEN}`,
-          'Content-Type': 'application/json',
-        },
-      }
-    )
-    return { success: true, data: response.data }
-  } catch (error: any) {
-    console.error('WhatsApp notification failed:', error?.response?.data || error)
+    const data = await sendConfiguredWhatsAppMessage(to, message)
+    return { success: true, data }
+  } catch (error) {
+    console.error('WhatsApp notification failed:', error)
     return { success: false, error }
   }
 }
 
-// ============================================
 // Followup reminder service
 // ============================================
 export const sendFollowupReminders = async () => {

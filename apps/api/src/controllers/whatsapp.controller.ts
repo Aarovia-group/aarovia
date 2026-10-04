@@ -1,22 +1,5 @@
-import axios from 'axios'
 import prisma from '../utils/prisma'
-
-const WHATSAPP_API_URL = `https://graph.facebook.com/v18.0/${process.env.WHATSAPP_PHONE_ID}/messages`
-const WHATSAPP_TOKEN = process.env.WHATSAPP_ACCESS_TOKEN
-
-const sendWhatsAppMessage = async (to: string, message: string) => {
-  const response = await axios.post(
-    WHATSAPP_API_URL,
-    {
-      messaging_product: 'whatsapp',
-      to: to.replace(/\D/g, ''),
-      type: 'text',
-      text: { body: message },
-    },
-    { headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}`, 'Content-Type': 'application/json' } }
-  )
-  return response.data
-}
+import { sendWhatsAppMessage as sendConfiguredWhatsAppMessage } from '../services/whatsapp.service'
 
 export const sendProjectDetailsWA = async (req: any, res: any) => {
   try {
@@ -45,7 +28,7 @@ Thank you for your interest in *${project?.name || 'our premium properties'}*!
 
 *Aarovia Real Estates* | aarovia.co.in`
 
-    await sendWhatsAppMessage(phone, message)
+    await sendConfiguredWhatsAppMessage(phone, message)
 
     if (leadId) {
       await prisma.whatsappLog.create({
@@ -87,7 +70,7 @@ Please feel free to reach out. We're here to help you find your dream property!
 
 *Aarovia Real Estates Team*`
 
-    await sendWhatsAppMessage(lead.mobile, message)
+    await sendConfiguredWhatsAppMessage(lead.mobile, message)
     await prisma.whatsappLog.create({ data: { leadId, to: lead.mobile, message, status: 'SENT' } })
     await prisma.activity.create({
       data: { leadId, userId: req.user?.id, type: 'WHATSAPP_SENT', description: 'Followup WhatsApp sent' },
@@ -123,7 +106,7 @@ For payment details, contact us at aarovia.co.in
 Thank you! 🙏
 *Aarovia Real Estates*`
 
-    await sendWhatsAppMessage(booking.customer.mobile, message)
+    await sendConfiguredWhatsAppMessage(booking.customer.mobile, message)
     res.json({ success: true, message: 'Payment reminder sent' })
   } catch (error: any) {
     res.status(500).json({ success: false, message: 'Failed to send reminder', error: error?.response?.data || error })

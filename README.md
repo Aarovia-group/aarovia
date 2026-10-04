@@ -17,7 +17,7 @@ Enterprise-grade Real Estate CRM platform built for Aarovia Real Estates.
 - [Database Setup](#database-setup)
 - [Deployment (Vercel)](#deployment-vercel)
 - [Deployment Guide](DEPLOYMENT.md)
-- [Default Credentials](#default-credentials)
+- [Seed Data](#seed-data)
 - [API Documentation](#api-documentation)
 - [User Roles & Permissions](#user-roles--permissions)
 
@@ -43,7 +43,7 @@ Enterprise-grade Real Estate CRM platform built for Aarovia Real Estates.
 
 ### Integrations
 - 📧 **Gmail SMTP** — Send project details, quotations, reminders
-- 💬 **WhatsApp Cloud API** — Automated lead nurturing messages
+- 💬 **Meta WhatsApp API or Twilio WhatsApp** — Configure each provider separately in Settings, then select it by saving its panel
 - ☁️ **Cloudinary** — Document & image storage
 - 📊 **Recharts** — Interactive business dashboards
 
@@ -61,9 +61,11 @@ Forms:     React Hook Form · Zod
 Charts:    Recharts
 Storage:   Cloudinary / AWS S3
 Email:     Gmail SMTP (Nodemailer)
-WhatsApp:  Meta Cloud API
+WhatsApp:  Meta Cloud API / Twilio WhatsApp
 Deploy:    Vercel
 ```
+
+The API accepts `WHATSAPP_PROVIDER=META` or `WHATSAPP_PROVIDER=TWILIO` to lock provider selection in the deployment environment. Otherwise, save the desired provider from its separate Settings panel. Twilio credentials can also be supplied as `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN` (or the `TWILIO_API_KEY_SID` / `TWILIO_API_KEY_SECRET` pair), `TWILIO_PHONE_NUMBER`, and optionally `TWILIO_WHATSAPP_TEMPLATE_SID`.
 
 ---
 
@@ -295,26 +297,19 @@ Use a managed PostgreSQL service:
 After creating your database:
 ```bash
 # Update DATABASE_URL in Vercel env vars
-# Then run migrations
+# Run migrations against the production database
 DATABASE_URL="postgresql://..." npx prisma migrate deploy
-DATABASE_URL="postgresql://..." npx prisma db seed
 ```
+
+Do not run the development seed against production. It creates sample users with shared test passwords.
 
 ---
 
-## 🔑 Default Credentials
+## 🌱 Seed Data
 
-After seeding the database:
+The Prisma seed scripts create development sample accounts using built-in test credentials. Use them only with an isolated local development database; never seed production with these accounts. Provision production users through a trusted administrative process and set unique, strong passwords.
 
-| Role | Email | Password |
-|------|-------|----------|
-| Super Admin | admin@aarovia.co.in | Admin@1234 |
-| Sales Manager | manager@aarovia.co.in | Admin@1234 |
-| Sales Executive | arjun@aarovia.co.in | Admin@1234 |
-| Sales Executive | sanjana@aarovia.co.in | Admin@1234 |
-| Telecaller | paresh@aarovia.co.in | Admin@1234 |
-
-> ⚠️ **Change all passwords immediately in production!**
+No shared or production login credentials are published in this README. If any previously published sample credentials were used outside local development, rotate those passwords and revoke active sessions.
 
 ---
 
@@ -332,7 +327,7 @@ All protected routes require `Authorization: Bearer <token>` header.
 ```bash
 # Login
 POST /api/auth/login
-{ "email": "admin@aarovia.co.in", "password": "Admin@1234" }
+{ "email": "<your-account-email>", "password": "<your-password>" }
 
 # Response
 { "success": true, "data": { "user": {...}, "token": "eyJ..." } }

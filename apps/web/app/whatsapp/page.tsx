@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { Button, Card, CardHeader, CardTitle, CardContent, Table, Tr, Td, EmptyState } from '@/components/ui/index'
-import { whatsappApi, leadApi } from '@/lib/api'
+import api, { whatsappApi, leadApi } from '@/lib/api'
 import { formatRelativeTime } from '@/lib/utils'
 import { toast } from '@/components/ui/toaster'
 import { MessageSquare, Send, CheckCircle, Phone } from 'lucide-react'
@@ -47,6 +47,11 @@ export default function WhatsAppPage() {
     queryFn: () => leadApi.getAll({ limit: 100 }),
   })
 
+  const { data: whatsappStatusData } = useQuery({
+    queryKey: ['whatsapp-status'],
+    queryFn: () => api.get('/settings/whatsapp/status'),
+  })
+
   const { data: logsData, isLoading: logsLoading } = useQuery({
     queryKey: ['wa-logs'],
     queryFn: () => whatsappApi.getLogs({ limit: 50 }),
@@ -84,7 +89,7 @@ export default function WhatsAppPage() {
   return (
     <AppLayout
       title="WhatsApp Messaging"
-      subtitle="Send messages via WhatsApp Cloud API"
+      subtitle="Send messages via your selected WhatsApp provider"
     >
       <div className="flex gap-1 mb-5 bg-navy-mid border border-navy-border rounded-lg p-1 w-full sm:w-fit overflow-x-auto scrollbar-hide">
         {[
@@ -123,12 +128,21 @@ export default function WhatsAppPage() {
             {/* WA Setup Status */}
             <Card className="mt-4">
               <CardContent>
-                <p className="text-[10px] text-slate uppercase tracking-wide mb-2.5">WhatsApp API Status</p>
+                <p className="text-[10px] text-slate uppercase tracking-wide mb-2.5">WhatsApp Provider Status</p>
                 <div className="flex items-center gap-2 text-xs mb-1">
-                  <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                  <span className="text-emerald-400">API Connected</span>
+                  <div className={`w-2 h-2 rounded-full ${whatsappStatusData?.data?.data?.configured ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
+                  <span className={whatsappStatusData?.data?.data?.configured ? 'text-emerald-400' : 'text-amber-300'}>
+                    {whatsappStatusData?.data?.data?.configured
+                      ? `${whatsappStatusData.data.data.provider} configured`
+                      : whatsappStatusData?.data?.data?.provider
+                        ? `${whatsappStatusData.data.data.provider} not configured`
+                        : 'Checking configuration'}
+                  </span>
                 </div>
-                <p className="text-[10px] text-slate">Meta Cloud API · Phone verified</p>
+                <p className="text-[10px] text-slate">
+                  {whatsappStatusData?.data?.data?.provider === 'TWILIO' ? 'Twilio WhatsApp' : 'Meta WhatsApp API'}
+                  {whatsappStatusData?.data?.data?.providerLocked ? ' · Provider locked by environment' : ''}
+                </p>
                 <Button variant="ghost" size="sm" className="w-full mt-3 text-xs" onClick={() => window.location.href = '/settings'}>
                   Manage API Config →
                 </Button>
