@@ -27,6 +27,8 @@ export default function LeadsPage() {
   const [selectedLeadIds, setSelectedLeadIds] = useState<string[]>([])
   const [bulkAssignee, setBulkAssignee] = useState('')
   const [bulkProject, setBulkProject] = useState('')
+  const [transferFrom, setTransferFrom] = useState('')
+  const [transferTo, setTransferTo] = useState('')
   const [bulkChannel, setBulkChannel] = useState<'whatsapp' | 'sms' | 'email'>('whatsapp')
   const [bulkMessage, setBulkMessage] = useState('')
   const [bulkSubject, setBulkSubject] = useState('')
@@ -75,6 +77,14 @@ export default function LeadsPage() {
     enabled: isAdmin,
   })
   const activeTeamMembers = (usersData?.data?.data || []).filter((user: any) => user.isActive)
+  const sourceTeamMembers = usersData?.data?.data || []
+
+  const { data: transferCountData, isFetching: isTransferCountLoading } = useQuery({
+    queryKey: ['lead-transfer-count', transferFrom],
+    queryFn: () => leadApi.getAll({ assignedToId: transferFrom, limit: 1 }),
+    enabled: isAdmin && Boolean(transferFrom),
+  })
+  const transferLeadCount = transferCountData?.data?.meta?.total || 0
 
   const bulkAssignMutation = useMutation({
     mutationFn: () => leadApi.bulkAssign({ leadIds: selectedLeadIds, assignedToId: bulkAssignee }),
@@ -86,6 +96,28 @@ export default function LeadsPage() {
     },
     onError: (error: any) => toast.error(error.response?.data?.message || 'Failed to assign leads'),
   })
+
+  const transferLeadsMutation = useMutation({
+    mutationFn: () => leadApi.transferAgentLeads({ fromAssignedToId: transferFrom, toAssignedToId: transferTo }),
+    onSuccess: (response: any) => {
+      queryClient.invalidateQueries({ queryKey: ['leads'] })
+      queryClient.invalidateQueries({ queryKey: ['lead-transfer-count'] })
+      setTransferFrom('')
+      setTransferTo('')
+      toast.success(response.data?.message || 'Agent leads transferred successfully')
+    },
+    onError: (error: any) => toast.error(error.response?.data?.message || 'Failed to transfer agent leads'),
+  })
+
+  const confirmTransferAgentLeads = () => {
+    const source = sourceTeamMembers.find((user: any) => user.id === transferFrom)
+    const destination = activeTeamMembers.find((user: any) => user.id === transferTo)
+    if (!source || !destination || transferLeadCount < 1) return
+    const confirmed = window.confirm(
+      `Transfer all ${transferLeadCount} active leads from ${source.name} to ${destination.name}? Lead notes, calls, tasks, and activity history will be kept.`,
+    )
+    if (confirmed) transferLeadsMutation.mutate()
+  }
 
   const bulkProjectMutation = useMutation({
     mutationFn: () => leadApi.bulkAssignProject({ leadIds: selectedLeadIds, projectId: bulkProject }),
@@ -302,6 +334,48 @@ export default function LeadsPage() {
           </button>
         </div>
       </div>
+
+      {isAdmin && (
+        <div className="mb-4 rounded-lg border border-[#c58b24]/40 bg-white px-3 py-3">
+          <p className="mb-2 text-xs font-semibold text-[#172033]">Transfer all active leads between agents</p>
+          <div className="flex flex-wrap items-center gap-2">
+            <select
+              value={transferFrom}
+              onChange={event => { setTransferFrom(event.target.value); setTransferTo('') }}
+              className="rounded-md border border-[#d8e0e8] bg-white px-2 py-1.5 text-xs text-[#172033]"
+            >
+              <option value="">From agent</option>
+              {sourceTeamMembers.map((user: any) => (
+                <option key={user.id} value={user.id}>{user.name}{user.isActive ? '' : ' (inactive)'}</option>
+              ))}
+            </select>
+            <span className="text-xs text-[#64748b]">to</span>
+            <select
+              value={transferTo}
+              onChange={event => setTransferTo(event.target.value)}
+              className="rounded-md border border-[#d8e0e8] bg-white px-2 py-1.5 text-xs text-[#172033]"
+            >
+              <option value="">Destination agent</option>
+              {activeTeamMembers.filter((user: any) => user.id !== transferFrom).map((user: any) => (
+                <option key={user.id} value={user.id}>{user.name}</option>
+              ))}
+            </select>
+            <span className="text-xs text-[#475569]">
+              {isTransferCountLoading ? 'Counting leads…' : `${transferLeadCount} active lead${transferLeadCount === 1 ? '' : 's'}`}
+            </span>
+            <Button
+              size="sm"
+              icon={<UserPlus className="w-3.5 h-3.5" />}
+              disabled={!transferFrom || !transferTo || transferLeadCount === 0 || isTransferCountLoading}
+              loading={transferLeadsMutation.isPending}
+              onClick={confirmTransferAgentLeads}
+            >
+              Transfer All Leads
+            </Button>
+          </div>
+          <p className="mt-2 text-[10px] text-[#64748b]">Transfers all active leads owned by the source agent. Existing lead records and history are preserved.</p>
+        </div>
+      )}
 
       {isAdmin && selectedLeadIds.length > 0 && (
         <div className="mb-4 flex flex-wrap items-center gap-2 rounded-lg border border-gold/40 bg-gold-pale px-3 py-2">

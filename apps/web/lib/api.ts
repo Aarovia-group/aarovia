@@ -165,6 +165,7 @@ export const leadApi = {
   updateStatus: (id: string, data: any) => api.patch(`/leads/${id}/status`, data),
   assign: (id: string, data: any) => api.patch(`/leads/${id}/assign`, data),
   bulkAssign: (data: any) => api.patch('/leads/bulk-assign', data),
+  transferAgentLeads: (data: { fromAssignedToId: string; toAssignedToId: string }) => api.post('/leads/transfer-agent-leads', data),
   bulkAssignProject: (data: any) => api.patch('/leads/bulk-assign-project', data),
   addCallLog: (id: string, data: any) => api.post(`/leads/${id}/call-log`, data),
   updateCallLog: (id: string, callId: string, data: any) => api.patch(`/leads/${id}/call-log/${callId}`, data),

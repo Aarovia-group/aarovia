@@ -270,6 +270,75 @@ export const bulkAssignLeads = async (req: AuthRequest, res: Response) => {
   }
 }
 
+export const transferAgentLeads = async (req: AuthRequest, res: Response) => {
+  try {
+    const { fromAssignedToId, toAssignedToId } = req.body || {}
+    if (
+      typeof fromAssignedToId !== 'string'
+      || !fromAssignedToId.trim()
+      || typeof toAssignedToId !== 'string'
+      || !toAssignedToId.trim()
+    ) {
+      return res.status(400).json({ success: false, message: 'Source and destination team members are required' })
+    }
+    if (fromAssignedToId === toAssignedToId) {
+      return res.status(400).json({ success: false, message: 'Choose two different team members' })
+    }
+
+    const [sourceUser, destinationUser] = await Promise.all([
+      prisma.user.findUnique({ where: { id: fromAssignedToId }, select: { id: true, name: true } }),
+      prisma.user.findFirst({ where: { id: toAssignedToId, isActive: true }, select: { id: true, name: true } }),
+    ])
+    if (!sourceUser) return res.status(404).json({ success: false, message: 'Source team member not found' })
+    if (!destinationUser) return res.status(400).json({ success: false, message: 'An active destination team member is required' })
+
+    const transferredCount = await prisma.$transaction(async transaction => {
+      const leads = await transaction.lead.findMany({
+        where: { assignedToId: sourceUser.id, isActive: true },
+        select: { id: true },
+      })
+      if (!leads.length) return 0
+
+      const updateResult = await transaction.lead.updateMany({
+        where: { id: { in: leads.map(lead => lead.id) }, assignedToId: sourceUser.id, isActive: true },
+        data: { assignedToId: destinationUser.id },
+      })
+      if (updateResult.count !== leads.length) {
+        throw Object.assign(new Error('Lead assignments changed while the transfer was in progress; refresh and try again'), { statusCode: 409 })
+      }
+      await transaction.activity.createMany({
+        data: leads.map(lead => ({
+          leadId: lead.id,
+          userId: req.user?.id,
+          type: 'LEAD_ASSIGNED',
+          description: `Lead transferred from ${sourceUser.name} to ${destinationUser.name}`,
+          metadata: {
+            previousAssignedToId: sourceUser.id,
+            assignedToId: destinationUser.id,
+            bulkTransfer: true,
+          },
+        })),
+      })
+      return leads.length
+    }, { maxWait: 10000, timeout: 30000 })
+
+    return res.json({
+      success: true,
+      message: transferredCount
+        ? `${transferredCount} active leads transferred from ${sourceUser.name} to ${destinationUser.name}`
+        : `No active leads are currently assigned to ${sourceUser.name}`,
+      data: { count: transferredCount, from: sourceUser.name, to: destinationUser.name },
+    })
+  } catch (error) {
+    console.error('[Leads] Failed to transfer agent leads', error)
+    const statusCode = (error as { statusCode?: number })?.statusCode || 500
+    const message = statusCode === 409 && error instanceof Error
+      ? error.message
+      : 'Failed to transfer agent leads'
+    return res.status(statusCode).json({ success: false, message })
+  }
+}
+
 export const bulkAssignProject = async (req: AuthRequest, res: Response) => {
   try {
     const { leadIds, projectId } = req.body

@@ -63,6 +63,8 @@ Module visibility and access are enforced in both the CRM navigation/pages and A
 
 Team creation and role changes require an admin account. API authorization remains authoritative even if a restricted page is opened directly. These defaults control module access; record-level ownership filtering is not configured by this matrix.
 
+Admins can transfer all active leads from one agent to another on the Leads page. The CRM confirms the active lead count, preserves lead records and existing history, and records each transfer in the lead activity timeline.
+
 ---
 
 ## 🛠 Tech Stack
