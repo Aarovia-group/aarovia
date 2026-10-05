@@ -9,15 +9,17 @@ import {
   changePassword,
 } from '../controllers/auth.controller'
 import { authenticate } from '../middleware/auth.middleware'
+import { validate } from '../middleware/validate.middleware'
+import { loginSchema, registerSchema, changePasswordSchema } from '../validations/schemas'
 
 const router = Router()
 
-router.post('/register', register)
-router.post('/login', login)
+router.post('/register', validate(registerSchema), register)
+router.post('/login', validate(loginSchema), login)
 router.post('/refresh-token', refreshToken)
 router.post('/logout', logout)
 router.get('/profile', authenticate, getProfile)
 router.put('/profile', authenticate, updateProfile)
-router.put('/change-password', authenticate, changePassword)
+router.put('/change-password', authenticate, validate(changePasswordSchema), changePassword)
 
 export default router

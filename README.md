@@ -39,11 +39,12 @@ Enterprise-grade Real Estate CRM platform built for Aarovia Real Estates.
 | **Reports** | Analytics with Recharts visualizations |
 | **Notifications** | In-app, Email, WhatsApp alerts |
 | **Team Management** | Role-based user management |
-| **Settings** | Email, WhatsApp, Branding config |
+| **Settings** | Email, WhatsApp, SMS, Branding config |
 
 ### Integrations
 - 📧 **Gmail SMTP** — Send project details, quotations, reminders
 - 💬 **WhatsApp Cloud API** — Automated lead nurturing messages
+- 📱 **Twilio SMS** — Send SMS directly from lead profiles
 - ☁️ **Cloudinary** — Document & image storage
 - 📊 **Recharts** — Interactive business dashboards
 
@@ -182,6 +183,12 @@ npm run dev
 | `SMTP_PASS` | SMTP password / API secret | Optional |
 | `WHATSAPP_PHONE_ID` | WhatsApp Phone Number ID | Optional |
 | `WHATSAPP_ACCESS_TOKEN` | Meta API access token | Optional |
+| `SMS_TWILIO_ACCOUNT_SID` | Twilio Account SID for SMS | Optional |
+| `SMS_TWILIO_AUTH_TOKEN` | Twilio Auth Token for SMS (or use the API key pair) | Optional |
+| `SMS_TWILIO_API_KEY_SID` | Twilio API Key SID, alternative to Auth Token | Optional |
+| `SMS_TWILIO_API_KEY_SECRET` | Twilio API Key Secret | Optional |
+| `SMS_TWILIO_PHONE_NUMBER` | SMS-capable Twilio sender number in E.164 format (use this or a Messaging Service SID) | Optional |
+| `SMS_TWILIO_MESSAGING_SERVICE_SID` | Twilio Messaging Service SID (`MG...`), alternative to a direct sender number | Optional |
 | `CLOUDINARY_CLOUD_NAME` | Cloudinary cloud name | Optional |
 | `CLOUDINARY_API_KEY` | Cloudinary API key | Optional |
 | `CLOUDINARY_API_SECRET` | Cloudinary secret | Optional |
@@ -192,6 +199,8 @@ npm run dev
 | Variable | Description | Required |
 |----------|-------------|----------|
 | `NEXT_PUBLIC_API_URL` | Express API URL | ✅ |
+
+Twilio SMS can also be configured in **CRM Settings → SMS (Twilio)** by an admin. Provide either a Twilio SMS sender number or a Messaging Service SID; a Messaging Service uses its configured SMS-capable senders, so no sender number needs to be entered in the CRM. SMS-specific environment variables override saved values. Generic `TWILIO_*` account credentials can be used for authentication, but the WhatsApp `TWILIO_PHONE_NUMBER` is never reused as an SMS sender. Ensure the sender is approved for messaging your target countries.
 
 ---
 

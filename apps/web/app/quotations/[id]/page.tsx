@@ -73,6 +73,9 @@ export default function QuotationDetailPage() {
           <Button variant="ghost" size="sm" icon={<ArrowLeft className="w-3.5 h-3.5" />} onClick={() => router.back()}>Back</Button>
           <Button variant="secondary" size="sm" icon={<Mail className="w-3.5 h-3.5" />} loading={sendEmailMutation.isPending} onClick={() => sendEmailMutation.mutate()}>Email</Button>
           <Button variant="secondary" size="sm" icon={<MessageSquare className="w-3.5 h-3.5" />} loading={sendWAMutation.isPending} onClick={() => sendWAMutation.mutate()}>WhatsApp</Button>
+          <Link href={`/quotations/${id}/edit`}>
+            <Button variant="secondary" size="sm" icon={<Edit2 className="w-3.5 h-3.5" />}>Edit</Button>
+          </Link>
           <Button variant="secondary" size="sm" icon={<Download className="w-3.5 h-3.5" />}>Download PDF</Button>
           {nextStatus && (
             <Button size="sm" icon={<CheckCircle className="w-3.5 h-3.5" />} loading={updateStatusMutation.isPending} onClick={() => updateStatusMutation.mutate(nextStatus)}>

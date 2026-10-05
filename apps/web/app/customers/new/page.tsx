@@ -76,6 +76,7 @@ export default function NewCustomerPage() {
               <CardContent>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
+                    <label className={labelClass}>Full Name *</label>
                     <input {...register('name', { required: 'Name is required' })} placeholder="Customer full name" className={inputClass} />
                     {errors.name && <p className={errorClass}>{errors.name.message as string}</p>}
                   </div>
@@ -105,6 +106,7 @@ export default function NewCustomerPage() {
               <CardContent>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
+                    <label className={labelClass}>PAN Card Number</label>
                     <input
                       {...register('panNumber', {
                         pattern: { value: /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/, message: 'Invalid PAN (e.g. ABCDE1234F)' },

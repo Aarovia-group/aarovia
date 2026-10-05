@@ -81,7 +81,7 @@ export default function DashboardPage() {
         {[
           { label: 'Send Project Details', icon: <Mail className="w-3.5 h-3.5" />, href: '/email', color: 'text-blue-400' },
           { label: 'New Quotation', icon: <FileText className="w-3.5 h-3.5" />, href: '/quotations/new', color: 'text-gold' },
-          { label: 'Schedule Visit', icon: <Calendar className="w-3.5 h-3.5" />, href: '/leads?action=visit', color: 'text-green-400' },
+          { label: 'Schedule Visit', icon: <Calendar className="w-3.5 h-3.5" />, href: '/leads', color: 'text-green-400' },
           { label: 'WhatsApp Blast', icon: <MessageSquare className="w-3.5 h-3.5" />, href: '/whatsapp', color: 'text-emerald-400' },
         ].map(a => (
           <Link key={a.label} href={a.href}>
@@ -95,17 +95,17 @@ export default function DashboardPage() {
       {/* Stats Row 1 */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 mb-4">
         <StatCard label="Total Leads" value={stats?.totalLeads?.toLocaleString() || '—'} sub="All time" icon={<Users className="w-4 h-4" />} accentColor="gold" trend="up" trendValue={`${stats?.leadGrowth || 0}%`} />
-        <StatCard label="New Today" value={stats?.newLeadsToday || '—'} sub="leads added" icon={<UserPlus className="w-4 h-4" />} accentColor="green" />
-        <StatCard label="Site Visits" value={stats?.siteVisitsThisMonth || '—'} sub="this month" icon={<Calendar className="w-4 h-4" />} accentColor="blue" />
-        <StatCard label="Bookings" value={stats?.bookingsThisMonth || '—'} sub="this month" icon={<BookOpen className="w-4 h-4" />} accentColor="orange" trend="up" trendValue={`${stats?.bookingGrowth || 0}%`} />
+        <StatCard label="New Today" value={stats?.newLeadsToday ?? 0} sub="leads added" icon={<UserPlus className="w-4 h-4" />} accentColor="green" />
+        <StatCard label="Site Visits" value={stats?.siteVisitsThisMonth ?? 0} sub="this month" icon={<Calendar className="w-4 h-4" />} accentColor="blue" />
+        <StatCard label="Bookings" value={stats?.bookingsThisMonth ?? 0} sub="this month" icon={<BookOpen className="w-4 h-4" />} accentColor="orange" trend="up" trendValue={`${stats?.bookingGrowth || 0}%`} />
       </div>
 
       {/* Stats Row 2 */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 mb-5">
         <StatCard label="Collections" value={formatCurrency(stats?.collectionsThisMonth || 0)} sub="this month" icon={<Coins className="w-4 h-4" />} accentColor="gold" />
         <StatCard label="Due Amount" value={formatCurrency(stats?.dueAmount || 0)} sub="outstanding" icon={<AlertCircle className="w-4 h-4" />} accentColor="red" />
-        <StatCard label="Followups Due" value={stats?.followupsDue || '—'} sub="pending today" icon={<Clock className="w-4 h-4" />} accentColor="orange" />
-        <StatCard label="Available Units" value={stats?.inventoryAvailable || '—'} sub="across projects" icon={<Home className="w-4 h-4" />} accentColor="green" />
+        <StatCard label="Followups Due" value={stats?.followupsDue ?? 0} sub="pending today" icon={<Clock className="w-4 h-4" />} accentColor="orange" />
+        <StatCard label="Available Units" value={stats?.inventoryAvailable ?? 0} sub="across projects" icon={<Home className="w-4 h-4" />} accentColor="green" />
       </div>
 
       {/* Charts Row */}
@@ -231,8 +231,8 @@ export default function DashboardPage() {
             {[
               { label: 'Available', value: stats?.inventoryAvailable || 0, color: 'bg-green-500', textColor: 'text-green-400' },
               { label: 'Sold', value: stats?.inventorySold || 0, color: 'bg-blue-500', textColor: 'text-blue-400' },
-              { label: 'Blocked', value: 0, color: 'bg-orange-500', textColor: 'text-orange-400' },
-              { label: 'Reserved', value: 0, color: 'bg-red-500', textColor: 'text-red-400' },
+              { label: 'Blocked', value: stats?.inventoryBlocked ?? 0, color: 'bg-orange-500', textColor: 'text-orange-400' },
+              { label: 'Reserved', value: stats?.inventoryReserved ?? 0, color: 'bg-red-500', textColor: 'text-red-400' },
             ].map(item => (
               <div key={item.label} className="bg-navy rounded-lg p-3 border border-navy-border">
                 <div className={`text-2xl font-display font-medium ${item.textColor} mb-1`}>{item.value}</div>

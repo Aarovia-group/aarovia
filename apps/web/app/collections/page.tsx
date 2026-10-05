@@ -7,6 +7,7 @@ import { Button, Card, CardHeader, CardTitle, CardContent, Table, Tr, Td, Search
 import { reportApi } from '@/lib/api'
 import { formatCurrency, formatDate, formatDateTime } from '@/lib/utils'
 import { Coins, AlertCircle, TrendingUp, Download, Clock, CheckCircle, User, Building2 } from 'lucide-react'
+import Link from 'next/link'
 
 export default function CollectionsPage() {
   const [activeTab, setActiveTab] = useState<'payments' | 'due'>('payments')
@@ -39,7 +40,7 @@ export default function CollectionsPage() {
       title="Collections"
       subtitle="Payment tracking and due amount management"
       actions={
-        <Button variant="secondary" size="sm" icon={<Download className="w-3.5 h-3.5" />}>Export</Button>
+        <Link href="/reports/export"><Button variant="secondary" size="sm" icon={<Download className="w-3.5 h-3.5" />}>Export</Button></Link>
       }
     >
       {/* Summary */}
@@ -163,7 +164,7 @@ export default function CollectionsPage() {
                         {b.customer?.name?.charAt(0)}
                       </div>
                       <div>
-                        <p className="text-sm font-medium text-white">{b.customer?.name}</p>
+                        <Link href={`/bookings/${b.id}`} className="text-sm font-medium text-white hover:text-gold">{b.customer?.name}</Link>
                         <p className="text-xs text-slate">{b.customer?.mobile}</p>
                       </div>
                     </div>

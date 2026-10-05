@@ -15,11 +15,11 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant = 'primary', size = 'md', loading, icon, children, disabled, ...props }, ref) => {
     const variants = {
-      primary: 'bg-gold text-white font-semibold hover:bg-gold-light active:bg-gold-dark',
-      secondary: 'bg-amber-50 text-gold border border-amber-200 hover:bg-amber-100 hover:border-amber-300',
-      ghost: 'text-slate-light hover:text-foreground hover:bg-slate-100',
-      danger: 'bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20',
-      success: 'bg-green-500/10 text-green-400 border border-green-500/20 hover:bg-green-500/20',
+      primary: 'bg-gold !text-white font-semibold shadow-sm hover:bg-gold-light active:bg-gold-dark',
+      secondary: 'bg-white text-[#7c5310] border-2 border-gold hover:bg-gold-pale hover:border-gold-light',
+      ghost: 'bg-white text-slate-light border border-[#d8e0e8] hover:text-foreground hover:border-gold hover:bg-gold-pale',
+      danger: 'bg-red-600 !text-white border border-red-700 shadow-sm hover:bg-red-700',
+      success: 'bg-green-600 !text-white border border-green-700 shadow-sm hover:bg-green-700',
     }
     const sizes = {
       sm: 'px-3 py-1.5 text-xs rounded-md gap-1.5',
@@ -31,7 +31,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         ref={ref}
         disabled={disabled || loading}
         className={cn(
-          'inline-flex items-center justify-center transition-all duration-150 font-medium disabled:opacity-50 disabled:cursor-not-allowed',
+          'inline-flex items-center justify-center transition-all duration-150 font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed',
           variants[variant], sizes[size], className
         )}
         {...props}
@@ -47,22 +47,22 @@ Button.displayName = 'Button'
 // Card
 export function Card({ className, children, ...props }: HTMLAttributes<HTMLDivElement>) {
   return (
-    <div className={cn('bg-white border border-[#e3e9ef] rounded-lg shadow-[0_1px_2px_rgba(31,41,55,0.03)]', className)} {...props}>
+    <div className={cn('bg-navy-light border border-navy-border rounded-lg shadow-[0_1px_2px_rgba(0,0,0,0.2)]', className)} {...props}>
       {children}
     </div>
   )
 }
 
 export function CardHeader({ className, children, ...props }: HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn('px-4 py-3.5 border-b border-[#e8edf2] flex items-center justify-between', className)} {...props}>{children}</div>
+  return <div className={cn('px-4 py-3.5 border-b border-navy-border flex items-center justify-between', className)} {...props}>{children}</div>
 }
 
 export function CardTitle({ className, children, ...props }: HTMLAttributes<HTMLHeadingElement>) {
-  return <h3 className={cn('text-sm font-semibold text-[#172033] flex items-center gap-2', className)} {...props}>{children}</h3>
+  return <h3 className={cn('text-sm font-semibold text-white flex items-center gap-2', className)} {...props}>{children}</h3>
 }
 
 export function CardContent({ className, children, ...props }: HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn('p-4', className)} {...props}>{children}</div>
+  return <div className={cn('p-4 text-slate-light', className)} {...props}>{children}</div>
 }
 
 // Badge
@@ -255,7 +255,7 @@ export function StatCard({ label, value, sub, trend, trendValue, icon, accentCol
 
 // Table
 interface TableProps {
-  headers: string[]
+  headers: ReactNode[]
   children: ReactNode
   className?: string
 }

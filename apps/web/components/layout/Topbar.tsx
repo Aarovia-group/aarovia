@@ -32,42 +32,43 @@ export function Topbar({ title, subtitle, actions, unreadCount = 0, onMenuClick 
   }
 
   return (
-    <header className="h-14 bg-white/90 backdrop-blur border-b border-[#e3e9ef] flex items-center px-4 md:px-5 gap-2 md:gap-3 flex-shrink-0 z-10">
-      <button
-        type="button"
-        onClick={onMenuClick}
-        className="inline-flex items-center justify-center p-2 rounded-lg text-slate hover:text-gold hover:bg-gold/10 transition-colors md:hidden"
-      >
-        <Menu className="w-5 h-5" />
-      </button>
+    <header className="bg-white/90 backdrop-blur border-b border-[#e3e9ef] flex flex-col px-4 md:px-5 flex-shrink-0 z-10">
+      <div className="flex min-h-14 w-full items-center gap-2 md:gap-3">
+        <button
+          type="button"
+          onClick={onMenuClick}
+          className="inline-flex items-center justify-center p-2 rounded-lg text-slate hover:text-gold hover:bg-gold/10 transition-colors md:hidden"
+        >
+          <Menu className="w-5 h-5" />
+        </button>
 
-      <div className="flex-1 min-w-0">
-        <h1 className="font-display text-base font-medium text-[#172033] leading-tight truncate">{title}</h1>
-        {subtitle && <p className="text-[11px] text-slate truncate">{subtitle}</p>}
-      </div>
+        <div className="flex-1 min-w-0">
+          <h1 className="font-display text-base font-medium text-[#172033] leading-tight truncate">{title}</h1>
+          {subtitle && <p className="text-[11px] text-slate truncate">{subtitle}</p>}
+        </div>
 
-      <div className="hidden md:flex items-center gap-2">
-        {actions}
+        <div className="hidden lg:flex items-center gap-2">
+          {actions}
 
-        <Link href="/notifications" className="relative p-2 rounded-lg text-slate hover:text-gold hover:bg-gold/10 transition-colors">
-          <Bell className="w-4 h-4" />
-          {unreadCount > 0 && (
-            <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />
-          )}
-        </Link>
-      </div>
+          <Link href="/notifications" className="relative p-2 rounded-lg text-slate hover:text-gold hover:bg-gold/10 transition-colors">
+            <Bell className="w-4 h-4" />
+            {unreadCount > 0 && (
+              <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />
+            )}
+          </Link>
+        </div>
 
-      <div className="md:hidden flex items-center gap-2">
-        <Link href="/notifications" className="relative p-2 rounded-lg text-slate hover:text-gold hover:bg-gold/10 transition-colors">
-          <Bell className="w-4 h-4" />
-          {unreadCount > 0 && (
-            <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />
-          )}
-        </Link>
-      </div>
+        <div className="lg:hidden flex items-center gap-2">
+          <Link href="/notifications" className="relative p-2 rounded-lg text-slate hover:text-gold hover:bg-gold/10 transition-colors">
+            <Bell className="w-4 h-4" />
+            {unreadCount > 0 && (
+              <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />
+            )}
+          </Link>
+        </div>
 
-      {/* Profile dropdown */}
-      <div className="relative">
+        {/* Profile dropdown */}
+        <div className="relative">
           <button
             onClick={() => setProfileOpen(!profileOpen)}
             className="flex items-center gap-2 pl-2 pr-1 py-1 rounded-lg hover:bg-gold/10 transition-colors"
@@ -107,6 +108,13 @@ export function Topbar({ title, subtitle, actions, unreadCount = 0, onMenuClick 
             </>
           )}
         </div>
+      </div>
+
+      {actions && (
+        <div className="lg:hidden flex w-full flex-wrap items-center gap-2 border-t border-[#e3e9ef] py-2">
+          {actions}
+        </div>
+      )}
     </header>
   )
 }

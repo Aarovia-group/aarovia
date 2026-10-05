@@ -1,12 +1,13 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/lib/store/auth.store'
 import { Sidebar } from './Sidebar'
 import { Topbar } from './Topbar'
 import { useQuery } from '@tanstack/react-query'
-import { authApi, notificationApi } from '@/lib/api'
+import { authApi, notificationApi, settingsApi } from '@/lib/api'
 
 interface AppLayoutProps {
   children: React.ReactNode
@@ -19,6 +20,7 @@ export function AppLayout({ children, title, subtitle, actions }: AppLayoutProps
   const { isAuthenticated, setAuth, clearAuth } = useAuthStore()
   const router = useRouter()
   const [ready, setReady] = useState(false)
+  const [logoUrl, setLogoUrl] = useState('/aarovia-mark.png')
 
   const decodeTokenExpiry = (token: string) => {
     try {
@@ -102,6 +104,19 @@ export function AppLayout({ children, title, subtitle, actions }: AppLayoutProps
     }
   }, [ready, isAuthenticated, router])
 
+  useEffect(() => {
+    if (!ready || !isAuthenticated) return
+    const applyBranding = (branding?: { accentColor?: string; accent_color?: string; logoUrl?: string; logo_url?: string }) => {
+      const color = branding?.accentColor || branding?.accent_color
+      if (color && /^#[0-9a-f]{6}$/i.test(color)) document.documentElement.style.setProperty('--brand-accent', color)
+      setLogoUrl(branding?.logoUrl || branding?.logo_url || '/aarovia-mark.png')
+    }
+    settingsApi.getAll().then(response => applyBranding(response.data?.data)).catch(() => undefined)
+    const handleBrandingUpdate = (event: Event) => applyBranding((event as CustomEvent).detail)
+    window.addEventListener('branding-updated', handleBrandingUpdate)
+    return () => window.removeEventListener('branding-updated', handleBrandingUpdate)
+  }, [ready, isAuthenticated])
+
   const { data: notifData } = useQuery({
     queryKey: ['notifications-count'],
     queryFn: () => notificationApi.getAll({ isRead: false, limit: 1 }),
@@ -115,9 +130,7 @@ export function AppLayout({ children, title, subtitle, actions }: AppLayoutProps
     return (
       <div className="min-h-screen bg-[#0A1628] flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#C9A84C] to-[#E8C96A] flex items-center justify-center">
-            <span className="font-bold text-[#0A1628] text-lg">A</span>
-          </div>
+          <Image src="/aarovia-mark.png" alt="Aarovia logo" width={40} height={40} className="w-10 h-10 object-contain" />
           <p className="text-[#C9A84C] text-sm animate-pulse">Loading...</p>
         </div>
       </div>
@@ -126,7 +139,7 @@ export function AppLayout({ children, title, subtitle, actions }: AppLayoutProps
 
   return (
     <div className="flex h-screen crm-shell overflow-hidden">
-      <Sidebar unreadNotifications={unreadCount} />
+          <Sidebar unreadNotifications={unreadCount} logoUrl={logoUrl} />
       <div className="flex-1 flex flex-col overflow-hidden">
         <Topbar
           title={title}

@@ -47,3 +47,4 @@ coverage/
 # Uploads (local)
 uploads/
 public/uploads/
+.env*

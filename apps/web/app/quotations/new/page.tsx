@@ -107,6 +107,18 @@ export default function NewQuotationPage() {
     queryFn: () => inventoryApi.getAll({ status: 'AVAILABLE', limit: 200 }),
   })
 
+  useEffect(() => {
+    const inventoryId = new URLSearchParams(window.location.search).get('inventoryId')
+    const unit = (inventoryData?.data?.data || []).find((item: any) => item.id === inventoryId)
+    if (unit) {
+      setValue('inventoryId', unit.id)
+      setValue('baseRate', String(unit.baseRate))
+      setValue('area', String(unit.area))
+      setValue('propertyType', unit.propertyType)
+      setValue('projectId', unit.projectId)
+    }
+  }, [inventoryData, setValue])
+
   const createMutation = useMutation({
     mutationFn: (data: any) => quotationApi.create(data),
     onSuccess: (res) => {
@@ -119,7 +131,16 @@ export default function NewQuotationPage() {
   const onSubmit = (data: any) => {
     const validUntil = new Date()
     validUntil.setDate(validUntil.getDate() + parseInt(data.validDays || '30'))
-    createMutation.mutate({ ...data, validUntil: validUntil.toISOString(), projectId: data.projectId || null })
+    const numericFields = ['baseRate', 'area', 'floorRise', 'plcCharges', 'maintenanceCharges', 'parkingCharges', 'clubhouseCharges', 'legalCharges', 'gstRate', 'discount', 'bookingAmount']
+    const normalized = { ...data }
+    numericFields.forEach(field => { normalized[field] = Number(data[field] || 0) })
+    createMutation.mutate({
+      ...normalized,
+      leadId: data.leadId || null,
+      inventoryId: data.inventoryId || null,
+      projectId: data.projectId || null,
+      validUntil: validUntil.toISOString(),
+    })
   }
 
   const leads = leadsData?.data?.data || []

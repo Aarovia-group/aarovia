@@ -417,6 +417,7 @@ model Invoice {
   invoiceNumber   String        @unique
   status          InvoiceStatus @default(DRAFT)
   amount          Float
+  gstRate         Float         @default(5)
   gstAmount       Float         @default(0)
   totalAmount     Float
   dueDate         DateTime?

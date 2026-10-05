@@ -19,13 +19,13 @@ export default function ProfileSettingsPage() {
   const { user, updateUser } = useAuthStore()
 
   const profileMutation = useMutation({
-    mutationFn: (data: any) => api.put('/api/auth/profile', data),
+    mutationFn: (data: any) => api.put('/auth/profile', data),
     onSuccess: (res) => { updateUser(res.data.data); toast.success('Profile updated') },
     onError: () => toast.error('Failed to update profile'),
   })
 
   const passwordMutation = useMutation({
-    mutationFn: (data: any) => api.put('/api/auth/change-password', data),
+    mutationFn: (data: any) => api.put('/auth/change-password', data),
     onSuccess: () => { toast.success('Password changed'); resetPw() },
     onError: (e: any) => toast.error(e.response?.data?.message || 'Failed to change password'),
   })

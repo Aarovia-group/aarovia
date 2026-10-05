@@ -1,15 +1,18 @@
 'use client'
 
-import { useState } from 'react'
+import { ChangeEvent, useRef, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { Button, Card, Badge, Table, Tr, Td, SearchInput, Select, Pagination, EmptyState, Modal, Input, Textarea, StatCard } from '@/components/ui/index'
-import { leadApi } from '@/lib/api'
+import { emailApi, leadApi, smsApi, whatsappApi } from '@/lib/api'
+import api from '@/lib/api'
+import { usePermissions } from '@/hooks'
 import { formatCurrency, formatDate, formatRelativeTime, getLeadStatusColor, getLeadStatusLabel, getSourceLabel, LEAD_STATUSES, LEAD_SOURCES, PROPERTY_TYPES } from '@/lib/utils'
 import { toast } from '@/components/ui/toaster'
-import { Plus, Download, Upload, Phone, Mail, MessageSquare, Users, LayoutList, Kanban, Filter, Eye, Edit2, Trash2, UserPlus, Calendar } from 'lucide-react'
+import { Plus, Download, Upload, FileDown, Phone, Mail, MessageSquare, Users, LayoutList, Kanban, Filter, Eye, Edit2, Trash2, UserPlus, Calendar, Send, Building2 } from 'lucide-react'
 import Link from 'next/link'
 import { useForm } from 'react-hook-form'
+import { isValidInternationalPhone, normalizeInternationalPhone } from '@/lib/phone'
 
 export default function LeadsPage() {
   const queryClient = useQueryClient()
@@ -18,11 +21,28 @@ export default function LeadsPage() {
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
   const [sourceFilter, setSourceFilter] = useState('')
+  const [projectFilter, setProjectFilter] = useState('')
   const [showCreate, setShowCreate] = useState(false)
+  const [showBulkMessage, setShowBulkMessage] = useState(false)
+  const [selectedLeadIds, setSelectedLeadIds] = useState<string[]>([])
+  const [bulkAssignee, setBulkAssignee] = useState('')
+  const [bulkProject, setBulkProject] = useState('')
+  const [bulkChannel, setBulkChannel] = useState<'whatsapp' | 'sms' | 'email'>('whatsapp')
+  const [bulkMessage, setBulkMessage] = useState('')
+  const [bulkSubject, setBulkSubject] = useState('')
+  const [isImporting, setIsImporting] = useState(false)
+  const [isExporting, setIsExporting] = useState(false)
+  const importInputRef = useRef<HTMLInputElement>(null)
+  const { isAdmin } = usePermissions()
 
   const { data, isLoading } = useQuery({
-    queryKey: ['leads', page, search, statusFilter, sourceFilter],
-    queryFn: () => leadApi.getAll({ page, limit: 20, search: search || undefined, status: statusFilter || undefined, source: sourceFilter || undefined }),
+    queryKey: ['leads', page, search, statusFilter, sourceFilter, projectFilter],
+    queryFn: () => leadApi.getAll({ page, limit: 20, search: search || undefined, status: statusFilter || undefined, source: sourceFilter || undefined, projectId: projectFilter || undefined }),
+  })
+
+  const { data: projectsData } = useQuery({
+    queryKey: ['projects', 'active'],
+    queryFn: () => api.get('/projects', { params: { isActive: true } }),
   })
 
   const { data: pipelineData } = useQuery({
@@ -49,13 +69,186 @@ export default function LeadsPage() {
     },
   })
 
+  const { data: usersData } = useQuery({
+    queryKey: ['active-team-members'],
+    queryFn: () => api.get('/users', { params: { limit: 100 } }),
+    enabled: isAdmin,
+  })
+  const activeTeamMembers = (usersData?.data?.data || []).filter((user: any) => user.isActive)
+
+  const bulkAssignMutation = useMutation({
+    mutationFn: () => leadApi.bulkAssign({ leadIds: selectedLeadIds, assignedToId: bulkAssignee }),
+    onSuccess: (response: any) => {
+      queryClient.invalidateQueries({ queryKey: ['leads'] })
+      setSelectedLeadIds([])
+      setBulkAssignee('')
+      toast.success(response.data?.message || 'Leads assigned successfully')
+    },
+    onError: (error: any) => toast.error(error.response?.data?.message || 'Failed to assign leads'),
+  })
+
+  const bulkProjectMutation = useMutation({
+    mutationFn: () => leadApi.bulkAssignProject({ leadIds: selectedLeadIds, projectId: bulkProject }),
+    onSuccess: (response: any) => {
+      queryClient.invalidateQueries({ queryKey: ['leads'] })
+      setSelectedLeadIds([])
+      setBulkProject('')
+      toast.success(response.data?.message || 'Project assigned successfully')
+    },
+    onError: (error: any) => toast.error(error.response?.data?.message || 'Failed to assign project'),
+  })
+
+  const bulkMessageMutation = useMutation({
+    mutationFn: () => {
+      const payload = { leadIds: selectedLeadIds, message: bulkMessage, ...(bulkChannel === 'email' ? { subject: bulkSubject } : {}) }
+      if (bulkChannel === 'whatsapp') return whatsappApi.sendBulk(payload)
+      if (bulkChannel === 'sms') return smsApi.sendBulk(payload)
+      return emailApi.sendBulk(payload)
+    },
+    onSuccess: (response: any) => {
+      toast.success(response.data?.message || 'Bulk message sent')
+      setShowBulkMessage(false)
+      setBulkMessage('')
+      setBulkSubject('')
+      setSelectedLeadIds([])
+    },
+    onError: (error: any) => toast.error(error.response?.data?.message || 'Failed to send bulk message'),
+  })
+
   const leads = data?.data?.data || []
   const meta = data?.data?.meta || {}
   const pipeline = pipelineData?.data?.data || []
+  const projects = projectsData?.data?.data || []
+  const allVisibleSelected = leads.length > 0 && leads.every((lead: any) => selectedLeadIds.includes(lead.id))
+
+  const toggleVisibleLeads = () => {
+    setSelectedLeadIds(current => allVisibleSelected
+      ? current.filter(id => !leads.some((lead: any) => lead.id === id))
+      : Array.from(new Set([...current, ...leads.map((lead: any) => lead.id)])))
+  }
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm()
 
-  const onSubmit = (data: any) => createMutation.mutate(data)
+  const onSubmit = (data: any) => createMutation.mutate({ ...data, projectId: data.projectId || null })
+
+  const parseCSV = (text: string) => {
+    const rows: string[][] = []
+    let row: string[] = []
+    let value = ''
+    let quoted = false
+
+    for (let index = 0; index < text.length; index++) {
+      const character = text[index]
+      const next = text[index + 1]
+      if (character === '"' && quoted && next === '"') { value += '"'; index++; continue }
+      if (character === '"') { quoted = !quoted; continue }
+      if (character === ',' && !quoted) { row.push(value.trim()); value = ''; continue }
+      if ((character === '\n' || character === '\r') && !quoted) {
+        if (character === '\r' && next === '\n') index++
+        row.push(value.trim());
+        if (row.some(Boolean)) rows.push(row)
+        row = []; value = ''; continue
+      }
+      value += character
+    }
+    row.push(value.trim())
+    if (row.some(Boolean)) rows.push(row)
+    return rows
+  }
+
+  const handleImport = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    if (!file) return
+
+    try {
+      setIsImporting(true)
+      const rows = parseCSV(await file.text())
+      if (rows.length < 2) throw new Error('CSV must include a header row and at least one lead')
+      const headers = rows[0].map(header => header.toLowerCase().replace(/[^a-z0-9]/g, ''))
+      const fieldAliases: Record<string, string> = {
+        name: 'name', fullname: 'name', leadname: 'name',
+        mobile: 'mobile', phone: 'mobile', phonenumber: 'mobile',
+        email: 'email', emailaddress: 'email', city: 'city',
+        budget: 'budget', budgetamount: 'budget', source: 'source', status: 'status',
+        property: 'propertyType', propertytype: 'propertyType',
+        project: 'projectId', projectid: 'projectId', remarks: 'remarks',
+        nextfollowupdate: 'nextFollowupDate', followupdate: 'nextFollowupDate',
+      }
+      const unknownHeaders = headers.filter(header => !fieldAliases[header])
+      if (unknownHeaders.length) throw new Error(`Unknown CSV columns: ${unknownHeaders.join(', ')}`)
+      const leads = rows.slice(1).map((columns, index) => {
+        const rowNumber = index + 2
+        if (columns.length !== headers.length) {
+          throw new Error(`Row ${rowNumber} has ${columns.length} values; expected ${headers.length}`)
+        }
+        const lead: Record<string, string> = {}
+        columns.forEach((column, index) => {
+          const field = fieldAliases[headers[index]]
+          if (column) lead[field] = field === 'mobile' ? normalizeInternationalPhone(column) : column
+        })
+        if (!lead.name || !lead.mobile) throw new Error(`Row ${rowNumber} requires name and mobile`)
+        if (!isValidInternationalPhone(lead.mobile)) throw new Error(`Row ${rowNumber} mobile must include a country code, e.g. +919876543210`)
+        if (lead.budget && !Number.isFinite(Number(lead.budget))) throw new Error(`Row ${rowNumber} has an invalid budget`)
+        return lead
+      })
+
+      const response = await leadApi.bulkImport(leads)
+      const result = response.data?.data
+      queryClient.invalidateQueries({ queryKey: ['leads'] })
+      if (result?.errors && !result?.created && !result?.duplicates) {
+        toast.error(`Import failed for all ${result.errors} rows`)
+      } else {
+        toast.success(`Imported ${result?.created || 0} leads${result?.duplicates ? `, ${result.duplicates} duplicates` : ''}${result?.errors ? `, ${result.errors} rows failed` : ''}`)
+      }
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || error.message || 'Import failed')
+    } finally {
+      setIsImporting(false)
+    }
+  }
+
+  const handleExport = async () => {
+    try {
+      setIsExporting(true)
+      const response = await leadApi.getAll({ limit: 5000, search: search || undefined, status: statusFilter || undefined, source: sourceFilter || undefined, projectId: projectFilter || undefined })
+      const exportLeads = response.data?.data || []
+      if (!exportLeads.length) { toast.error('No leads to export'); return }
+      const headers = ['Name', 'Mobile', 'Email', 'City', 'Budget', 'Source', 'Status', 'Project', 'Assigned To', 'Next Followup']
+      const rows = exportLeads.map((lead: any) => [
+        lead.name, lead.mobile, lead.email, lead.city, lead.budget, lead.source, lead.status,
+        lead.project?.name, lead.assignedTo?.name, lead.nextFollowupDate,
+      ].map(value => {
+        const text = value == null ? '' : String(value)
+        return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text
+      }).join(','))
+      const blob = new Blob([[headers.join(','), ...rows].join('\n')], { type: 'text/csv;charset=utf-8' })
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `leads_${new Date().toISOString().slice(0, 10)}.csv`
+      link.click()
+      URL.revokeObjectURL(url)
+      toast.success(`${exportLeads.length} leads exported`)
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Export failed')
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
+  const downloadImportTemplate = () => {
+    const headers = ['name', 'mobile', 'email', 'city', 'budget', 'source', 'status', 'propertyType', 'projectId', 'remarks', 'nextFollowupDate']
+    const example = ['Example Lead', '9876543210', 'example@email.com', 'Bangalore', '5000000', 'WEBSITE', 'NEW', 'APARTMENT', '', 'Replace this example row', '']
+    const csv = [headers, example].map(row => row.map(value => `"${value.replace(/"/g, '""')}"`).join(',')).join('\n')
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }))
+    const link = document.createElement('a')
+    link.href = url
+    link.download = 'lead_import_template.csv'
+    link.click()
+    URL.revokeObjectURL(url)
+    toast.success('Sample CSV downloaded')
+  }
 
   return (
     <AppLayout
@@ -63,8 +256,10 @@ export default function LeadsPage() {
       subtitle={`${meta.total || 0} total leads`}
       actions={
         <div className="flex items-center gap-2">
-          <Button variant="secondary" size="sm" icon={<Upload className="w-3.5 h-3.5" />}>Import</Button>
-          <Button variant="secondary" size="sm" icon={<Download className="w-3.5 h-3.5" />}>Export</Button>
+          <input ref={importInputRef} type="file" accept=".csv,text/csv" className="hidden" onChange={handleImport} />
+          <Button variant="secondary" size="sm" loading={isImporting} icon={<Upload className="w-3.5 h-3.5" />} onClick={() => importInputRef.current?.click()}>Import</Button>
+          <Button variant="ghost" size="sm" icon={<FileDown className="w-3.5 h-3.5" />} onClick={downloadImportTemplate}>Sample CSV</Button>
+          <Button variant="secondary" size="sm" loading={isExporting} icon={<Download className="w-3.5 h-3.5" />} onClick={handleExport}>Export</Button>
           <Button size="sm" icon={<Plus className="w-3.5 h-3.5" />} onClick={() => setShowCreate(true)}>Add Lead</Button>
         </div>
       }
@@ -90,6 +285,14 @@ export default function LeadsPage() {
           <option value="">All Sources</option>
           {LEAD_SOURCES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
         </select>
+        <select
+          value={projectFilter}
+          onChange={e => { setProjectFilter(e.target.value); setPage(1); setSelectedLeadIds([]) }}
+          className="bg-navy-mid border border-navy-border rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-gold/50"
+        >
+          <option value="">All Projects</option>
+          {projects.map((project: any) => <option key={project.id} value={project.id}>{project.name}</option>)}
+        </select>
         <div className="flex bg-navy-mid border border-navy-border rounded-lg overflow-hidden">
           <button onClick={() => setView('list')} className={`px-3 py-2 text-xs flex items-center gap-1.5 transition-colors ${view === 'list' ? 'bg-gold/20 text-gold' : 'text-slate hover:text-white'}`}>
             <LayoutList className="w-3.5 h-3.5" />List
@@ -100,21 +303,43 @@ export default function LeadsPage() {
         </div>
       </div>
 
+      {isAdmin && selectedLeadIds.length > 0 && (
+        <div className="mb-4 flex flex-wrap items-center gap-2 rounded-lg border border-gold/40 bg-gold-pale px-3 py-2">
+          <span className="text-xs font-medium text-[#7c5310]">{selectedLeadIds.length} selected</span>
+          <select value={bulkAssignee} onChange={e => setBulkAssignee(e.target.value)} className="rounded-md border border-gold bg-white px-2 py-1.5 text-xs text-[#172033]">
+            <option value="">Assign to team member</option>
+            {activeTeamMembers.map((user: any) => <option key={user.id} value={user.id}>{user.name}</option>)}
+          </select>
+          <Button size="sm" icon={<UserPlus className="w-3.5 h-3.5" />} disabled={!bulkAssignee} loading={bulkAssignMutation.isPending} onClick={() => bulkAssignMutation.mutate()}>Assign Selected</Button>
+          <select value={bulkProject} onChange={e => setBulkProject(e.target.value)} className="rounded-md border border-gold bg-white px-2 py-1.5 text-xs text-[#172033]">
+            <option value="">Assign to project</option>
+            {projects.map((project: any) => <option key={project.id} value={project.id}>{project.name}</option>)}
+          </select>
+          <Button size="sm" icon={<Building2 className="w-3.5 h-3.5" />} disabled={!bulkProject} loading={bulkProjectMutation.isPending} onClick={() => bulkProjectMutation.mutate()}>Assign Project</Button>
+          <Button size="sm" icon={<Send className="w-3.5 h-3.5" />} onClick={() => setShowBulkMessage(true)}>Message Selected</Button>
+          <Button size="sm" variant="ghost" onClick={() => setSelectedLeadIds([])}>Clear</Button>
+        </div>
+      )}
+
       {view === 'list' ? (
         <Card>
-          <Table headers={['Lead', 'Mobile', 'Budget', 'Source', 'Status', 'Assigned To', 'Next Followup', 'Actions']}>
+          <Table headers={[...(isAdmin ? [<input key="select-all" type="checkbox" checked={allVisibleSelected} onChange={toggleVisibleLeads} aria-label="Select all visible leads" className="h-4 w-4 accent-[#b27a16]" />] : []), 'Lead', 'Project', 'Mobile', 'Budget', 'Source', 'Status', 'Assigned To', 'Next Followup', 'Actions']}>
             {isLoading ? (
-              <tr><td colSpan={8} className="py-12 text-center text-slate text-sm">Loading leads...</td></tr>
+              <tr><td colSpan={isAdmin ? 10 : 9} className="py-12 text-center text-slate text-sm">Loading leads...</td></tr>
             ) : leads.length === 0 ? (
-              <tr><td colSpan={8}><EmptyState icon={<Users className="w-10 h-10" />} title="No leads found" description="Start by adding your first lead or adjust your filters." /></td></tr>
+              <tr><td colSpan={isAdmin ? 10 : 9}><EmptyState icon={<Users className="w-10 h-10" />} title="No leads found" description="Start by adding your first lead or adjust your filters." /></td></tr>
             ) : leads.map((lead: any) => (
               <Tr key={lead.id}>
+                {isAdmin && <Td><input type="checkbox" checked={selectedLeadIds.includes(lead.id)} onChange={() => setSelectedLeadIds(current => current.includes(lead.id) ? current.filter(id => id !== lead.id) : [...current, lead.id])} className="h-4 w-4 accent-[#b27a16]" /></Td>}
                 <Td>
                   <div>
                     <Link href={`/leads/${lead.id}`} className="font-medium text-white hover:text-gold transition-colors">{lead.name}</Link>
                     {lead.email && <p className="text-[10px] text-slate">{lead.email}</p>}
                     {lead.city && <p className="text-[10px] text-slate">{lead.city}</p>}
                   </div>
+                </Td>
+                <Td>
+                  <span className="text-xs text-slate-light">{lead.project?.name || 'Unassigned'}</span>
                 </Td>
                 <Td>
                   <div className="flex items-center gap-1">
@@ -191,6 +416,35 @@ export default function LeadsPage() {
       )}
 
       {/* Create Lead Modal */}
+      <Modal open={showBulkMessage} onClose={() => setShowBulkMessage(false)} title={`Message ${selectedLeadIds.length} Selected Leads`}>
+        <div className="space-y-4">
+          <div>
+            <label className="block text-xs font-medium text-slate-light mb-1.5">Channel</label>
+            <select value={bulkChannel} onChange={e => setBulkChannel(e.target.value as typeof bulkChannel)} className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-gold/50">
+              <option value="whatsapp">WhatsApp</option>
+              <option value="sms">SMS</option>
+              <option value="email">Email</option>
+            </select>
+          </div>
+          {bulkChannel === 'email' && (
+            <div>
+              <label className="block text-xs font-medium text-slate-light mb-1.5">Subject</label>
+              <input value={bulkSubject} onChange={e => setBulkSubject(e.target.value)} placeholder="Message subject" className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white placeholder:text-slate/40 focus:outline-none focus:ring-1 focus:ring-gold/50" />
+            </div>
+          )}
+          <div>
+            <label className="block text-xs font-medium text-slate-light mb-1.5">Message</label>
+            <textarea value={bulkMessage} onChange={e => setBulkMessage(e.target.value)} rows={6} placeholder={`Write the ${bulkChannel} message...`} className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white placeholder:text-slate/40 focus:outline-none focus:ring-1 focus:ring-gold/50 resize-none" />
+          </div>
+          <div className="flex gap-3 pt-2">
+            <Button type="button" className="flex-1" loading={bulkMessageMutation.isPending} disabled={!bulkMessage.trim() || (bulkChannel === 'email' && !bulkSubject.trim())} icon={<Send className="w-4 h-4" />} onClick={() => bulkMessageMutation.mutate()}>
+              Send {bulkChannel === 'whatsapp' ? 'WhatsApp' : bulkChannel.toUpperCase()} to Selected
+            </Button>
+            <Button type="button" variant="ghost" onClick={() => setShowBulkMessage(false)}>Cancel</Button>
+          </div>
+        </div>
+      </Modal>
+
       <Modal open={showCreate} onClose={() => { setShowCreate(false); reset() }} title="Add New Lead" size="lg">
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -200,7 +454,8 @@ export default function LeadsPage() {
             </div>
             <div>
               <label className="block text-xs font-medium text-slate-light mb-1.5">Mobile *</label>
-              <input {...register('mobile', { required: true })} placeholder="+91 XXXXX XXXXX" className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white placeholder:text-slate/40 focus:outline-none focus:ring-1 focus:ring-gold/50 focus:border-gold/50" />
+              <input {...register('mobile', { required: 'Mobile is required', validate: value => isValidInternationalPhone(value) || 'Include a valid country code, e.g. +919876543210' })} type="tel" autoComplete="tel" placeholder="+919876543210" className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white placeholder:text-slate/40 focus:outline-none focus:ring-1 focus:ring-gold/50 focus:border-gold/50" />
+              {typeof errors.mobile?.message === 'string' && <p className="text-[11px] text-red-400 mt-1">{errors.mobile.message}</p>}
             </div>
             <div>
               <label className="block text-xs font-medium text-slate-light mb-1.5">Email</label>
@@ -222,6 +477,13 @@ export default function LeadsPage() {
               <select {...register('propertyType')} className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-gold/50">
                 <option value="">Select type</option>
                 {PROPERTY_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-light mb-1.5">Project</label>
+              <select {...register('projectId')} className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-gold/50">
+                <option value="">No project</option>
+                {projects.map((project: any) => <option key={project.id} value={project.id}>{project.name}</option>)}
               </select>
             </div>
             <div>

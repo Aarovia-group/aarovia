@@ -20,7 +20,7 @@ export const getNotifications = async (req: AuthRequest, res: Response) => {
 export const markAsRead = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params
-    await prisma.notification.update({ where: { id }, data: { isRead: true } })
+    await prisma.notification.updateMany({ where: { id, userId: req.user!.id }, data: { isRead: true } })
     res.json({ success: true, message: 'Marked as read' })
   } catch (error) { res.status(500).json({ success: false, message: 'Failed to mark as read', error }) }
 }

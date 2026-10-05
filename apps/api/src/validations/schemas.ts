@@ -30,7 +30,9 @@ export const changePasswordSchema = z.object({
 // ============================================
 export const createLeadSchema = z.object({
   name: z.string().min(2, 'Name is required'),
-  mobile: z.string().min(10, 'Valid mobile number required'),
+  mobile: z.string()
+    .transform(value => value.trim().replace(/[\s()-]/g, ''))
+    .pipe(z.string().regex(/^\+[1-9]\d{7,14}$/, 'Include a valid country code, e.g. +919876543210')),
   email: z.string().email().optional().or(z.literal('')),
   budget: z.number().positive().optional().nullable(),
   city: z.string().optional(),

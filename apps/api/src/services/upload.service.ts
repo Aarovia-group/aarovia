@@ -2,6 +2,7 @@ import { v2 as cloudinary } from 'cloudinary'
 import { Request, Response } from 'express'
 import multer from 'multer'
 import path from 'path'
+import prisma from '../utils/prisma'
 
 // Configure Cloudinary
 cloudinary.config({
@@ -153,5 +154,27 @@ export const uploadAvatar = async (req: Request, res: Response) => {
     })
   } catch (error: any) {
     res.status(500).json({ success: false, message: 'Upload failed', error: error.message })
+  }
+}
+
+// Logo upload supports a database-backed fallback when Cloudinary is not configured.
+export const uploadLogo = async (req: Request, res: Response) => {
+  try {
+    if (!req.file || !req.file.mimetype.startsWith('image/')) {
+      return res.status(400).json({ success: false, message: 'Please provide an image logo' })
+    }
+
+    const hasCloudinary = process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_KEY && process.env.CLOUDINARY_API_SECRET
+    if (hasCloudinary) {
+      const { url, publicId } = await uploadToCloudinary(req.file.buffer, 'branding', 'image')
+      await prisma.settings.upsert({ where: { key: 'logo_url' }, update: { value: url }, create: { key: 'logo_url', value: url, group: 'branding' } })
+      return res.json({ success: true, data: { url, publicId } })
+    }
+
+    const url = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`
+    await prisma.settings.upsert({ where: { key: 'logo_url' }, update: { value: url }, create: { key: 'logo_url', value: url, group: 'branding' } })
+    return res.json({ success: true, data: { url, publicId: null } })
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: 'Logo upload failed', error: error.message })
   }
 }

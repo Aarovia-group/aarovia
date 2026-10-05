@@ -1,11 +1,10 @@
-@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=DM+Sans:wght@300;400;500;600&display=swap');
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   :root {
+    --brand-accent: #b27a16;
     --background: 210 33% 97%;
     --foreground: 220 31% 16%;
     --card: 0 0% 100%;
@@ -42,6 +41,12 @@
   h1, h2, h3 {
     font-family: 'Playfair Display', Georgia, serif;
   }
+
+  .brand-wordmark {
+    font-family: Georgia, 'Times New Roman', serif;
+    font-weight: 600;
+    letter-spacing: -0.025em;
+  }
 }
 
 @layer utilities {
@@ -71,15 +76,15 @@
   }
 
   .text-gold {
-    color: #9a6812;
+    color: var(--brand-accent) !important;
   }
 
   .bg-gold {
-    background-color: #b27a16;
+    background-color: var(--brand-accent) !important;
   }
 
   .border-gold {
-    border-color: #b27a16;
+    border-color: var(--brand-accent) !important;
   }
 
   .status-new { @apply bg-blue-50 text-blue-700 border border-blue-200; }
@@ -100,6 +105,14 @@
 .text-slate { color: #64748b !important; }
 .text-slate-light { color: #475569 !important; }
 .text-white { color: #172033 !important; }
+button.text-white,
+a.bg-green-600.text-white {
+  color: #fff !important;
+}
+button.text-white svg,
+a.bg-green-600.text-white svg {
+  color: #fff !important;
+}
 [class*='bg-[#0A1628]'] { background-color: #ffffff !important; }
 [class*='bg-[#12243E]'] { background-color: #f8fafc !important; }
 [class*='border-[#2A4070]'] { border-color: #d8e0e8 !important; }

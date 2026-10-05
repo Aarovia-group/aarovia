@@ -57,7 +57,11 @@ export const createCustomer = async (req: Request, res: Response) => {
 
 export const updateCustomer = async (req: Request, res: Response) => {
   try {
-    const customer = await prisma.customer.update({ where: { id: req.params.id }, data: req.body })
+    const { name, email, mobile, alternatePhone, panNumber, aadhaarNumber, address, city, state, pincode } = req.body
+    const customer = await prisma.customer.update({
+      where: { id: req.params.id },
+      data: { name, email, mobile, alternatePhone, panNumber, aadhaarNumber, address, city, state, pincode },
+    })
     res.json({ success: true, message: 'Customer updated', data: customer })
   } catch (error) {
     res.status(500).json({ success: false, message: 'Failed to update customer', error })

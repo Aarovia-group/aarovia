@@ -20,9 +20,14 @@ import projectRoutes from './routes/project.routes'
 import settingsRoutes from './routes/settings.routes'
 import emailRoutes from './routes/email.routes'
 import whatsappRoutes from './routes/whatsapp.routes'
+import whatsappWebhookRoutes from './routes/whatsapp-webhook.routes'
 import documentRoutes from './routes/document.routes'
 import postSalesRoutes from './routes/postSales.routes'
 import uploadRoutes from './routes/upload.routes'
+import voiceRoutes from './routes/voice.routes'
+import smsRoutes from './routes/sms.routes'
+import publicRoutes from './routes/public.routes'
+import adIntegrationsRoutes from './routes/ad-integrations.routes'
 import { errorHandler } from './middleware/error.middleware'
 import { notFound } from './middleware/notFound.middleware'
 import { auditLog, requestTimer } from './middleware/audit.middleware'
@@ -39,13 +44,23 @@ app.set('trust proxy', 1)
 app.use(helmet())
 const frontendOrigins = process.env.NODE_ENV === 'production'
   ? [
-      ...(process.env.FRONTEND_URL ? process.env.FRONTEND_URL.split(',').map((url) => url.trim()) : ['https://aarovia.co.in', 'https://www.aarovia.co.in']),
+      ...(process.env.FRONTEND_URL ? process.env.FRONTEND_URL.split(',').map((url) => url.trim().replace(/\/$/, '')) : []),
+      'https://aarovia.co.in',
+      'https://www.aarovia.co.in',
       'https://web-aarovia.vercel.app',
       'https://aarovia-crm-light.vercel.app',
+      'https://aaroviagroup.com',
+      'https://www.aaroviagroup.com',
+      'https://lakestates.aaroviagroup.com',
     ]
   : ['http://localhost:3000', 'http://localhost:3001']
 app.use(cors({
-  origin: frontendOrigins,
+  origin: (origin, callback) => {
+    const normalizedOrigin = origin?.replace(/\/$/, '')
+    const isTrustedPublicSite = !!normalizedOrigin && normalizedOrigin.startsWith('https://') && normalizedOrigin.endsWith('aaroviagroup.com')
+    if (!origin || frontendOrigins.includes(normalizedOrigin || '') || isTrustedPublicSite) return callback(null, true)
+    return callback(new Error('Origin not allowed by CORS'))
+  },
   credentials: true,
   methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
@@ -60,6 +75,9 @@ const limiter = rateLimit({
   message: 'Too many requests from this IP, please try again later.',
 })
 app.use('/api/', limiter)
+
+// Meta verifies webhook subscriptions without CRM authentication or JSON parsing.
+app.use('/api/whatsapp/webhook', whatsappWebhookRoutes)
 
 // Body parsing
 app.use(express.json({ limit: '10mb' }))
@@ -78,9 +96,13 @@ app.use(auditLog)
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString(), service: 'Aarovia CRM API' })
 })
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString(), service: 'Aarovia CRM API' })
+})
 
 // API Routes
 app.use('/api/auth', authRoutes)
+app.use('/api/leads/public', publicRoutes)
 app.use('/api/leads', leadRoutes)
 app.use('/api/customers', customerRoutes)
 app.use('/api/inventory', inventoryRoutes)
@@ -98,6 +120,10 @@ app.use('/api/whatsapp', whatsappRoutes)
 app.use('/api/documents', documentRoutes)
 app.use('/api/post-sales', postSalesRoutes)
 app.use('/api/upload', uploadRoutes)
+app.use('/api/voice', voiceRoutes)
+app.use('/api/sms', smsRoutes)
+app.use('/api/public', publicRoutes)
+app.use('/api/ad-integrations', adIntegrationsRoutes)
 
 // Error handling
 app.use(notFound)

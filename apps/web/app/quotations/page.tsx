@@ -5,7 +5,7 @@ import { AppLayout } from '@/components/layout/AppLayout'
 import { Button, Card, Table, Tr, Td, SearchInput, EmptyState, Badge } from '@/components/ui/index'
 import { quotationApi } from '@/lib/api'
 import { formatCurrency, formatDate } from '@/lib/utils'
-import { Plus, FileText, Eye, Send, Download } from 'lucide-react'
+import { Plus, FileText, Eye, Send, Download, Edit2 } from 'lucide-react'
 import Link from 'next/link'
 
 const STATUS_STYLES: Record<string, string> = {
@@ -54,6 +54,7 @@ export default function QuotationsPage() {
               <Td>
                 <div className="flex gap-1">
                   <Link href={`/quotations/${q.id}`}><button className="p-1.5 text-slate hover:text-white hover:bg-navy-light rounded transition-colors"><Eye className="w-3.5 h-3.5" /></button></Link>
+                  <Link href={`/quotations/${q.id}/edit`}><button title="Edit quotation" className="p-1.5 text-slate hover:text-gold hover:bg-navy-light rounded transition-colors"><Edit2 className="w-3.5 h-3.5" /></button></Link>
                   <button className="p-1.5 text-slate hover:text-blue-400 hover:bg-navy-light rounded transition-colors"><Send className="w-3.5 h-3.5" /></button>
                   <button className="p-1.5 text-slate hover:text-gold hover:bg-navy-light rounded transition-colors"><Download className="w-3.5 h-3.5" /></button>
                 </div>

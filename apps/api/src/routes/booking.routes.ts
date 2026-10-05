@@ -8,7 +8,7 @@ router.use(authenticate)
 router.get('/', getBookings)
 router.post('/', authorize('SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER', 'SALES_EXECUTIVE'), createBooking)
 router.get('/:id', getBookingById)
-router.put('/:id', updateBooking)
+router.put('/:id', authorize('SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER', 'SALES_EXECUTIVE'), updateBooking)
 router.post('/:id/payment', authorize('SUPER_ADMIN', 'ADMIN', 'ACCOUNTS'), addPayment)
 
 export default router

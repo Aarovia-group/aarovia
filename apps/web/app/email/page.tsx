@@ -4,10 +4,10 @@ import { useState } from 'react'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { Button, Card, CardHeader, CardTitle, CardContent, Table, Tr, Td, EmptyState } from '@/components/ui/index'
-import { emailApi, leadApi } from '@/lib/api'
+import { emailApi, leadApi, uploadApi } from '@/lib/api'
 import { formatRelativeTime, PROPERTY_TYPES } from '@/lib/utils'
 import { toast } from '@/components/ui/toaster'
-import { Mail, Send, CheckCircle, Eye, Clock, AlertCircle } from 'lucide-react'
+import { Mail, Send, CheckCircle, Eye, Clock, AlertCircle, Pencil, X } from 'lucide-react'
 import { useForm } from 'react-hook-form'
 
 type EmailFormValues = {
@@ -15,7 +15,11 @@ type EmailFormValues = {
   toName: string
   leadId: string
   templateType: string
+  customTemplateName: string
+  templateIntro: string
+  subject: string
   customMessage: string
+  brochures: FileList
 }
 
 const TEMPLATE_PREVIEWS: Record<string, string> = {
@@ -30,6 +34,7 @@ export default function EmailPage() {
   const [activeTab, setActiveTab] = useState<'compose' | 'logs'>('compose')
   const [selectedTemplate, setSelectedTemplate] = useState('APARTMENT')
   const [previewMode, setPreviewMode] = useState(false)
+  const [editingTemplate, setEditingTemplate] = useState(false)
 
   const { data: leadsData } = useQuery({
     queryKey: ['leads-for-email'],
@@ -43,7 +48,23 @@ export default function EmailPage() {
   })
 
   const sendMutation = useMutation({
-    mutationFn: (data: any) => emailApi.sendProjectDetails(data),
+    mutationFn: async (data: any) => {
+      const brochures = Array.from(data.brochures || []) as File[]
+      if (brochures.length === 0) return emailApi.sendProjectDetails(data)
+
+      const uploadedFiles = await Promise.all(brochures.map(async (brochure) => {
+        const uploadResponse = await uploadApi.uploadDocument(brochure)
+        const uploaded = uploadResponse.data?.data
+        if (!uploaded?.url) throw new Error('File upload failed')
+        return { url: uploaded.url, name: uploaded.name }
+      }))
+
+      return emailApi.sendProjectDetails({
+        ...data,
+        brochureUrl: uploadedFiles[0].url,
+        attachments: uploadedFiles,
+      })
+    },
     onSuccess: () => {
       toast.success('Email sent successfully!')
       reset()
@@ -57,6 +78,9 @@ export default function EmailPage() {
       toName: '',
       leadId: '',
       templateType: 'APARTMENT',
+      customTemplateName: '',
+      templateIntro: '',
+      subject: '',
       customMessage: '',
     } as EmailFormValues,
   })
@@ -134,10 +158,16 @@ export default function EmailPage() {
 
               <Card>
                 <CardHeader>
-                  <CardTitle><Mail className="w-4 h-4 text-gold" />Template Selection</CardTitle>
+                  <div className="flex items-center justify-between gap-3">
+                    <CardTitle><Mail className="w-4 h-4 text-gold" />Template Selection</CardTitle>
+                    <button type="button" onClick={() => setEditingTemplate(!editingTemplate)} className="flex items-center gap-1.5 text-xs text-gold hover:text-white">
+                      {editingTemplate ? <X className="w-3.5 h-3.5" /> : <Pencil className="w-3.5 h-3.5" />}
+                      {editingTemplate ? 'Close Editor' : 'Edit Template'}
+                    </button>
+                  </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="grid grid-cols-5 gap-2">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
                     {PROPERTY_TYPES.map(pt => (
                       <button
                         key={pt.value}
@@ -150,8 +180,28 @@ export default function EmailPage() {
                         {pt.label}
                       </button>
                     ))}
+                    <button
+                      type="button"
+                      onClick={() => setSelectedTemplate('CUSTOM')}
+                      className={`py-2 px-3 rounded-lg text-xs font-medium border transition-all ${selectedTemplate === 'CUSTOM' ? 'bg-gold/20 text-gold border-gold/40' : 'bg-navy border-navy-border text-slate hover:text-white hover:border-slate'}`}
+                    >
+                      Custom
+                    </button>
                   </div>
                   <input type="hidden" {...register('templateType')} value={selectedTemplate} />
+
+                  {editingTemplate && (
+                    <div className="grid grid-cols-1 gap-3 rounded-lg border border-gold/30 bg-gold/5 p-4">
+                      <div>
+                        <label className="block text-xs font-medium text-slate-light mb-1.5">Template Name</label>
+                        <input {...register('customTemplateName')} placeholder={`${selectedTemplate.toLowerCase()} project details`} className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white placeholder:text-slate/40 focus:outline-none focus:ring-1 focus:ring-gold/50" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-slate-light mb-1.5">Template Introduction</label>
+                        <textarea {...register('templateIntro')} rows={3} placeholder="Write the introduction that should appear in the email..." className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white placeholder:text-slate/40 focus:outline-none focus:ring-1 focus:ring-gold/50 resize-none" />
+                      </div>
+                    </div>
+                  )}
 
                   <div className="bg-navy rounded-lg border border-navy-border p-4">
                     <p className="text-[10px] text-slate uppercase tracking-wide mb-2">Template Preview</p>
@@ -164,6 +214,35 @@ export default function EmailPage() {
                     </div>
                   </div>
 
+                  <div className="rounded-lg border border-gold/30 bg-gold/5 p-3">
+                    <label className="block text-xs font-medium text-gold mb-1.5">Attach Files (optional)</label>
+                    <input
+                      {...register('brochures')}
+                      type="file"
+                      multiple
+                      accept="application/pdf,.doc,.docx,.xls,.xlsx,image/*"
+                      className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-slate file:mr-3 file:rounded-md file:border-0 file:bg-gold/20 file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-gold hover:file:bg-gold/30"
+                    />
+                    <p className="text-[10px] text-slate mt-1.5">Attach brochures, PDFs, or images. Each file can be up to 10MB.</p>
+                  </div>
+                  <div>
+                    {selectedTemplate === 'CUSTOM' && (
+                      <div className="mb-4">
+                        <label className="block text-xs font-medium text-slate-light mb-1.5">Custom Template Name</label>
+                        <input
+                          {...register('customTemplateName')}
+                          placeholder="Your project announcement"
+                          className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white placeholder:text-slate/40 focus:outline-none focus:ring-1 focus:ring-gold/50"
+                        />
+                      </div>
+                    )}
+                    <label className="block text-xs font-medium text-slate-light mb-1.5">Custom Subject (optional)</label>
+                    <input
+                      {...register('subject')}
+                      placeholder="Project details from Aarovia Real Estates"
+                      className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white placeholder:text-slate/40 focus:outline-none focus:ring-1 focus:ring-gold/50"
+                    />
+                  </div>
                   <div>
                     <label className="block text-xs font-medium text-slate-light mb-1.5">Custom Message (optional)</label>
                     <textarea
@@ -208,13 +287,13 @@ export default function EmailPage() {
             </Card>
 
             <Card>
-              <CardHeader><CardTitle>Gmail SMTP Status</CardTitle></CardHeader>
+                <CardHeader><CardTitle>Zoho SMTP Status</CardTitle></CardHeader>
               <CardContent>
                 <div className="flex items-center gap-2 text-sm">
                   <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
                   <span className="text-green-400 text-xs">Connected & Active</span>
                 </div>
-                <p className="text-[10px] text-slate mt-2">Configured via Gmail App Password</p>
+                <p className="text-[10px] text-slate mt-2">Configured via Zoho SMTP</p>
                 <Button variant="ghost" size="sm" className="w-full mt-3 text-xs" onClick={() => window.location.href = '/settings'}>
                   Configure SMTP →
                 </Button>

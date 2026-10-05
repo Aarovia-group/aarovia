@@ -1,6 +1,8 @@
 'use client'
 
+import Image from 'next/image'
 import Link from 'next/link'
+import { useEffect, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { authApi } from '@/lib/api'
@@ -54,12 +56,18 @@ interface SidebarProps {
   unreadNotifications?: number
   mobileOpen?: boolean
   onMobileClose?: () => void
+  logoUrl?: string
 }
 
-export function Sidebar({ unreadNotifications = 0, mobileOpen, onMobileClose }: SidebarProps) {
+export function Sidebar({ unreadNotifications = 0, mobileOpen, onMobileClose, logoUrl }: SidebarProps) {
   const pathname = usePathname()
   const router = useRouter()
   const { user, clearAuth } = useAuthStore()
+  const [logoSrc, setLogoSrc] = useState(logoUrl || '/aarovia-mark.png')
+
+  useEffect(() => {
+    setLogoSrc(logoUrl || '/aarovia-mark.png')
+  }, [logoUrl])
 
   const handleLogout = async () => {
     try {
@@ -76,11 +84,21 @@ export function Sidebar({ unreadNotifications = 0, mobileOpen, onMobileClose }: 
       {/* Logo - fixed top */}
       <div className="px-4 py-4 border-b border-[#d8e0e8] flex-shrink-0">
         <Link href="/dashboard" className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#C9A84C] to-[#E8C96A] flex items-center justify-center flex-shrink-0">
-            <span className="font-bold text-[#0A1628] text-sm">A</span>
+          <div className="w-9 h-9 flex items-center justify-center flex-shrink-0">
+            <Image
+              src={logoSrc}
+              alt="Aarovia logo"
+              width={36}
+              height={36}
+              unoptimized
+              className="w-9 h-9 object-contain"
+              onError={() => {
+                if (logoSrc !== '/aarovia-mark.png') setLogoSrc('/aarovia-mark.png')
+              }}
+            />
           </div>
           <div>
-            <div className="text-sm font-semibold text-[#172033] leading-tight">Aarovia</div>
+            <div className="brand-wordmark text-sm text-[#172033] leading-tight">AAROVIA</div>
             <div className="text-[9px] text-[#64748b] uppercase tracking-[2px]">Real Estates</div>
           </div>
         </Link>

@@ -62,14 +62,14 @@ export const getInventoryById = async (req: Request, res: Response) => {
 export const createInventory = async (req: AuthRequest, res: Response) => {
   try {
     const { unitNumber, tower, floor, area, facing, baseRate, finalRate,
-      propertyType, bedrooms, bathrooms, projectId, notes } = req.body
+      propertyType, bedrooms, bathrooms, projectId, notes, status } = req.body
 
     const inventory = await prisma.inventory.create({
       data: {
         unitNumber, tower, floor: floor ? parseInt(floor) : null,
         area: parseFloat(area), facing, baseRate: parseFloat(baseRate),
         finalRate: finalRate ? parseFloat(finalRate) : null,
-        propertyType, bedrooms, bathrooms, projectId, notes,
+        propertyType, bedrooms, bathrooms, projectId, notes, status: status || 'AVAILABLE',
       },
     })
 

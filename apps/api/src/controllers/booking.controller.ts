@@ -38,7 +38,7 @@ export const getBookings = async (req: AuthRequest, res: Response) => {
           customer: { select: { id: true, name: true, mobile: true, email: true } },
           inventory: { select: { id: true, unitNumber: true, tower: true, floor: true, area: true } },
           lead: { select: { id: true, name: true, source: true } },
-          quotation: { select: { id: true, quotationNumber: true, totalAmount: true } },
+          quotation: { select: { id: true, quotationNumber: true, totalAmount: true, gstAmount: true, gstRate: true } },
           _count: { select: { payments: true, invoices: true } },
         },
       }),
@@ -79,46 +79,39 @@ export const getBookingById = async (req: Request, res: Response) => {
 export const createBooking = async (req: AuthRequest, res: Response) => {
   try {
     const { leadId, customerId, inventoryId, quotationId, totalAmount, bookingAmount, notes } = req.body
-
-    const booking = await prisma.booking.create({
-      data: {
-        bookingNumber: generateBookingNumber(),
-        leadId, customerId, inventoryId, quotationId,
-        totalAmount: parseFloat(totalAmount),
-        collectedAmount: bookingAmount ? parseFloat(bookingAmount) : 0,
-        dueAmount: parseFloat(totalAmount) - (bookingAmount ? parseFloat(bookingAmount) : 0),
-        notes,
-      },
-      include: { customer: true, inventory: { include: { project: true } } },
-    })
-
-    // Update lead status to BOOKED
-    await prisma.lead.update({ where: { id: leadId }, data: { status: 'BOOKED' } })
-
-    // Block inventory
-    await prisma.inventory.update({
-      where: { id: inventoryId },
-      data: { status: 'SOLD', customerId },
-    })
-
-    // Add initial payment if booking amount provided
-    if (bookingAmount && parseFloat(bookingAmount) > 0) {
-      await prisma.payment.create({
-        data: {
-          bookingId: booking.id, customerId,
-          amount: parseFloat(bookingAmount),
-          paymentMode: 'BOOKING',
-          notes: 'Booking amount',
-        },
-      })
+    const parsedTotal = Number(totalAmount)
+    const parsedBookingAmount = Number(bookingAmount || 0)
+    if (!Number.isFinite(parsedTotal) || parsedTotal <= 0 || !Number.isFinite(parsedBookingAmount) || parsedBookingAmount < 0 || parsedBookingAmount > parsedTotal) {
+      return res.status(400).json({ success: false, message: 'Invalid booking amount or total amount' })
     }
 
-    await prisma.activity.create({
-      data: {
-        leadId, userId: req.user?.id,
-        type: 'BOOKING_CREATED',
-        description: `Booking created: ${booking.bookingNumber}`,
-      },
+    const booking = await prisma.$transaction(async (tx) => {
+      const [lead, customer, inventory] = await Promise.all([
+        tx.lead.findUnique({ where: { id: leadId } }),
+        tx.customer.findUnique({ where: { id: customerId } }),
+        tx.inventory.findUnique({ where: { id: inventoryId } }),
+      ])
+      if (!lead || !customer || !inventory) throw new Error('Lead, customer, or inventory not found')
+      const [existingLeadBooking, existingInventoryBooking] = await Promise.all([
+        tx.booking.findUnique({ where: { leadId } }),
+        tx.booking.findUnique({ where: { inventoryId } }),
+      ])
+      if (lead.status === 'BOOKED' || existingLeadBooking) throw new Error('Lead already has a booking')
+      if (inventory.status !== 'AVAILABLE' || existingInventoryBooking) throw new Error('Inventory is no longer available')
+      if (quotationId) {
+        const quotation = await tx.quotation.findUnique({ where: { id: quotationId } })
+        if (!quotation || quotation.leadId !== leadId || quotation.inventoryId !== inventoryId) throw new Error('Quotation does not match the selected lead and inventory')
+      }
+      const created = await tx.booking.create({
+        data: { bookingNumber: generateBookingNumber(), leadId, customerId, inventoryId, quotationId, totalAmount: parsedTotal, collectedAmount: parsedBookingAmount, dueAmount: parsedTotal - parsedBookingAmount, notes },
+        include: { customer: true, inventory: { include: { project: true } } },
+      })
+      await tx.lead.update({ where: { id: leadId }, data: { status: 'BOOKED' } })
+      await tx.inventory.update({ where: { id: inventoryId }, data: { status: 'SOLD', customerId } })
+      if (quotationId) await tx.quotation.update({ where: { id: quotationId }, data: { status: 'CONVERTED' } })
+      if (parsedBookingAmount > 0) await tx.payment.create({ data: { bookingId: created.id, customerId, amount: parsedBookingAmount, paymentMode: 'BOOKING', notes: 'Booking amount' } })
+      await tx.activity.create({ data: { leadId, userId: req.user?.id, type: 'BOOKING_CREATED', description: `Booking created: ${created.bookingNumber}` } })
+      return created
     })
 
     res.status(201).json({ success: true, message: 'Booking created successfully', data: booking })
@@ -129,9 +122,10 @@ export const createBooking = async (req: AuthRequest, res: Response) => {
 
 export const updateBooking = async (req: AuthRequest, res: Response) => {
   try {
+    const { agreementStatus, agreementUrl, notes } = req.body
     const booking = await prisma.booking.update({
       where: { id: req.params.id },
-      data: req.body,
+      data: { agreementStatus, agreementUrl, notes },
     })
     res.json({ success: true, message: 'Booking updated', data: booking })
   } catch (error) {
@@ -144,27 +138,33 @@ export const addPayment = async (req: AuthRequest, res: Response) => {
     const { id } = req.params
     const { amount, paymentMode, transactionId, notes } = req.body
 
-    const booking = await prisma.booking.findUnique({ where: { id } })
-    if (!booking) return res.status(404).json({ success: false, message: 'Booking not found' })
+    const parsedAmount = Number(amount)
+    if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) return res.status(400).json({ success: false, message: 'Payment amount must be positive' })
 
-    const payment = await prisma.payment.create({
-      data: {
-        bookingId: id, customerId: booking.customerId,
-        amount: parseFloat(amount), paymentMode, transactionId, notes,
-      },
-    })
+    const payment = await prisma.$transaction(async (tx) => {
+      const booking = await tx.booking.findUnique({ where: { id } })
+      if (!booking) throw Object.assign(new Error('Booking not found'), { statusCode: 404 })
+      if (parsedAmount > booking.dueAmount) throw Object.assign(new Error('Payment cannot exceed the outstanding balance'), { statusCode: 400 })
 
-    const newCollected = booking.collectedAmount + parseFloat(amount)
-    await prisma.booking.update({
-      where: { id },
-      data: {
-        collectedAmount: newCollected,
-        dueAmount: booking.totalAmount - newCollected,
-      },
+      const updatedBooking = await tx.booking.update({
+        where: { id },
+        data: {
+          collectedAmount: { increment: parsedAmount },
+          dueAmount: { decrement: parsedAmount },
+        },
+      })
+
+      return tx.payment.create({
+        data: {
+          bookingId: id, customerId: updatedBooking.customerId,
+          amount: parsedAmount, paymentMode, transactionId, notes,
+        },
+      })
     })
 
     res.status(201).json({ success: true, message: 'Payment recorded', data: payment })
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Failed to record payment', error })
+    const statusCode = (error as any)?.statusCode
+    res.status(statusCode || 500).json({ success: false, message: statusCode ? (error as Error).message : 'Failed to record payment', error })
   }
 }

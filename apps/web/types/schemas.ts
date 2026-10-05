@@ -2,7 +2,7 @@ import { z } from 'zod'
 
 export const createLeadSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
-  mobile: z.string().min(10, 'Enter a valid mobile number'),
+  mobile: z.string().regex(/^\+[1-9]\d{7,14}$/, 'Include a valid country code, e.g. +919876543210'),
   email: z.string().email('Invalid email').optional().or(z.literal('')),
   budget: z.union([z.number().positive(), z.literal(''), z.null()]).optional(),
   city: z.string().optional(),

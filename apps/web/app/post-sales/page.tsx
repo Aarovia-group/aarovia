@@ -8,6 +8,7 @@ import { formatCurrency, formatDate } from '@/lib/utils'
 import { toast } from '@/components/ui/toaster'
 import { ClipboardList, FileText, CheckCircle, Clock, AlertCircle, User, Building2, Coins, RefreshCw } from 'lucide-react'
 import api from '@/lib/api'
+import Link from 'next/link'
 
 const AGMT_CONFIG: Record<string, { label: string; color: string; nextStatus?: string }> = {
   PENDING: { label: 'Pending', color: 'bg-slate/20 text-slate border-slate/30', nextStatus: 'INITIATED' },
@@ -25,17 +26,17 @@ export default function PostSalesPage() {
 
   const { data, isLoading } = useQuery({
     queryKey: ['post-sales-bookings', search, agmtFilter],
-    queryFn: () => api.get('/api/bookings', { params: { search: search || undefined, agreementStatus: agmtFilter || undefined, limit: 50 } }),
+    queryFn: () => api.get('/bookings', { params: { search: search || undefined, agreementStatus: agmtFilter || undefined, limit: 50 } }),
   })
 
   const { data: dueData } = useQuery({
     queryKey: ['due-collections'],
-    queryFn: () => api.get('/api/collections/due'),
+    queryFn: () => api.get('/collections/due'),
     enabled: activeTab === 'due',
   })
 
   const updateAgmtMutation = useMutation({
-    mutationFn: ({ id, agreementStatus }: any) => api.put(`/api/bookings/${id}`, { agreementStatus }),
+    mutationFn: ({ id, agreementStatus }: any) => api.put(`/bookings/${id}`, { agreementStatus }),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['post-sales-bookings'] }); toast.success('Agreement status updated') },
     onError: () => toast.error('Failed to update status'),
   })
@@ -218,7 +219,7 @@ export default function PostSalesPage() {
                   </div>
 
                   <div className="flex gap-2 mt-3">
-                    <Button variant="secondary" size="sm" icon={<Coins className="w-3 h-3" />} className="text-[10px] flex-1">Record Payment</Button>
+                    <Link href={`/bookings/${b.id}`} className="flex-1"><Button variant="secondary" size="sm" icon={<Coins className="w-3 h-3" />} className="text-[10px] w-full">Record Payment</Button></Link>
                     <Button variant="ghost" size="sm" className="text-[10px]">Send Reminder</Button>
                   </div>
                 </CardContent>

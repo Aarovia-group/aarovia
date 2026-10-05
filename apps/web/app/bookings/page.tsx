@@ -5,7 +5,7 @@ import { AppLayout } from '@/components/layout/AppLayout'
 import { Button, Card, Table, Tr, Td, SearchInput, EmptyState } from '@/components/ui/index'
 import { bookingApi } from '@/lib/api'
 import { formatCurrency, formatDate } from '@/lib/utils'
-import { BookOpen, Eye } from 'lucide-react'
+import { BookOpen, Eye, Plus } from 'lucide-react'
 import Link from 'next/link'
 
 const AGMT_STYLES: Record<string, string> = {
@@ -25,7 +25,15 @@ export default function BookingsPage() {
   const bookings = data?.data?.data || []
 
   return (
-    <AppLayout title="Bookings" subtitle={`${bookings.length} bookings`}>
+    <AppLayout
+      title="Bookings"
+      subtitle={`${bookings.length} bookings`}
+      actions={
+        <Link href="/bookings/new">
+          <Button size="sm" icon={<Plus className="w-3.5 h-3.5" />}>New Booking</Button>
+        </Link>
+      }
+    >
       <div className="flex gap-2 mb-4"><div className="flex-1"><SearchInput value={search} onChange={setSearch} placeholder="Search bookings..." /></div></div>
       <Card>
         <Table headers={['Booking No.', 'Customer', 'Unit', 'Total', 'Collected', 'Due', 'Agreement', 'Date', 'Actions']}>

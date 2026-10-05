@@ -1,12 +1,13 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { Button, Card, CardHeader, CardTitle, CardContent, StatCard } from '@/components/ui/index'
 import { reportApi } from '@/lib/api'
 import { formatCurrency, getSourceLabel } from '@/lib/utils'
-import { Download, BarChart3, TrendingUp, Users, Coins, Home, PieChart } from 'lucide-react'
+import { Download, BarChart3, TrendingUp, Users, Coins, Home, PieChart, Megaphone } from 'lucide-react'
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, PieChart as RePieChart, Pie, Cell, Legend, Funnel, FunnelChart
@@ -16,6 +17,7 @@ const COLORS = ['#C9A84C', '#3498DB', '#E67E22', '#9B59B6', '#2ECC71', '#E74C3C'
 const STATUS_ORDER = ['NEW', 'FOLLOWUP', 'INTERESTED', 'QUALIFIED', 'SITE_VISIT_FIXED', 'SITE_VISIT_DONE', 'OPPORTUNITY', 'BOOKED']
 
 export default function ReportsPage() {
+  const router = useRouter()
   const [activeReport, setActiveReport] = useState('overview')
   const [months, setMonths] = useState(6)
 
@@ -36,12 +38,22 @@ export default function ReportsPage() {
 
   const { data: statusData } = useQuery({
     queryKey: ['lead-status'],
-    queryFn: () => reportApi.getCollections,
+    queryFn: () => reportApi.getLeadStatus(),
+  })
+
+  const { data: adCampaignData, isLoading: isLoadingAdCampaigns } = useQuery({
+    queryKey: ['ad-campaigns'],
+    queryFn: () => reportApi.getAdCampaigns(),
+    enabled: activeReport === 'ads',
   })
 
   const revenue = revenueData?.data?.data || []
   const sources = sourceData?.data?.data || []
   const team = teamData?.data?.data || []
+  const adCampaigns = [
+    ...(adCampaignData?.data?.data?.meta || []),
+    ...(adCampaignData?.data?.data?.google || []),
+  ]
 
   const totalRevenue = revenue.reduce((s: number, r: any) => s + (r.revenue || 0), 0)
   const avgMonthly = revenue.length ? totalRevenue / revenue.length : 0
@@ -68,6 +80,7 @@ export default function ReportsPage() {
     { key: 'leads', label: 'Lead Analytics', icon: Users },
     { key: 'team', label: 'Team Performance', icon: Users },
     { key: 'inventory', label: 'Inventory', icon: Home },
+    { key: 'ads', label: 'Ads Performance', icon: Megaphone },
   ]
 
   return (
@@ -85,7 +98,7 @@ export default function ReportsPage() {
             <option value={6}>Last 6 months</option>
             <option value={12}>Last 12 months</option>
           </select>
-          <Button variant="secondary" size="sm" icon={<Download className="w-3.5 h-3.5" />}>Export</Button>
+          <Button variant="secondary" size="sm" icon={<Download className="w-3.5 h-3.5" />} onClick={() => router.push('/reports/export')}>Export</Button>
         </div>
       }
     >
@@ -318,6 +331,42 @@ export default function ReportsPage() {
             </CardContent>
           </Card>
         </div>
+      )}
+
+      {/* Ads performance */}
+      {activeReport === 'ads' && (
+        <Card>
+          <CardHeader>
+            <CardTitle><Megaphone className="w-4 h-4 text-gold" />Meta & Google Ads, last 30 days</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {isLoadingAdCampaigns ? (
+              <p className="py-8 text-center text-sm text-slate">Loading campaign metrics...</p>
+            ) : adCampaigns.length ? (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead><tr className="border-b border-navy-border text-left text-xs text-slate">
+                    <th className="px-3 py-2">Platform</th><th className="px-3 py-2">Campaign</th><th className="px-3 py-2 text-right">Impressions</th><th className="px-3 py-2 text-right">Clicks</th><th className="px-3 py-2 text-right">Leads</th><th className="px-3 py-2 text-right">Spend</th>
+                  </tr></thead>
+                  <tbody className="divide-y divide-navy-border/50">
+                    {adCampaigns.map((campaign: any, index: number) => (
+                      <tr key={`${campaign.platform}-${campaign.campaignId || index}`}>
+                        <td className="px-3 py-2 text-xs text-gold">{campaign.platform}</td>
+                        <td className="px-3 py-2 text-slate-light">{campaign.campaignName || 'Unnamed campaign'}</td>
+                        <td className="px-3 py-2 text-right text-slate">{campaign.impressions || 0}</td>
+                        <td className="px-3 py-2 text-right text-slate">{campaign.clicks || 0}</td>
+                        <td className="px-3 py-2 text-right text-slate">{campaign.leads || 0}</td>
+                        <td className="px-3 py-2 text-right text-white">{formatCurrency(Number(campaign.spend || 0))}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p className="py-8 text-center text-sm text-slate">No campaign data is configured yet.</p>
+            )}
+          </CardContent>
+        </Card>
       )}
 
       {/* Inventory report placeholder */}

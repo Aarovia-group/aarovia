@@ -5,6 +5,6 @@ import { authenticate } from '../middleware/auth.middleware'
 const router = Router()
 router.use(authenticate)
 router.get('/', getNotifications)
-router.patch('/:id/read', markAsRead)
 router.patch('/mark-all-read', markAllAsRead)
+router.patch('/:id/read', markAsRead)
 export default router

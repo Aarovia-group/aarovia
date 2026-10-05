@@ -2,10 +2,10 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { AppLayout } from '@/components/layout/AppLayout'
-import { Card, Table, Tr, Td, SearchInput, EmptyState, Badge } from '@/components/ui/index'
+import { Button, Card, Table, Tr, Td, SearchInput, EmptyState, Badge } from '@/components/ui/index'
 import { customerApi } from '@/lib/api'
 import { formatDate } from '@/lib/utils'
-import { UserCheck, Eye, CheckCircle } from 'lucide-react'
+import { UserCheck, Eye, CheckCircle, Plus } from 'lucide-react'
 import Link from 'next/link'
 
 export default function CustomersPage() {
@@ -17,7 +17,11 @@ export default function CustomersPage() {
   const customers = data?.data?.data || []
 
   return (
-    <AppLayout title="Customers" subtitle={`${customers.length} customers`}>
+    <AppLayout
+      title="Customers"
+      subtitle={`${customers.length} customers`}
+      actions={<Link href="/customers/new"><Button size="sm" icon={<Plus className="w-3.5 h-3.5" />}>New Customer</Button></Link>}
+    >
       <div className="flex gap-2 mb-4"><div className="flex-1"><SearchInput value={search} onChange={setSearch} placeholder="Search customers..." /></div></div>
       <Card>
         <Table headers={['Name', 'Mobile', 'Email', 'PAN', 'KYC', 'Bookings', 'Joined', 'Actions']}>

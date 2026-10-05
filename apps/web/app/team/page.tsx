@@ -32,11 +32,11 @@ export default function TeamPage() {
 
   const { data, isLoading } = useQuery({
     queryKey: ['users', search, roleFilter],
-    queryFn: () => api.get('/api/users', { params: { search: search || undefined, role: roleFilter || undefined } }),
+    queryFn: () => api.get('/users', { params: { search: search || undefined, role: roleFilter || undefined } }),
   })
 
   const createMutation = useMutation({
-    mutationFn: (d: any) => api.post('/api/auth/register', d),
+    mutationFn: (d: any) => api.post('/auth/register', d),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] })
       setShowCreate(false)
@@ -47,7 +47,7 @@ export default function TeamPage() {
   })
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, ...d }: any) => api.put(`/api/users/${id}`, d),
+    mutationFn: ({ id, ...d }: any) => api.put(`/users/${id}`, d),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] })
       toast.success('User updated successfully')
@@ -56,16 +56,13 @@ export default function TeamPage() {
   })
 
   const resetPasswordMutation = useMutation({
-    mutationFn: ({ id, newPassword }: any) => api.patch(`/api/users/${id}/reset-password`, { newPassword }),
-    onSuccess: () => {
-      toast.success('Password reset successfully')
-      setEditUser(null)
-    },
+    mutationFn: ({ id, newPassword }: any) => api.patch(`/users/${id}/reset-password`, { newPassword }),
+    onSuccess: () => toast.success('Password reset successfully'),
     onError: (e: any) => toast.error(e.response?.data?.message || 'Failed to reset password'),
   })
 
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => api.delete(`/api/users/${id}`),
+    mutationFn: (id: string) => api.delete(`/users/${id}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] })
       setDeleteUser(null)
@@ -75,7 +72,7 @@ export default function TeamPage() {
   })
 
   const toggleActiveMutation = useMutation({
-    mutationFn: ({ id, isActive }: any) => api.put(`/api/users/${id}`, { isActive }),
+    mutationFn: ({ id, isActive }: any) => api.put(`/users/${id}`, { isActive }),
     onSuccess: (_, variables: any) => {
       queryClient.invalidateQueries({ queryKey: ['users'] })
       toast.success(variables.isActive ? 'User activated successfully' : 'User deactivated successfully')
@@ -94,24 +91,32 @@ export default function TeamPage() {
 
   const onCreateSubmit = (d: any) => createMutation.mutate(d)
 
-  const onEditSubmit = (data: { name?: string; phone?: string; role?: string; newPassword?: string; confirmPassword?: string }) => {
+  const onEditSubmit = async (data: { name?: string; phone?: string; role?: string; newPassword?: string; confirmPassword?: string }) => {
     if (!editUser) return
     if (data.newPassword && data.newPassword !== data.confirmPassword) {
       setPwError("Passwords don't match")
       return
     }
 
+    const passwordError = data.newPassword ? validatePassword(data.newPassword) : ''
+    if (passwordError) {
+      setPwError(passwordError)
+      return
+    }
+
     setPwError('')
     const { newPassword, confirmPassword, ...updateData } = data
 
-    updateMutation.mutate({ id: editUser.id, ...updateData })
-
-    if (newPassword) {
-      resetPasswordMutation.mutate({ id: editUser.id, newPassword })
+    try {
+      if (newPassword) {
+        await resetPasswordMutation.mutateAsync({ id: editUser.id, newPassword })
+      }
+      await updateMutation.mutateAsync({ id: editUser.id, ...updateData })
+      setEditUser(null)
+      resetEdit()
+    } catch {
+      // The mutations report failures with a toast; keep the form open so it can be corrected or retried.
     }
-
-    setEditUser(null)
-    resetEdit()
   }
 
   const validatePassword = (password: string) => {

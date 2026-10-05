@@ -122,9 +122,18 @@ export const createQuotation = async (req: AuthRequest, res: Response) => {
 export const updateQuotation = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params
-    const data = req.body
+    const { propertyType, baseRate, area, floorRise, plcCharges, maintenanceCharges,
+      parkingCharges, clubhouseCharges, legalCharges, gstRate, discount, bookingAmount,
+      leadId, inventoryId, projectId, notes, validUntil } = req.body
+    const data: any = {
+      propertyType, baseRate, area, floorRise, plcCharges, maintenanceCharges,
+      parkingCharges, clubhouseCharges, legalCharges, gstRate, discount, bookingAmount,
+      leadId, inventoryId, projectId, notes,
+      validUntil: validUntil ? new Date(validUntil) : validUntil,
+    }
+    Object.keys(data).forEach((key) => data[key] === undefined && delete data[key])
 
-    if (data.baseRate || data.area) {
+    if (data.baseRate !== undefined || data.area !== undefined) {
       const existing = await prisma.quotation.findUnique({ where: { id } })
       const merged = { ...existing, ...data }
       const calc = calculateQuotation(merged)

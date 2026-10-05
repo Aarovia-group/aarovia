@@ -6,10 +6,10 @@ const router = Router()
 router.use(authenticate)
 
 router.get('/', getQuotations)
-router.post('/', createQuotation)
+router.post('/', authorize('SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER', 'SALES_EXECUTIVE'), createQuotation)
 router.get('/:id', getQuotationById)
-router.put('/:id', updateQuotation)
-router.patch('/:id/status', updateQuotationStatus)
+router.put('/:id', authorize('SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER', 'SALES_EXECUTIVE'), updateQuotation)
+router.patch('/:id/status', authorize('SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER', 'SALES_EXECUTIVE'), updateQuotationStatus)
 router.delete('/:id', authorize('SUPER_ADMIN', 'ADMIN'), deleteQuotation)
 
 export default router

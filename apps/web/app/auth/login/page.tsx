@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
@@ -69,10 +70,8 @@ export default function LoginPage() {
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 rounded-full border border-gold" />
         </div>
         <div className="relative text-center">
-          <div className="w-20 h-20 rounded-2xl gold-gradient mx-auto mb-6 flex items-center justify-center">
-            <span className="font-display text-3xl font-bold text-navy">A</span>
-          </div>
-          <h1 className="font-display text-4xl font-semibold text-[#172033] mb-3">Aarovia</h1>
+          <Image src="/aarovia-mark.png" alt="Aarovia logo" width={80} height={80} priority className="w-20 h-20 object-contain mx-auto mb-6" />
+          <h1 className="brand-wordmark text-4xl text-[#172033] mb-3">AAROVIA</h1>
           <p className="text-gold text-sm tracking-[4px] uppercase mb-8">Real Estates</p>
           <div className="max-w-xs mx-auto space-y-4">
             {['Complete Lead Management', 'Real-time Sales Analytics', 'Inventory & Quotation System', 'WhatsApp & Email Integration'].map(f => (
@@ -91,11 +90,9 @@ export default function LoginPage() {
       <div className="flex-1 flex items-center justify-center p-8">
         <div className="w-full max-w-md">
           <div className="lg:hidden flex items-center gap-3 mb-10 justify-center">
-            <div className="w-10 h-10 rounded-xl gold-gradient flex items-center justify-center">
-              <span className="font-display font-bold text-navy">A</span>
-            </div>
+            <Image src="/aarovia-mark.png" alt="Aarovia logo" width={40} height={40} priority className="w-10 h-10 object-contain" />
             <div>
-              <div className="font-display text-xl text-[#172033]">Aarovia</div>
+              <div className="brand-wordmark text-xl text-[#172033]">AAROVIA</div>
               <div className="text-[10px] text-slate tracking-[2px] uppercase">Real Estates</div>
             </div>
           </div>
@@ -153,7 +150,7 @@ export default function LoginPage() {
           </form>
 
           <p className="text-center text-xs text-slate mt-8">
-            © 2024 Aarovia Real Estates CRM. All rights reserved.
+            © 2026 Aarovia Real Estates CRM. All rights reserved.
           </p>
         </div>
       </div>

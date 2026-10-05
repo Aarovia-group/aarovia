@@ -1,9 +1,9 @@
 import prisma from '../utils/prisma'
-import { createTransporter } from '../utils/email'
+import { createTransporter, getCustomerFacingEmail, getSenderDisplayName } from '../utils/email'
 
 export const sendProjectDetails = async (req: any, res: any) => {
   try {
-    const { leadId, projectId, templateType, toEmail, toName, customMessage } = req.body
+    const { leadId, projectId, templateType, customTemplateName, templateIntro, toEmail, toName, customMessage, subject, brochureUrl, attachments = [] } = req.body
 
     const [lead, project] = await Promise.all([
       leadId ? prisma.lead.findUnique({ where: { id: leadId } }) : null,
@@ -16,11 +16,12 @@ export const sendProjectDetails = async (req: any, res: any) => {
     }
 
     const emailBody = generateProjectEmail({
-      projectName: project?.name || 'Our Premium Property',
+      projectName: project?.name || customTemplateName || 'Our Premium Property',
       leadName: toName || lead?.name || 'Valued Customer',
       propertyType: templateType || 'villa',
       customMessage,
-      brochureUrl: project?.brochureUrl,
+      templateIntro,
+      brochureUrl: brochureUrl || project?.brochureUrl,
       images: project?.images || [],
       amenities: project?.amenities || [],
       minPrice: project?.minPrice,
@@ -30,32 +31,70 @@ export const sendProjectDetails = async (req: any, res: any) => {
       senderName: req.user?.name,
     })
 
-    const transporter = createTransporter()
-    await transporter.sendMail({
-      from: `"${req.user?.name} | Aarovia Real Estates" <${process.env.SMTP_USER || process.env.GMAIL_USER}>`,
+    const transporter = await createTransporter()
+    const fromEmail = await getCustomerFacingEmail()
+    const fromName = await getSenderDisplayName()
+    const attachmentUrl = brochureUrl || project?.brochureUrl
+    const emailAttachments = attachments.length > 0
+      ? attachments.map((file: { url: string; name?: string }) => ({ filename: file.name || 'Aarovia-file', href: file.url } as any))
+      : attachmentUrl ? [{ filename: 'Aarovia-brochure', href: attachmentUrl } as any] : undefined
+    const delivery = await transporter.sendMail({
+      from: `"${fromName}" <${fromEmail}>`,
       to: recipientEmail,
-      subject: `${project?.name || 'Premium Property'} - Project Details from Aarovia Real Estates`,
+      subject: subject?.trim() || `${project?.name || 'Premium Property'} - Project Details from Aarovia Real Estates`,
       html: emailBody,
+      attachments: emailAttachments,
     })
 
-    // Log email
-    if (leadId) {
-      await prisma.emailLog.create({
-        data: { leadId, to: recipientEmail, subject: `Project Details - ${project?.name}`, status: 'SENT' },
-      })
-      await prisma.activity.create({
-        data: {
-          leadId, userId: req.user?.id,
-          type: 'EMAIL_SENT',
-          description: `Project details email sent to ${recipientEmail}`,
-        },
+    if (!delivery.accepted?.length || delivery.rejected?.length) {
+      return res.status(502).json({
+        success: false,
+        message: delivery.rejected?.length ? `Email rejected for ${delivery.rejected.join(', ')}` : 'Email provider did not accept the recipient',
+        accepted: delivery.accepted,
+        rejected: delivery.rejected,
       })
     }
 
-    res.json({ success: true, message: 'Email sent successfully' })
+    // Log email
+    if (leadId) {
+      try {
+        await prisma.emailLog.create({
+          data: { leadId, to: recipientEmail, subject: `Project Details - ${project?.name}`, status: 'SENT' },
+        })
+        await prisma.activity.create({
+          data: {
+            leadId, userId: req.user?.id,
+            type: 'EMAIL_SENT',
+            description: `Project details email sent to ${recipientEmail}`,
+          },
+        })
+      } catch (logError) {
+        console.error('Project details email delivered but CRM logging failed', logError)
+      }
+    }
+
+    res.json({ success: true, message: 'Email accepted by the mail server', data: { messageId: delivery.messageId, accepted: delivery.accepted } })
   } catch (error) {
+    const emailError = error as { message?: string; code?: string; responseCode?: number; command?: string }
+    console.error('Project details email failed', {
+      message: emailError.message,
+      code: emailError.code,
+      responseCode: emailError.responseCode,
+      command: emailError.command,
+    })
     res.status(500).json({ success: false, message: 'Failed to send email', error })
   }
+}
+
+export const sendBulkEmail = async (req: any, res: any) => {
+  const { leadIds, message, subject } = req.body
+  if (!Array.isArray(leadIds) || !leadIds.length || !message?.trim()) return res.status(400).json({ success: false, message: 'Lead IDs and message are required' })
+  const results = await Promise.allSettled(leadIds.map((leadId: string) => new Promise((resolve, reject) => {
+    const finish = (body: any, code = 200) => code >= 400 ? reject(body) : resolve(body)
+    sendProjectDetails({ body: { leadId, customMessage: message, subject }, user: req.user }, { status: (code: number) => ({ json: (body: any) => finish(body, code) }), json: (body: any) => finish(body) })
+  })))
+  const failed = results.filter(result => result.status === 'rejected').length
+  res.json({ success: failed < leadIds.length, message: `Email sent to ${leadIds.length - failed} of ${leadIds.length} leads`, failed })
 }
 
 export const sendQuotationEmail = async (req: any, res: any) => {
@@ -70,9 +109,11 @@ export const sendQuotationEmail = async (req: any, res: any) => {
     const recipientEmail = toEmail || quotation.lead?.email
     if (!recipientEmail) return res.status(400).json({ success: false, message: 'No email address' })
 
-    const transporter = createTransporter()
+    const transporter = await createTransporter()
+    const fromEmail = await getCustomerFacingEmail()
+    const fromName = await getSenderDisplayName()
     await transporter.sendMail({
-      from: `"Aarovia Real Estates" <${process.env.SMTP_USER || process.env.GMAIL_USER}>`,
+      from: `"${fromName}" <${fromEmail}>`,
       to: recipientEmail,
       subject: `Quotation ${quotation.quotationNumber} - Aarovia Real Estates`,
       html: generateQuotationEmail(quotation),
@@ -124,7 +165,7 @@ const generateProjectEmail = (data: any) => `
   </div>
   <div style="padding:30px">
     <p style="color:#333;font-size:16px">Dear ${data.leadName},</p>
-    <p style="color:#555;line-height:1.7">Thank you for your interest in ${data.projectName}. We are delighted to share the project details with you.</p>
+    <p style="color:#555;line-height:1.7">${data.templateIntro || `Thank you for your interest in ${data.projectName}. We are delighted to share the project details with you.`}</p>
     ${data.customMessage ? `<p style="color:#555;line-height:1.7">${data.customMessage}</p>` : ''}
     <div style="background:#f9f6f0;border-left:4px solid #C9A84C;padding:20px;margin:20px 0;border-radius:0 8px 8px 0">
       <h2 style="color:#0A1628;margin:0 0 15px;font-size:20px">${data.projectName}</h2>

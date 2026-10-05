@@ -7,7 +7,7 @@ export const getDashboardStats = async (req: AuthRequest, res: Response) => {
     const today = new Date()
     const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1)
     const startOfLastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1)
-    const endOfLastMonth = new Date(today.getFullYear(), today.getMonth(), 0)
+    const endOfLastMonth = new Date(today.getFullYear(), today.getMonth(), 1)
 
     const where: any = {}
     if (req.user?.role === 'SALES_EXECUTIVE') where.assignedToId = req.user.id
@@ -15,7 +15,7 @@ export const getDashboardStats = async (req: AuthRequest, res: Response) => {
     const [
       totalLeads, newLeadsToday, followupsDue, siteVisitsThisMonth,
       bookingsThisMonth, totalBookings, collectionsThisMonth, dueAmount,
-      inventoryAvailable, inventorySold, leadsLastMonth, bookingsLastMonth,
+      inventoryAvailable, inventorySold, inventoryBlocked, inventoryReserved, leadsLastMonth, bookingsLastMonth,
     ] = await Promise.all([
       prisma.lead.count({ where: { ...where, isActive: true } }),
       prisma.lead.count({ where: { ...where, isActive: true, createdAt: { gte: new Date(today.toDateString()) } } }),
@@ -27,6 +27,8 @@ export const getDashboardStats = async (req: AuthRequest, res: Response) => {
       prisma.booking.aggregate({ _sum: { dueAmount: true } }),
       prisma.inventory.count({ where: { status: 'AVAILABLE' } }),
       prisma.inventory.count({ where: { status: 'SOLD' } }),
+      prisma.inventory.count({ where: { status: 'BLOCKED' } }),
+      prisma.inventory.count({ where: { status: 'RESERVED' } }),
       prisma.lead.count({ where: { ...where, isActive: true, createdAt: { gte: startOfLastMonth, lte: endOfLastMonth } } }),
       prisma.booking.count({ where: { bookingDate: { gte: startOfLastMonth, lte: endOfLastMonth } } }),
     ])
@@ -44,7 +46,7 @@ export const getDashboardStats = async (req: AuthRequest, res: Response) => {
         dueAmount: dueAmount._sum.dueAmount || 0,
         inventoryAvailable,
         inventorySold,
-        leadGrowth: totalLeads > 0 ? (((totalLeads - leadsLastMonth) / leadsLastMonth) * 100).toFixed(1) : 0,
+        leadGrowth: leadsLastMonth > 0 ? (((totalLeads - leadsLastMonth) / leadsLastMonth) * 100).toFixed(1) : 0,
         bookingGrowth: bookingsLastMonth > 0 ? (((bookingsThisMonth - bookingsLastMonth) / bookingsLastMonth) * 100).toFixed(1) : 0,
       },
     })
@@ -157,7 +159,11 @@ export const getCollectionReport = async (req: Request, res: Response) => {
     const { from, to } = req.query
     const where: any = {}
     if (from) where.paymentDate = { gte: new Date(from as string) }
-    if (to) where.paymentDate = { ...where.paymentDate, lte: new Date(to as string) }
+    if (to) {
+      const end = new Date(to as string)
+      end.setDate(end.getDate() + 1)
+      where.paymentDate = { ...where.paymentDate, lt: end }
+    }
 
     const [payments, overdueBookings] = await Promise.all([
       prisma.payment.findMany({

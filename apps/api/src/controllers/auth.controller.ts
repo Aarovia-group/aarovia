@@ -49,6 +49,8 @@ const getRefreshTokenExpiration = () => {
   return new Date(Date.now() + (ms > 0 ? ms : 30 * 24 * 60 * 60 * 1000))
 }
 
+export const normalizeEmail = (email: string) => email.trim().toLowerCase()
+
 export const getJwtCookieOptions = () => {
   const cookieDomain = process.env.COOKIE_DOMAIN || undefined
   return {
@@ -115,15 +117,18 @@ const clearRefreshTokenCookie = (res: Response) => {
 export const register = async (req: Request, res: Response) => {
   try {
     const { name, email, password, phone } = req.body
+    const normalizedEmail = normalizeEmail(email)
 
-    const existing = await prisma.user.findUnique({ where: { email } })
+    const existing = await prisma.user.findFirst({
+      where: { email: { equals: normalizedEmail, mode: 'insensitive' } },
+    })
     if (existing) {
       return res.status(409).json({ success: false, message: 'Email already registered' })
     }
 
     const hashedPassword = await bcrypt.hash(password, 12)
     const user = await prisma.user.create({
-      data: { name, email, password: hashedPassword, phone, role: 'SALES_EXECUTIVE' },
+      data: { name, email: normalizedEmail, password: hashedPassword, phone, role: 'SALES_EXECUTIVE' },
       select: { id: true, name: true, email: true, role: true, phone: true, createdAt: true },
     })
 
@@ -141,10 +146,13 @@ export const login = async (req: Request, res: Response) => {
   try {
     const { email, password } = req.body
 
-    const loginEmail = email.toLowerCase() === 'admin@aarovia.co.in'
+    const normalizedEmail = normalizeEmail(email)
+    const loginEmail = normalizedEmail === 'admin@aarovia.co.in'
       ? 'admin@aaroviagroup.com'
-      : email
-    const user = await prisma.user.findUnique({ where: { email: loginEmail } })
+      : normalizedEmail
+    const user = await prisma.user.findFirst({
+      where: { email: { equals: loginEmail, mode: 'insensitive' } },
+    })
     if (!user || !user.isActive) {
       return res.status(401).json({ success: false, message: 'Invalid credentials' })
     }

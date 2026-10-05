@@ -144,6 +144,11 @@ export const authApi = {
   logout: () => api.post('/auth/logout'),
 }
 
+export const voiceApi = {
+  getToken: () => api.get('/voice/token'),
+  startCall: (to: string, leadId?: string) => api.post('/voice/call', { to, leadId }),
+}
+
 export const settingsApi = {
   getAll: () => api.get('/settings'),
 }
@@ -153,11 +158,18 @@ export const leadApi = {
   getById: (id: string) => api.get(`/leads/${id}`),
   getPipeline: () => api.get('/leads/pipeline'),
   create: (data: any) => api.post('/leads', data),
+  bulkImport: (leads: any[]) => api.post('/leads/bulk-import', { leads }),
   update: (id: string, data: any) => api.put(`/leads/${id}`, data),
   delete: (id: string) => api.delete(`/leads/${id}`),
+  activate: (id: string) => api.patch(`/leads/${id}/activate`),
   updateStatus: (id: string, data: any) => api.patch(`/leads/${id}/status`, data),
   assign: (id: string, data: any) => api.patch(`/leads/${id}/assign`, data),
+  bulkAssign: (data: any) => api.patch('/leads/bulk-assign', data),
+  bulkAssignProject: (data: any) => api.patch('/leads/bulk-assign-project', data),
   addCallLog: (id: string, data: any) => api.post(`/leads/${id}/call-log`, data),
+  updateCallLog: (id: string, callId: string, data: any) => api.patch(`/leads/${id}/call-log/${callId}`, data),
+  deleteCallLogs: (leadId: string, callIds: string[]) => api.delete(`/leads/${leadId}/call-logs`, { data: { callIds } }),
+  deleteCallLog: (leadId: string, callId: string) => api.delete(`/leads/${leadId}/call-log/${callId}`),
   addNote: (id: string, data: any) => api.post(`/leads/${id}/note`, data),
   scheduleSiteVisit: (id: string, data: any) => api.post(`/leads/${id}/site-visit`, data),
 }
@@ -176,6 +188,7 @@ export const reportApi = {
   getTeamPerformance: (params?: any) => api.get('/reports/team-performance', { params }),
   getCollections: (params?: any) => api.get('/reports/collections', { params }),
   getInventory: (params?: any) => api.get('/reports/inventory', { params }),
+  getAdCampaigns: () => api.get('/ad-integrations/campaigns'),
 }
 
 export const customerApi = {
@@ -224,13 +237,21 @@ export const projectApi = {
 
 export const whatsappApi = {
   sendProjectDetails: (data: any) => api.post('/whatsapp/send-project-details', data),
+  sendCustom: (data: any) => api.post('/whatsapp/send-custom', data),
+  sendBulk: (data: any) => api.post('/whatsapp/send-bulk', data),
   sendFollowup: (data: any) => api.post('/whatsapp/send-followup', data),
   sendPaymentReminder: (data: any) => api.post('/whatsapp/send-payment-reminder', data),
   getLogs: (params?: any) => api.get('/whatsapp/logs', { params }),
 }
 
+export const smsApi = {
+  sendCustom: (data: any) => api.post('/sms/send-custom', data),
+  sendBulk: (data: any) => api.post('/sms/send-bulk', data),
+}
+
 export const emailApi = {
   sendProjectDetails: (data: any) => api.post('/email/send-project-details', data),
+  sendBulk: (data: any) => api.post('/email/send-bulk', data),
   sendQuotation: (data: any) => api.post('/email/send-quotation', data),
   getLogs: (params?: any) => api.get('/email/logs', { params }),
 }

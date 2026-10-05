@@ -35,6 +35,37 @@
 - `CLOUDINARY_API_SECRET`
 - `WHATSAPP_PHONE_ID` (optional)
 - `WHATSAPP_ACCESS_TOKEN` (optional)
+- `MCUBE_API_TOKEN` - MCUBE API token
+- `MCUBE_AGENT_PHONE_NUMBER` - phone number of an MCUBE executive opted in for outbound calls
+- `MCUBE_CLICK_TO_CALL_URL` (optional; defaults to MCUBE outbound-calls endpoint)
+- `MCUBE_API_TOKEN_FIELD` (optional; defaults to `HTTP_AUTHORIZATION`)
+- `MCUBE_API_TOKEN_PREFIX` (optional)
+- `MCUBE_AGENT_FIELD` (optional; defaults to `exenumber`)
+- `MCUBE_CUSTOMER_FIELD` (optional; defaults to `custnumber`)
+- `MCUBE_REFURL` (optional; defaults to `1`)
+- `MCUBE_REFURL_FIELD` (optional; defaults to `refurl`)
+
+MCUBE callback URL:
+- `https://aarovia-api.vercel.app/api/voice/callback`
+- Incoming number-to-agent assignments are configured in CRM Settings → Call API. In MCUBE, route each incoming number to the matching agent and include the called number in the callback payload. CRM assignments affect inbound ownership only; outbound click-to-call continues using the configured MCUBE executive number.
+- `META_LEAD_VERIFY_TOKEN` - Meta webhook verification token
+- `META_LEAD_ACCESS_TOKEN` - Meta Page access token for reading lead form submissions
+- `META_ADS_ACCESS_TOKEN` - Meta access token with Ads Insights permission
+- `META_AD_ACCOUNT_ID` - Meta ad account ID without the `act_` prefix
+- `META_APP_ID` - Meta Developer App ID for OAuth connection
+- `META_APP_SECRET` - Meta Developer App secret
+- `GOOGLE_LEAD_WEBHOOK_KEY` (optional) - shared key for Google lead webhook requests
+- `GOOGLE_ADS_CLIENT_ID` - Google OAuth client ID
+- `GOOGLE_ADS_CLIENT_SECRET` - Google OAuth client secret
+- `GOOGLE_ADS_REFRESH_TOKEN` - Google Ads OAuth refresh token
+- `GOOGLE_ADS_DEVELOPER_TOKEN` - Google Ads developer token
+- `GOOGLE_ADS_CUSTOMER_ID` - Google Ads customer ID
+- `GOOGLE_ADS_LOGIN_CUSTOMER_ID` (optional) - Google Ads manager customer ID
+- `API_URL` (optional; defaults to `https://aarovia-api.vercel.app`)
+
+OAuth callback URLs to register with the providers:
+- Meta: `https://aarovia-api.vercel.app/api/ad-integrations/meta/callback`
+- Google: `https://aarovia-api.vercel.app/api/ad-integrations/google/callback`
 
 ### 2. Web Project
 - Root Directory: `apps/web`
