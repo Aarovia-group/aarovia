@@ -44,10 +44,11 @@
 - `MCUBE_CUSTOMER_FIELD` (optional; defaults to `custnumber`)
 - `MCUBE_REFURL` (optional; defaults to `1`)
 - `MCUBE_REFURL_FIELD` (optional; defaults to `refurl`)
+- Outbound DIDs are assigned by CRM user: Mahesh, Maruthi, Kalyani, and Nithin rotate across `8071439257` and `8071439583`; Chirag and Amar use `8071439584`; Vinod and Admin/Super Admin roles use `8071439585`. Rotation position is stored in the database and updated under a PostgreSQL advisory lock.
 
 MCUBE callback URL:
 - `https://aarovia-api.vercel.app/api/voice/callback`
-- Incoming number-to-agent assignments are configured in CRM Settings → Call API. In MCUBE, route each incoming number to the matching agent and include the called number in the callback payload. CRM assignments affect inbound ownership only; outbound click-to-call continues using the configured MCUBE executive number.
+- Incoming number-to-agent assignments are configured in CRM Settings → Call API. In MCUBE, route each incoming number to the matching agent and include the called number in the callback payload. Outbound click-to-call uses the mapped CRM user's DID request field (configurable as `MCUBE_DID_FIELD`, default `did`).
 - `META_LEAD_VERIFY_TOKEN` - Meta webhook verification token
 - `META_LEAD_ACCESS_TOKEN` - Meta Page access token for reading lead form submissions
 - `META_ADS_ACCESS_TOKEN` - Meta access token with Ads Insights permission

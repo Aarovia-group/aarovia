@@ -2,7 +2,7 @@ import assert from 'node:assert'
 import { normalizeEmail, parseCookies, parseDuration, getJwtCookieOptions } from './auth.controller'
 import { getSmtpOptions } from '../utils/email'
 import { hasModuleAccess } from '../middleware/module-permissions'
-import { findOutgoingDidForAgent, parseOutgoingDidRoutes } from '../services/incoming-call-routing'
+import { findOutgoingDidForAgent, getOutgoingDidsForAgent, parseOutgoingDidRoutes } from '../services/incoming-call-routing'
 
 ;(async () => {
   try {
@@ -22,7 +22,15 @@ import { findOutgoingDidForAgent, parseOutgoingDidRoutes } from '../services/inc
     ]))
     assert.equal(findOutgoingDidForAgent(repairedOutgoingDids, 'Chirag'), '8071439584')
     assert.equal(findOutgoingDidForAgent(repairedOutgoingDids, 'Chirag Kumar'), '8071439584')
+    assert.equal(findOutgoingDidForAgent(repairedOutgoingDids, 'Amar'), '8071439584')
     assert.equal(findOutgoingDidForAgent(repairedOutgoingDids, 'Vinod'), '8071439585')
+    assert.equal(findOutgoingDidForAgent(repairedOutgoingDids, 'Any Admin Name', 'ADMIN'), '8071439585')
+    for (const agent of ['Mahesh', 'Maruthi', 'Kalyani', 'Nithin']) {
+      assert.deepEqual(getOutgoingDidsForAgent(repairedOutgoingDids, agent), ['8071439257', '8071439583'])
+      assert.equal(findOutgoingDidForAgent(repairedOutgoingDids, agent, undefined, 0), '8071439257')
+      assert.equal(findOutgoingDidForAgent(repairedOutgoingDids, agent, undefined, 1), '8071439583')
+      assert.equal(findOutgoingDidForAgent(repairedOutgoingDids, agent, undefined, 2), '8071439257')
+    }
 
     const header = 'refreshToken=abc123; theme=dark; session=xyz'
     const cookies = parseCookies(header)

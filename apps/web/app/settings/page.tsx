@@ -646,7 +646,7 @@ export default function SettingsPage() {
                   </div>
                   <div>
                     <h3 className="text-sm font-medium text-white mb-2">Fixed Outgoing DID by CRM User</h3>
-                    <p className="text-xs text-slate mb-3">These owner-to-DID assignments are fixed in the API so stale or edited settings cannot route calls through another user’s number.</p>
+                    <p className="text-xs text-slate mb-3">Mahesh, Maruthi, Kalyani, and Nithin rotate between the first two DIDs. Chirag and Amar use the third; Vinod and all Admin roles use the fourth.</p>
                     <label className="block text-xs font-medium text-slate-light mb-1.5">CRM agent name, outgoing DID (one mapping per line)</label>
                     <textarea
                       {...regVoice('outgoingDidsText')}
@@ -654,7 +654,7 @@ export default function SettingsPage() {
                       readOnly
                       className="w-full cursor-not-allowed bg-navy/70 border border-navy-border rounded-lg px-3 py-2 text-sm text-white font-mono"
                     />
-                    <p className="text-[11px] text-slate mt-2">The API repairs the saved mapping on the next outbound call. MCUBE receives the DID using the configured field (default: did).</p>
+                    <p className="text-[11px] text-slate mt-2">The round-robin position is stored persistently and locked while updated, so concurrent Vercel instances do not reuse a rotation step. MCUBE receives the DID using the configured field (default: did).</p>
                   </div>
                   <Button type="submit" icon={<Save className="w-3.5 h-3.5" />}>Save Call API Settings</Button>
                 </form>

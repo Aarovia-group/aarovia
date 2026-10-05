@@ -1,7 +1,7 @@
 import { Request, Response } from 'express'
 import { AuthRequest } from '../middleware/auth.middleware'
 import { startMcubeCall } from '../services/mcube.service'
-import { findOutgoingDidForAgent, normalizeRoutingPhone, parseIncomingCallRoutes, parseOutgoingDidRoutes } from '../services/incoming-call-routing'
+import { findOutgoingDidForAgent, getOutgoingDidsForAgent, normalizeRoutingPhone, parseIncomingCallRoutes, parseOutgoingDidRoutes } from '../services/incoming-call-routing'
 import prisma from '../utils/prisma'
 
 const normalizeVoiceNumber = (value: string) => {
@@ -35,6 +35,51 @@ const parseDuration = (value: unknown) => {
 const getRecordingUrl = (payload: Record<string, any>) => {
   const candidates = [payload.filename, payload.recordingUrl, payload.recording_url, payload.recording, payload.recordinglink, payload.recording_link]
   return candidates.find((value) => typeof value === 'string' && value.trim())?.trim() || null
+}
+
+const getNextOutgoingDid = async (routes: ReturnType<typeof parseOutgoingDidRoutes>, agentName?: string, role?: string) => {
+  const dids = getOutgoingDidsForAgent(routes, agentName, role)
+  if (!dids?.length) return undefined
+  if (dids.length === 1) return dids[0]
+
+  const agentKey = role === 'ADMIN' || role === 'SUPER_ADMIN'
+    ? role
+    : String(agentName || '').toLowerCase().replace(/[^a-z0-9]/g, '')
+  if (!agentKey) return undefined
+
+  return prisma.$transaction(async transaction => {
+    await transaction.$queryRaw`SELECT pg_advisory_xact_lock(8071439584)`
+    const counterSetting = await transaction.settings.findUnique({
+      where: { key: 'mcube_outgoing_did_rotation' },
+      select: { value: true },
+    })
+    let counters: Record<string, number> = {}
+    if (counterSetting?.value) {
+      const parsed: unknown = JSON.parse(counterSetting.value)
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+        throw new Error('Invalid MCUBE outgoing DID rotation counters')
+      }
+      for (const [key, value] of Object.entries(parsed)) {
+        if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 0) {
+          throw new Error(`Invalid MCUBE outgoing DID rotation counter for ${key}`)
+        }
+        counters[key] = value
+      }
+    }
+    const callIndex = counters[agentKey] ?? 0
+    if (!Number.isSafeInteger(callIndex) || callIndex < 0) {
+      throw new Error(`Invalid MCUBE outgoing DID rotation counter for ${agentKey}`)
+    }
+    counters[agentKey] = callIndex + 1
+    const did = findOutgoingDidForAgent(routes, agentName, role, callIndex)
+    if (!did) throw new Error(`No MCUBE outgoing DID configured for ${agentKey}`)
+    await transaction.settings.upsert({
+      where: { key: 'mcube_outgoing_did_rotation' },
+      update: { value: JSON.stringify(counters), group: 'voice' },
+      create: { key: 'mcube_outgoing_did_rotation', value: JSON.stringify(counters), group: 'voice' },
+    })
+    return did
+  }, { maxWait: 10000, timeout: 10000 })
 }
 
 export const receiveMcubeCallback = async (req: Request, res: Response) => {
@@ -202,7 +247,7 @@ export const startVoiceCall = async (req: AuthRequest, res: Response) => {
       })
       console.info('[Voice] Repaired persisted MCUBE outgoing DID routes to canonical CRM-user mappings')
     }
-    const outgoingDid = findOutgoingDidForAgent(outgoingRoutes, req.user?.name)
+    const outgoingDid = await getNextOutgoingDid(outgoingRoutes, req.user?.name, req.user?.role)
 
     const result = await startMcubeCall(customerNumber, outgoingDid)
     console.info('[Voice] MCUBE outbound call response', { status: result.status, agentName: req.user?.name, outgoingDid })

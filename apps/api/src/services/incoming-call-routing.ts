@@ -20,15 +20,27 @@ export const DEFAULT_INCOMING_CALL_ROUTES: IncomingCallRoute[] = [
 
 export const DEFAULT_OUTGOING_DID_ROUTES: OutgoingDidRoute[] = [
   { agentName: 'Nithin', outgoingDid: '8071439257' },
+  { agentName: 'Maruthi', outgoingDid: '8071439257' },
+  { agentName: 'Kalyani', outgoingDid: '8071439257' },
+  { agentName: 'Mahesh', outgoingDid: '8071439257' },
+  { agentName: 'Nithin', outgoingDid: '8071439583' },
   { agentName: 'Maruthi', outgoingDid: '8071439583' },
+  { agentName: 'Kalyani', outgoingDid: '8071439583' },
+  { agentName: 'Mahesh', outgoingDid: '8071439583' },
   { agentName: 'Chirag', outgoingDid: '8071439584' },
+  { agentName: 'Amar', outgoingDid: '8071439584' },
   { agentName: 'Vinod', outgoingDid: '8071439585' },
+  { agentName: 'Admin', outgoingDid: '8071439585' },
 ]
 
 const normalizeAgentName = (value: string) => value.toLowerCase().replace(/[^a-z0-9]/g, '')
 
 const canonicalizeOutgoingDidRoutes = (routes: OutgoingDidRoute[]) => {
-  const fixedAgentNames = new Set(DEFAULT_OUTGOING_DID_ROUTES.map(route => normalizeAgentName(route.agentName)))
+  const fixedAgentNames = new Set([
+    ...DEFAULT_OUTGOING_DID_ROUTES.map(route => normalizeAgentName(route.agentName)),
+    'superadmin',
+    'administrator',
+  ])
   const additionalRoutes = routes.filter(route => !fixedAgentNames.has(normalizeAgentName(route.agentName)))
   return [...DEFAULT_OUTGOING_DID_ROUTES, ...additionalRoutes]
 }
@@ -77,15 +89,16 @@ export const parseIncomingCallRoutes = (value?: string | null): IncomingCallRout
 export const validateOutgoingDidRoutes = (value: unknown): OutgoingDidRoute[] => {
   if (!Array.isArray(value)) throw new Error('Outgoing DID routes must be an array')
 
-  const seenAgents = new Set<string>()
+  const seenRoutes = new Set<string>()
   const routes = value.map((route, index) => {
     if (!route || typeof route !== 'object') throw new Error(`Outgoing DID route ${index + 1} must be an object`)
     const agentName = typeof route.agentName === 'string' ? route.agentName.trim() : ''
     const outgoingDid = normalizeRoutingPhone(route.outgoingDid)
     const normalizedAgent = normalizeAgentName(agentName)
     if (!agentName || !outgoingDid) throw new Error(`Outgoing DID route ${index + 1} requires an agent name and valid DID`)
-    if (seenAgents.has(normalizedAgent)) throw new Error(`Outgoing DID for ${agentName} is configured more than once`)
-    seenAgents.add(normalizedAgent)
+    const routeKey = `${normalizedAgent}:${outgoingDid}`
+    if (seenRoutes.has(routeKey)) throw new Error(`Outgoing DID ${outgoingDid} for ${agentName} is configured more than once`)
+    seenRoutes.add(routeKey)
     return { agentName, outgoingDid }
   })
   return canonicalizeOutgoingDidRoutes(routes)
@@ -101,13 +114,28 @@ export const parseOutgoingDidRoutes = (value?: string | null): OutgoingDidRoute[
   }
 }
 
-export const findOutgoingDidForAgent = (routes: OutgoingDidRoute[], agentName?: string | null) => {
+export const getOutgoingDidsForAgent = (routes: OutgoingDidRoute[], agentName?: string | null, role?: string | null) => {
+  if (role === 'ADMIN' || role === 'SUPER_ADMIN') return ['8071439585']
   if (!agentName?.trim()) return undefined
   const normalizedName = normalizeAgentName(agentName)
-  const canonicalRoute = DEFAULT_OUTGOING_DID_ROUTES.find(route => {
-    const canonicalName = normalizeAgentName(route.agentName)
-    return normalizedName === canonicalName || normalizedName.startsWith(canonicalName)
+  const canonicalNames = new Set(['mahesh', 'maruthi', 'kalyani', 'nithin', 'chirag', 'amar', 'vinod', 'admin'])
+  const canonicalName = [...canonicalNames].find(name => normalizedName === name || normalizedName.startsWith(name))
+  const matches = routes.filter(route => {
+    const routeName = normalizeAgentName(route.agentName)
+    return canonicalName ? routeName === canonicalName : routeName === normalizedName
   })
-  if (canonicalRoute) return canonicalRoute.outgoingDid
-  return routes.find(route => normalizeAgentName(route.agentName) === normalizedName)?.outgoingDid
+  const dids = [...new Set(matches.map(route => route.outgoingDid))]
+  return dids.length ? dids : undefined
+}
+
+export const findOutgoingDidForAgent = (
+  routes: OutgoingDidRoute[],
+  agentName?: string | null,
+  role?: string | null,
+  callIndex = 0,
+) => {
+  const dids = getOutgoingDidsForAgent(routes, agentName, role)
+  if (!dids?.length) return undefined
+  const safeIndex = Number.isSafeInteger(callIndex) && callIndex >= 0 ? callIndex : 0
+  return dids[safeIndex % dids.length]
 }
