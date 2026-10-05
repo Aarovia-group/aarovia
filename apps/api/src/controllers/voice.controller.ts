@@ -192,7 +192,17 @@ export const startVoiceCall = async (req: AuthRequest, res: Response) => {
         ])
       : [null, await prisma.settings.findUnique({ where: { key: 'mcube_outgoing_dids' }, select: { value: true } })]
     if (leadId && !lead) return res.status(404).json({ success: false, message: 'Lead not found' })
-    const outgoingDid = findOutgoingDidForAgent(parseOutgoingDidRoutes(outgoingDidSetting?.value), req.user?.name)
+    const outgoingRoutes = parseOutgoingDidRoutes(outgoingDidSetting?.value)
+    const canonicalRoutes = JSON.stringify(outgoingRoutes)
+    if (!outgoingDidSetting || outgoingDidSetting.value !== canonicalRoutes) {
+      await prisma.settings.upsert({
+        where: { key: 'mcube_outgoing_dids' },
+        update: { value: canonicalRoutes, group: 'voice' },
+        create: { key: 'mcube_outgoing_dids', value: canonicalRoutes, group: 'voice' },
+      })
+      console.info('[Voice] Repaired persisted MCUBE outgoing DID routes to canonical CRM-user mappings')
+    }
+    const outgoingDid = findOutgoingDidForAgent(outgoingRoutes, req.user?.name)
 
     const result = await startMcubeCall(customerNumber, outgoingDid)
     console.info('[Voice] MCUBE outbound call response', { status: result.status, agentName: req.user?.name, outgoingDid })

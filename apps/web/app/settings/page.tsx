@@ -645,16 +645,16 @@ export default function SettingsPage() {
                     </p>
                   </div>
                   <div>
-                    <h3 className="text-sm font-medium text-white mb-2">Outgoing DID by CRM User</h3>
-                    <p className="text-xs text-slate mb-3">Outbound calls use the DID mapped to the signed-in CRM user, regardless of the lead’s project.</p>
+                    <h3 className="text-sm font-medium text-white mb-2">Fixed Outgoing DID by CRM User</h3>
+                    <p className="text-xs text-slate mb-3">These owner-to-DID assignments are fixed in the API so stale or edited settings cannot route calls through another user’s number.</p>
                     <label className="block text-xs font-medium text-slate-light mb-1.5">CRM agent name, outgoing DID (one mapping per line)</label>
                     <textarea
                       {...regVoice('outgoingDidsText')}
                       rows={4}
-                      placeholder={'Nithin, 8071439257'}
-                      className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white font-mono placeholder:text-slate/40 focus:outline-none focus:ring-1 focus:ring-gold/50"
+                      readOnly
+                      className="w-full cursor-not-allowed bg-navy/70 border border-navy-border rounded-lg px-3 py-2 text-sm text-white font-mono"
                     />
-                    <p className="text-[11px] text-slate mt-2">The configured Outgoing DID Field is sent to MCUBE (default: did). Unmapped users keep using the configured MCUBE executive number.</p>
+                    <p className="text-[11px] text-slate mt-2">The API repairs the saved mapping on the next outbound call. MCUBE receives the DID using the configured field (default: did).</p>
                   </div>
                   <Button type="submit" icon={<Save className="w-3.5 h-3.5" />}>Save Call API Settings</Button>
                 </form>

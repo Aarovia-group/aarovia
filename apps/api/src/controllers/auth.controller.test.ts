@@ -2,6 +2,7 @@ import assert from 'node:assert'
 import { normalizeEmail, parseCookies, parseDuration, getJwtCookieOptions } from './auth.controller'
 import { getSmtpOptions } from '../utils/email'
 import { hasModuleAccess } from '../middleware/module-permissions'
+import { findOutgoingDidForAgent, parseOutgoingDidRoutes } from '../services/incoming-call-routing'
 
 ;(async () => {
   try {
@@ -15,6 +16,13 @@ import { hasModuleAccess } from '../middleware/module-permissions'
     assert.equal(hasModuleAccess('ACCOUNTS', 'invoices'), true)
     assert.equal(hasModuleAccess('ACCOUNTS', 'leads'), false)
     assert.equal(hasModuleAccess('TELECALLER', 'inventory'), false)
+    const repairedOutgoingDids = parseOutgoingDidRoutes(JSON.stringify([
+      { agentName: 'Chirag', outgoingDid: '8071439585' },
+      { agentName: 'Vinod', outgoingDid: '8071439584' },
+    ]))
+    assert.equal(findOutgoingDidForAgent(repairedOutgoingDids, 'Chirag'), '8071439584')
+    assert.equal(findOutgoingDidForAgent(repairedOutgoingDids, 'Chirag Kumar'), '8071439584')
+    assert.equal(findOutgoingDidForAgent(repairedOutgoingDids, 'Vinod'), '8071439585')
 
     const header = 'refreshToken=abc123; theme=dark; session=xyz'
     const cookies = parseCookies(header)

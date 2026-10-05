@@ -25,6 +25,14 @@ export const DEFAULT_OUTGOING_DID_ROUTES: OutgoingDidRoute[] = [
   { agentName: 'Vinod', outgoingDid: '8071439585' },
 ]
 
+const normalizeAgentName = (value: string) => value.toLowerCase().replace(/[^a-z0-9]/g, '')
+
+const canonicalizeOutgoingDidRoutes = (routes: OutgoingDidRoute[]) => {
+  const fixedAgentNames = new Set(DEFAULT_OUTGOING_DID_ROUTES.map(route => normalizeAgentName(route.agentName)))
+  const additionalRoutes = routes.filter(route => !fixedAgentNames.has(normalizeAgentName(route.agentName)))
+  return [...DEFAULT_OUTGOING_DID_ROUTES, ...additionalRoutes]
+}
+
 export const normalizeRoutingPhone = (value: unknown) => {
   const digits = String(value || '').replace(/\D/g, '')
   return digits.length >= 10 ? digits.slice(-10) : ''
@@ -70,16 +78,17 @@ export const validateOutgoingDidRoutes = (value: unknown): OutgoingDidRoute[] =>
   if (!Array.isArray(value)) throw new Error('Outgoing DID routes must be an array')
 
   const seenAgents = new Set<string>()
-  return value.map((route, index) => {
+  const routes = value.map((route, index) => {
     if (!route || typeof route !== 'object') throw new Error(`Outgoing DID route ${index + 1} must be an object`)
     const agentName = typeof route.agentName === 'string' ? route.agentName.trim() : ''
     const outgoingDid = normalizeRoutingPhone(route.outgoingDid)
-    const normalizedAgent = agentName.toLowerCase()
+    const normalizedAgent = normalizeAgentName(agentName)
     if (!agentName || !outgoingDid) throw new Error(`Outgoing DID route ${index + 1} requires an agent name and valid DID`)
     if (seenAgents.has(normalizedAgent)) throw new Error(`Outgoing DID for ${agentName} is configured more than once`)
     seenAgents.add(normalizedAgent)
     return { agentName, outgoingDid }
   })
+  return canonicalizeOutgoingDidRoutes(routes)
 }
 
 export const parseOutgoingDidRoutes = (value?: string | null): OutgoingDidRoute[] => {
@@ -94,6 +103,11 @@ export const parseOutgoingDidRoutes = (value?: string | null): OutgoingDidRoute[
 
 export const findOutgoingDidForAgent = (routes: OutgoingDidRoute[], agentName?: string | null) => {
   if (!agentName?.trim()) return undefined
-  const normalizedName = agentName.toLowerCase().replace(/[^a-z0-9]/g, '')
-  return routes.find(route => route.agentName.toLowerCase().replace(/[^a-z0-9]/g, '') === normalizedName)?.outgoingDid
+  const normalizedName = normalizeAgentName(agentName)
+  const canonicalRoute = DEFAULT_OUTGOING_DID_ROUTES.find(route => {
+    const canonicalName = normalizeAgentName(route.agentName)
+    return normalizedName === canonicalName || normalizedName.startsWith(canonicalName)
+  })
+  if (canonicalRoute) return canonicalRoute.outgoingDid
+  return routes.find(route => normalizeAgentName(route.agentName) === normalizedName)?.outgoingDid
 }
