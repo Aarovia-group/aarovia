@@ -3,6 +3,7 @@ import { authenticate, authorize } from '../middleware/auth.middleware'
 import prisma from '../utils/prisma'
 import { parseIncomingCallRoutes, parseOutgoingDidRoutes, validateIncomingCallRoutes, validateOutgoingDidRoutes } from '../services/incoming-call-routing'
 import { getSmsConfig, smsSettingFields } from '../services/sms-config'
+import type { AuthRequest } from '../middleware/auth.middleware'
 
 const router = Router()
 router.use(authenticate)
@@ -59,8 +60,11 @@ const twilioWhatsAppSettings = [
 
 router.get('/', async (req, res) => {
   try {
+    const isAdmin = ['SUPER_ADMIN', 'ADMIN'].includes((req as AuthRequest).user?.role || '')
     const settings = await prisma.settings.findMany({
-      where: { key: { notIn: ['smtp_pass', 'wa_access_token', ...adsSecretKeys] } },
+      where: isAdmin
+        ? { key: { notIn: ['smtp_pass', 'wa_access_token', ...adsSecretKeys] } }
+        : { key: { in: ['company_name', 'logo_url', 'accent_color'] } },
     })
     const map = settings.reduce((acc: any, s) => { acc[s.key] = s.value; return acc }, {})
     res.json({ success: true, data: map })

@@ -114,9 +114,12 @@ const clearRefreshTokenCookie = (res: Response) => {
   })
 }
 
-export const register = async (req: Request, res: Response) => {
+export const register = async (req: AuthRequest, res: Response) => {
   try {
-    const { name, email, password, phone } = req.body
+    const { name, email, password, phone, role = 'SALES_EXECUTIVE' } = req.body
+    if (role === 'SUPER_ADMIN' && req.user?.role !== 'SUPER_ADMIN') {
+      return res.status(403).json({ success: false, message: 'Only a super admin can create another super admin' })
+    }
     const normalizedEmail = normalizeEmail(email)
 
     const existing = await prisma.user.findFirst({
@@ -128,15 +131,11 @@ export const register = async (req: Request, res: Response) => {
 
     const hashedPassword = await bcrypt.hash(password, 12)
     const user = await prisma.user.create({
-      data: { name, email: normalizedEmail, password: hashedPassword, phone, role: 'SALES_EXECUTIVE' },
+      data: { name, email: normalizedEmail, password: hashedPassword, phone, role },
       select: { id: true, name: true, email: true, role: true, phone: true, createdAt: true },
     })
 
-    const token = generateToken(user.id)
-    const refreshToken = await createRefreshToken(user.id, req)
-    sendRefreshTokenCookie(res, refreshToken.token, refreshToken.expiresAt)
-
-    res.status(201).json({ success: true, message: 'User registered successfully', data: { user, token } })
+    res.status(201).json({ success: true, message: 'User created successfully', data: { user } })
   } catch (error) {
     res.status(500).json({ success: false, message: 'Registration failed', error })
   }

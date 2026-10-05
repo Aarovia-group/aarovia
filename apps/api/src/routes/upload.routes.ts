@@ -10,13 +10,13 @@ router.use(authenticate)
 router.post('/document', authorize('SUPER_ADMIN', 'ADMIN', 'CRM_TEAM', 'POST_SALES', 'ACCOUNTS'), upload.single('file'), uploadDocument)
 
 // Upload project image
-router.post('/project-image', upload.single('file'), uploadProjectImage)
+router.post('/project-image', authorize('SUPER_ADMIN', 'ADMIN'), upload.single('file'), uploadProjectImage)
 
 // Upload user avatar
 router.post('/avatar', upload.single('file'), uploadAvatar)
 
 // Upload CRM branding logo
-router.post('/logo', upload.single('file'), uploadLogo)
+router.post('/logo', authorize('SUPER_ADMIN', 'ADMIN'), upload.single('file'), uploadLogo)
 
 // Save document record to database after upload
 router.post('/save-document', authorize('SUPER_ADMIN', 'ADMIN', 'CRM_TEAM', 'POST_SALES', 'ACCOUNTS'), async (req: any, res) => {

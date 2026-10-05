@@ -9,6 +9,8 @@ import { toast } from '@/components/ui/toaster'
 import { UsersRound, Plus, Edit2, CheckCircle, XCircle, Trash2, KeyRound } from 'lucide-react'
 import api from '@/lib/api'
 import { useForm } from 'react-hook-form'
+import { useAuthStore } from '@/lib/store/auth.store'
+import { getModulesForRole } from '@/lib/permissions'
 
 const ROLE_COLORS: Record<string, string> = {
   SUPER_ADMIN: 'bg-[#C9A84C]/20 text-[#C9A84C] border-[#C9A84C]/30',
@@ -22,6 +24,7 @@ const ROLE_COLORS: Record<string, string> = {
 }
 
 export default function TeamPage() {
+  const currentUser = useAuthStore(state => state.user)
   const queryClient = useQueryClient()
   const [search, setSearch] = useState('')
   const [roleFilter, setRoleFilter] = useState('')
@@ -163,6 +166,18 @@ export default function TeamPage() {
         ))}
       </div>
 
+      <details className="mb-5 rounded-xl border border-[#2A4070] bg-[#12243E]">
+        <summary className="cursor-pointer px-4 py-3 text-sm font-medium text-white">Role access matrix</summary>
+        <div className="grid gap-3 border-t border-[#2A4070] p-4 md:grid-cols-2">
+          {USER_ROLES.map(role => (
+            <div key={role.value} className="rounded-lg border border-[#2A4070] bg-[#0A1628] p-3">
+              <p className="mb-1 text-xs font-semibold text-[#C9A84C]">{role.label}</p>
+              <p className="text-xs leading-5 text-[#B8CAE0]">{getModulesForRole(role.value).join(', ')}</p>
+            </div>
+          ))}
+        </div>
+      </details>
+
       <div className="mb-4">
         <SearchInput value={search} onChange={setSearch} placeholder="Search team members..." />
       </div>
@@ -194,13 +209,14 @@ export default function TeamPage() {
               <Td className="text-xs text-[#8BA3C4]">{u.phone || '—'}</Td>
               <Td>
                 <button
+                disabled={u.role === 'SUPER_ADMIN' && currentUser?.role !== 'SUPER_ADMIN'}
                 onClick={() => {
                   const action = u.isActive ? 'deactivate' : 'activate'
                   if (confirm(`Are you sure you want to ${action} this user?`)) {
                     toggleActiveMutation.mutate({ id: u.id, isActive: !u.isActive })
                   }
                 }}
-                className={`flex items-center gap-1 text-xs font-medium transition-colors ${u.isActive ? 'text-green-400 hover:text-red-400' : 'text-red-400 hover:text-green-400'}`}
+                className={`flex items-center gap-1 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${u.isActive ? 'text-green-400 hover:text-red-400' : 'text-red-400 hover:text-green-400'}`}
               >
                 {u.isActive ? <CheckCircle className="w-3.5 h-3.5" /> : <XCircle className="w-3.5 h-3.5" />}
                 {u.isActive ? 'Deactivate' : 'Activate'}
@@ -210,12 +226,16 @@ export default function TeamPage() {
               <Td className="text-xs text-[#8BA3C4]">{formatDate(u.createdAt)}</Td>
               <Td>
                 <div className="flex items-center gap-1">
-                  <button onClick={() => { setPwError(''); setEditUser(u) }} title="Edit user" className="p-1.5 text-[#8BA3C4] hover:text-[#C9A84C] hover:bg-[#C9A84C]/10 rounded transition-colors">
-                    <Edit2 className="w-3.5 h-3.5" />
-                  </button>
-                  <button onClick={() => setDeleteUser(u)} title="Deactivate user" className="p-1.5 text-[#8BA3C4] hover:text-red-400 hover:bg-red-500/10 rounded transition-colors">
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
+                  {(u.role !== 'SUPER_ADMIN' || currentUser?.role === 'SUPER_ADMIN') && (
+                    <button onClick={() => { setPwError(''); setEditUser(u) }} title="Edit user" className="p-1.5 text-[#8BA3C4] hover:text-[#C9A84C] hover:bg-[#C9A84C]/10 rounded transition-colors">
+                      <Edit2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                  {currentUser?.role === 'SUPER_ADMIN' && (
+                    <button onClick={() => setDeleteUser(u)} title="Deactivate user" className="p-1.5 text-[#8BA3C4] hover:text-red-400 hover:bg-red-500/10 rounded transition-colors">
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                 </div>
               </Td>
             </Tr>
@@ -233,7 +253,7 @@ export default function TeamPage() {
             <label className={lbl}>Role *</label>
             <select {...registerCreate('role', { required: true })} className={sel}>
               <option value="">Select role</option>
-              {USER_ROLES.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
+              {USER_ROLES.filter(r => currentUser?.role === 'SUPER_ADMIN' || r.value !== 'SUPER_ADMIN').map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
             </select>
           </div>
           <div><label className={lbl}>Password *</label><input {...registerCreate('password', { required: true, minLength: 8 })} type="password" placeholder="Min 8 characters" className={inp} /></div>
@@ -250,7 +270,7 @@ export default function TeamPage() {
             <div>
               <label className={lbl}>Role</label>
               <select {...registerEdit('role')} defaultValue={editUser.role} className={sel}>
-                {USER_ROLES.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
+                {USER_ROLES.filter(r => currentUser?.role === 'SUPER_ADMIN' || r.value !== 'SUPER_ADMIN').map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
               </select>
             </div>
             <div className="border-t border-[#2A4070] pt-4">

@@ -1,11 +1,12 @@
 import { Router } from 'express'
 import { getCustomers, getCustomerById, createCustomer, updateCustomer, verifyKyc } from '../controllers/customer.controller'
-import { authenticate, authorize } from '../middleware/auth.middleware'
+import { authenticate, authorize, authorizeModule } from '../middleware/auth.middleware'
 import { validate } from '../middleware/validate.middleware'
 import { createCustomerSchema } from '../validations/schemas'
 
 const router = Router()
 router.use(authenticate)
+router.use(authorizeModule('customers'))
 
 router.get('/', getCustomers)
 router.post('/', authorize('SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER', 'SALES_EXECUTIVE', 'TELECALLER', 'CRM_TEAM'), validate(createCustomerSchema), createCustomer)

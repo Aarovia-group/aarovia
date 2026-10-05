@@ -1,9 +1,10 @@
 import { Router } from 'express'
-import { authenticate } from '../middleware/auth.middleware'
+import { authenticate, authorizeModule } from '../middleware/auth.middleware'
 import prisma from '../utils/prisma'
 
 const router = Router()
 router.use(authenticate)
+router.use(authorizeModule('post-sales'))
 
 router.get('/overview', async (req, res) => {
   try {

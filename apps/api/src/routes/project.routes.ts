@@ -1,9 +1,10 @@
 import { Router } from 'express'
 import { getProjects, getProjectById, createProject, updateProject, deleteProject } from '../controllers/project.controller'
-import { authenticate, authorize } from '../middleware/auth.middleware'
+import { authenticate, authorize, authorizeModule } from '../middleware/auth.middleware'
 
 const router = Router()
 router.use(authenticate)
+router.use(authorizeModule('projects'))
 
 router.get('/', getProjects)
 router.post('/', authorize('SUPER_ADMIN', 'ADMIN'), createProject)

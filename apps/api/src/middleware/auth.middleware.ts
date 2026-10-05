@@ -1,6 +1,8 @@
 import { Request, Response, NextFunction } from 'express'
 import jwt from 'jsonwebtoken'
 import prisma from '../utils/prisma'
+import { hasModuleAccess } from './module-permissions'
+import type { CrmModule } from './module-permissions'
 
 export interface AuthRequest extends Request {
   user?: {
@@ -50,6 +52,18 @@ export const authorize = (...roles: string[]) => {
     }
     if (!roles.includes(req.user.role)) {
       return res.status(403).json({ success: false, message: 'Insufficient permissions' })
+    }
+    next()
+  }
+}
+
+export const authorizeModule = (module: CrmModule) => {
+  return (req: AuthRequest, res: Response, next: NextFunction) => {
+    if (!req.user) {
+      return res.status(401).json({ success: false, message: 'Not authenticated' })
+    }
+    if (!hasModuleAccess(req.user.role, module)) {
+      return res.status(403).json({ success: false, message: 'Your role does not have access to this module' })
     }
     next()
   }

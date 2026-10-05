@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from 'react'
 import Image from 'next/image'
-import { useRouter } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { useAuthStore } from '@/lib/store/auth.store'
+import { getModuleForPath, hasModuleAccess } from '@/lib/permissions'
 import { Sidebar } from './Sidebar'
 import { Topbar } from './Topbar'
 import { useQuery } from '@tanstack/react-query'
@@ -17,8 +18,9 @@ interface AppLayoutProps {
 }
 
 export function AppLayout({ children, title, subtitle, actions }: AppLayoutProps) {
-  const { isAuthenticated, setAuth, clearAuth } = useAuthStore()
+  const { isAuthenticated, setAuth, clearAuth, user } = useAuthStore()
   const router = useRouter()
+  const pathname = usePathname()
   const [ready, setReady] = useState(false)
   const [logoUrl, setLogoUrl] = useState('/aarovia-mark.png')
 
@@ -125,6 +127,8 @@ export function AppLayout({ children, title, subtitle, actions }: AppLayoutProps
   })
 
   const unreadCount = notifData?.data?.meta?.unreadCount || 0
+  const requiredModule = getModuleForPath(pathname)
+  const canAccessCurrentPage = !requiredModule || hasModuleAccess(user?.role, requiredModule)
 
   if (!ready || !isAuthenticated) {
     return (
@@ -132,6 +136,23 @@ export function AppLayout({ children, title, subtitle, actions }: AppLayoutProps
         <div className="flex flex-col items-center gap-3">
           <Image src="/aarovia-mark.png" alt="Aarovia logo" width={40} height={40} className="w-10 h-10 object-contain" />
           <p className="text-[#C9A84C] text-sm animate-pulse">Loading...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!canAccessCurrentPage) {
+    return (
+      <div className="min-h-screen bg-[#f7f9fc] flex items-center justify-center p-6">
+        <div className="max-w-md text-center">
+          <h1 className="text-xl font-semibold text-[#172033]">Access restricted</h1>
+          <p className="mt-2 text-sm text-[#64748b]">Your role does not have permission to open this CRM module. Contact an administrator if you need access.</p>
+          <button
+            onClick={() => router.replace('/dashboard')}
+            className="mt-5 rounded-lg bg-[#172033] px-4 py-2 text-sm font-medium text-white"
+          >
+            Return to dashboard
+          </button>
         </div>
       </div>
     )

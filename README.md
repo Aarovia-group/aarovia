@@ -48,6 +48,21 @@ Enterprise-grade Real Estate CRM platform built for Aarovia Real Estates.
 - ☁️ **Cloudinary** — Document & image storage
 - 📊 **Recharts** — Interactive business dashboards
 
+### Role-Based Module Access
+Module visibility and access are enforced in both the CRM navigation/pages and API:
+
+| Role | Default modules |
+|------|-----------------|
+| **Super Admin / Admin** | All modules; only Super Admins can create or manage Super Admin accounts |
+| **Sales Manager** | Dashboard, leads, customers, inventory, quotations, bookings, post sales, email, WhatsApp, reports, notifications |
+| **Sales Executive** | Dashboard, leads, customers, inventory, quotations, bookings, email, WhatsApp, notifications |
+| **Telecaller** | Dashboard, leads, customers, notifications |
+| **Accounts** | Dashboard, customers, bookings, invoices, collections, WhatsApp payment reminders, reports, notifications, documents |
+| **CRM Team** | Dashboard, leads, customers, bookings, collections, post sales, email, WhatsApp, notifications, documents |
+| **Post Sales** | Dashboard, customers, bookings, collections, post sales, notifications, documents |
+
+Team creation and role changes require an admin account. API authorization remains authoritative even if a restricted page is opened directly. These defaults control module access; record-level ownership filtering is not configured by this matrix.
+
 ---
 
 ## 🛠 Tech Stack

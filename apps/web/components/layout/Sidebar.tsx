@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
+import { hasModuleAccess } from '@/lib/permissions'
 import { authApi } from '@/lib/api'
 import { useAuthStore } from '@/lib/store/auth.store'
 import {
@@ -18,36 +19,36 @@ const navItems = [
   {
     label: 'Main',
     items: [
-      { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-      { href: '/leads', icon: Users, label: 'Lead Management' },
-      { href: '/customers', icon: UserCheck, label: 'Customers' },
-      { href: '/inventory', icon: Building2, label: 'Inventory' },
-      { href: '/quotations', icon: FileText, label: 'Quotations' },
+      { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard', module: 'dashboard' },
+      { href: '/leads', icon: Users, label: 'Lead Management', module: 'leads' },
+      { href: '/customers', icon: UserCheck, label: 'Customers', module: 'customers' },
+      { href: '/inventory', icon: Building2, label: 'Inventory', module: 'inventory' },
+      { href: '/quotations', icon: FileText, label: 'Quotations', module: 'quotations' },
     ],
   },
   {
     label: 'Sales',
     items: [
-      { href: '/bookings', icon: BookOpen, label: 'Bookings' },
-      { href: '/invoices', icon: Receipt, label: 'Invoices' },
-      { href: '/collections', icon: Coins, label: 'Collections' },
-      { href: '/post-sales', icon: ClipboardList, label: 'Post Sales' },
+      { href: '/bookings', icon: BookOpen, label: 'Bookings', module: 'bookings' },
+      { href: '/invoices', icon: Receipt, label: 'Invoices', module: 'invoices' },
+      { href: '/collections', icon: Coins, label: 'Collections', module: 'collections' },
+      { href: '/post-sales', icon: ClipboardList, label: 'Post Sales', module: 'post-sales' },
     ],
   },
   {
     label: 'Communication',
     items: [
-      { href: '/email', icon: Mail, label: 'Email Config' },
-      { href: '/whatsapp', icon: MessageSquare, label: 'WhatsApp' },
-      { href: '/reports', icon: BarChart3, label: 'Reports' },
-      { href: '/notifications', icon: Bell, label: 'Notifications', badge: 'notif' },
+      { href: '/email', icon: Mail, label: 'Email Config', module: 'email' },
+      { href: '/whatsapp', icon: MessageSquare, label: 'WhatsApp', module: 'whatsapp' },
+      { href: '/reports', icon: BarChart3, label: 'Reports', module: 'reports' },
+      { href: '/notifications', icon: Bell, label: 'Notifications', badge: 'notif', module: 'notifications' },
     ],
   },
   {
     label: 'Administration',
     items: [
-      { href: '/team', icon: UsersRound, label: 'Team' },
-      { href: '/settings', icon: Settings, label: 'Settings' },
+      { href: '/team', icon: UsersRound, label: 'Team', module: 'team' },
+      { href: '/settings', icon: Settings, label: 'Settings', module: 'settings' },
     ],
   },
 ]
@@ -109,12 +110,15 @@ export function Sidebar({ unreadNotifications = 0, mobileOpen, onMobileClose, lo
         className="flex-1 overflow-y-scroll py-2"
         style={{ scrollbarWidth: 'thin', scrollbarColor: '#cbd5e1 #ffffff' }}
       >
-        {navItems.map((section) => (
+        {navItems.map((section) => {
+          const visibleItems = section.items.filter(item => hasModuleAccess(user?.role, item.module))
+          if (visibleItems.length === 0) return null
+          return (
           <div key={section.label} className="mb-1">
             <p className="text-[9px] font-medium uppercase tracking-[1.5px] text-[#64748b] px-4 py-2">
               {section.label}
             </p>
-            {section.items.map((item) => {
+            {visibleItems.map((item) => {
               const isActive = pathname === item.href || pathname.startsWith(item.href + '/')
               const showBadge = item.badge === 'notif' && unreadNotifications > 0
               return (
@@ -139,7 +143,7 @@ export function Sidebar({ unreadNotifications = 0, mobileOpen, onMobileClose, lo
               )
             })}
           </div>
-        ))}
+        )})}
       </nav>
 
       {/* User profile - fixed bottom */}

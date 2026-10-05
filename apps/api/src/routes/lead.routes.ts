@@ -1,11 +1,12 @@
 import { Router } from 'express'
 import { getLeads, getLeadById, createLead, updateLead, deleteLead, activateLead, updateLeadStatus, assignLead, bulkAssignLeads, bulkAssignProject, addCallLog, updateCallLog, deleteCallLog, deleteCallLogs, addNote, scheduleSiteVisit, getPipelineLeads, bulkImportLeads } from '../controllers/lead.controller'
-import { authenticate, authorize } from '../middleware/auth.middleware'
+import { authenticate, authorize, authorizeModule } from '../middleware/auth.middleware'
 import { validate } from '../middleware/validate.middleware'
 import { createLeadSchema } from '../validations/schemas'
 
 const router = Router()
 router.use(authenticate)
+router.use(authorizeModule('leads'))
 
 router.get('/', getLeads)
 router.get('/pipeline', getPipelineLeads)

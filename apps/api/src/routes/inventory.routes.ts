@@ -1,9 +1,10 @@
 import { Router } from 'express'
 import { getInventory, getInventoryById, createInventory, updateInventory, updateInventoryStatus, getInventoryHeatmap, deleteInventory, importInventory } from '../controllers/inventory.controller'
-import { authenticate, authorize } from '../middleware/auth.middleware'
+import { authenticate, authorize, authorizeModule } from '../middleware/auth.middleware'
 
 const router = Router()
 router.use(authenticate)
+router.use(authorizeModule('inventory'))
 
 router.get('/', getInventory)
 router.get('/heatmap/:projectId', getInventoryHeatmap)

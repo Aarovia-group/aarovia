@@ -1,9 +1,10 @@
 import { Router } from 'express'
 import { sendProjectDetailsWA, sendFollowupWA, sendPaymentReminderWA, sendCustomWA, sendBulkWA, getWhatsAppLogs } from '../controllers/whatsapp.controller'
-import { authenticate, authorize } from '../middleware/auth.middleware'
+import { authenticate, authorize, authorizeModule } from '../middleware/auth.middleware'
 
 const router = Router()
 router.use(authenticate)
+router.use(authorizeModule('whatsapp'))
 
 router.post('/send-project-details', authorize('SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER', 'SALES_EXECUTIVE', 'CRM_TEAM'), sendProjectDetailsWA)
 router.post('/send-custom', authorize('SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER', 'SALES_EXECUTIVE', 'CRM_TEAM'), sendCustomWA)

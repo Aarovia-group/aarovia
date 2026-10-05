@@ -1,6 +1,7 @@
 import assert from 'node:assert'
 import { normalizeEmail, parseCookies, parseDuration, getJwtCookieOptions } from './auth.controller'
 import { getSmtpOptions } from '../utils/email'
+import { hasModuleAccess } from '../middleware/module-permissions'
 
 ;(async () => {
   try {
@@ -10,6 +11,10 @@ import { getSmtpOptions } from '../utils/email'
     assert.equal(parseDuration('10s'), 10 * 1000)
     assert.equal(parseDuration('invalid'), 0)
     assert.equal(normalizeEmail('  SALES.User@AAROVIA.CO.IN  '), 'sales.user@aarovia.co.in')
+    assert.equal(hasModuleAccess('SUPER_ADMIN', 'settings'), true)
+    assert.equal(hasModuleAccess('ACCOUNTS', 'invoices'), true)
+    assert.equal(hasModuleAccess('ACCOUNTS', 'leads'), false)
+    assert.equal(hasModuleAccess('TELECALLER', 'inventory'), false)
 
     const header = 'refreshToken=abc123; theme=dark; session=xyz'
     const cookies = parseCookies(header)

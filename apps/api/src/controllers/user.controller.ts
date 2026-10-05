@@ -45,6 +45,18 @@ export const getUserById = async (req: Request, res: Response) => {
 export const updateUser = async (req: AuthRequest, res: Response) => {
   try {
     const { name, phone, role, isActive, avatar } = req.body
+    const targetUser = await prisma.user.findUnique({
+      where: { id: req.params.id },
+      select: { role: true },
+    })
+    if (!targetUser) return res.status(404).json({ success: false, message: 'User not found' })
+    if (
+      req.user?.role !== 'SUPER_ADMIN'
+      && (targetUser.role === 'SUPER_ADMIN' || role === 'SUPER_ADMIN')
+    ) {
+      return res.status(403).json({ success: false, message: 'Only a super admin can manage super admin accounts' })
+    }
+
     const updateData: any = {}
     if (name !== undefined) updateData.name = name
     if (phone !== undefined) updateData.phone = phone
@@ -65,6 +77,15 @@ export const updateUser = async (req: AuthRequest, res: Response) => {
 
 export const resetUserPassword = async (req: AuthRequest, res: Response) => {
   try {
+    const targetUser = await prisma.user.findUnique({
+      where: { id: req.params.id },
+      select: { role: true },
+    })
+    if (!targetUser) return res.status(404).json({ success: false, message: 'User not found' })
+    if (req.user?.role !== 'SUPER_ADMIN' && targetUser.role === 'SUPER_ADMIN') {
+      return res.status(403).json({ success: false, message: 'Only a super admin can reset a super admin password' })
+    }
+
     const { newPassword } = req.body
     if (!newPassword || typeof newPassword !== 'string') {
       return res.status(400).json({ success: false, message: 'New password is required' })

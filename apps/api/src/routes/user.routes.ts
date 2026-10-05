@@ -1,9 +1,10 @@
 import { Router } from 'express'
 import { getUsers, getUserById, updateUser, resetUserPassword, deleteUser } from '../controllers/user.controller'
-import { authenticate, authorize } from '../middleware/auth.middleware'
+import { authenticate, authorize, authorizeModule } from '../middleware/auth.middleware'
 
 const router = Router()
 router.use(authenticate)
+router.use(authorizeModule('team'))
 
 router.get('/', authorize('SUPER_ADMIN', 'ADMIN'), getUsers)
 router.get('/:id', authorize('SUPER_ADMIN', 'ADMIN'), getUserById)

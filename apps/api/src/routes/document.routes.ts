@@ -1,10 +1,10 @@
 import { Router } from 'express'
-import { authenticate, authorize } from '../middleware/auth.middleware'
+import { authenticate, authorize, authorizeModule } from '../middleware/auth.middleware'
 import prisma from '../utils/prisma'
 
 const router = Router()
 router.use(authenticate)
-router.use(authorize('SUPER_ADMIN', 'ADMIN', 'CRM_TEAM', 'POST_SALES', 'ACCOUNTS'))
+router.use(authorizeModule('documents'))
 
 router.get('/', async (req, res) => {
   try {

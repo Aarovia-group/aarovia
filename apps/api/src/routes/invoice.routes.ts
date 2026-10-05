@@ -1,9 +1,10 @@
 import { Router } from 'express'
 import { getInvoices, createInvoice, updateInvoice, deleteInvoice, updateInvoiceStatus, getInvoiceDocument } from '../controllers/invoice.controller'
-import { authenticate, authorize } from '../middleware/auth.middleware'
+import { authenticate, authorize, authorizeModule } from '../middleware/auth.middleware'
 
 const router = Router()
 router.use(authenticate)
+router.use(authorizeModule('invoices'))
 
 router.get('/', getInvoices)
 router.post('/', authorize('SUPER_ADMIN', 'ADMIN', 'ACCOUNTS'), createInvoice)

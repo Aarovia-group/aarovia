@@ -1,9 +1,10 @@
 import { Router } from 'express'
 import { getQuotations, getQuotationById, createQuotation, updateQuotation, updateQuotationStatus, deleteQuotation } from '../controllers/quotation.controller'
-import { authenticate, authorize } from '../middleware/auth.middleware'
+import { authenticate, authorize, authorizeModule } from '../middleware/auth.middleware'
 
 const router = Router()
 router.use(authenticate)
+router.use(authorizeModule('quotations'))
 
 router.get('/', getQuotations)
 router.post('/', authorize('SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER', 'SALES_EXECUTIVE'), createQuotation)
