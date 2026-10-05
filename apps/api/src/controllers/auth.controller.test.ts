@@ -22,8 +22,11 @@ import { findOutgoingDidForAgent, getOutgoingDidsForAgent, parseOutgoingDidRoute
     ]))
     assert.equal(findOutgoingDidForAgent(repairedOutgoingDids, 'Chirag'), '8071439584')
     assert.equal(findOutgoingDidForAgent(repairedOutgoingDids, 'Chirag Kumar'), '8071439584')
+    assert.equal(findOutgoingDidForAgent(repairedOutgoingDids, 'Chirag', 'ADMIN'), '8071439584')
+    assert.equal(findOutgoingDidForAgent(repairedOutgoingDids, 'Chirag', 'SUPER_ADMIN'), '8071439584')
     assert.equal(findOutgoingDidForAgent(repairedOutgoingDids, 'Amar'), '8071439584')
     assert.equal(findOutgoingDidForAgent(repairedOutgoingDids, 'Vinod'), '8071439585')
+    assert.equal(findOutgoingDidForAgent(repairedOutgoingDids, 'Vinod', 'ADMIN'), '8071439585')
     assert.equal(findOutgoingDidForAgent(repairedOutgoingDids, 'Any Admin Name', 'ADMIN'), '8071439585')
     for (const agent of ['Mahesh', 'Maruthi', 'Kalyani', 'Nithin']) {
       assert.deepEqual(getOutgoingDidsForAgent(repairedOutgoingDids, agent), ['8071439257', '8071439583'])

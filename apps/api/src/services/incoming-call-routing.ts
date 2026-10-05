@@ -115,17 +115,20 @@ export const parseOutgoingDidRoutes = (value?: string | null): OutgoingDidRoute[
 }
 
 export const getOutgoingDidsForAgent = (routes: OutgoingDidRoute[], agentName?: string | null, role?: string | null) => {
+  if (agentName?.trim()) {
+    const normalizedName = normalizeAgentName(agentName)
+    const canonicalNames = new Set(['mahesh', 'maruthi', 'kalyani', 'nithin', 'chirag', 'amar', 'vinod', 'admin'])
+    const canonicalName = [...canonicalNames].find(name => normalizedName === name || normalizedName.startsWith(name))
+    const matches = routes.filter(route => {
+      const routeName = normalizeAgentName(route.agentName)
+      return canonicalName ? routeName === canonicalName : routeName === normalizedName
+    })
+    const dids = [...new Set(matches.map(route => route.outgoingDid))]
+    if (dids.length) return dids
+  }
+
   if (role === 'ADMIN' || role === 'SUPER_ADMIN') return ['8071439585']
-  if (!agentName?.trim()) return undefined
-  const normalizedName = normalizeAgentName(agentName)
-  const canonicalNames = new Set(['mahesh', 'maruthi', 'kalyani', 'nithin', 'chirag', 'amar', 'vinod', 'admin'])
-  const canonicalName = [...canonicalNames].find(name => normalizedName === name || normalizedName.startsWith(name))
-  const matches = routes.filter(route => {
-    const routeName = normalizeAgentName(route.agentName)
-    return canonicalName ? routeName === canonicalName : routeName === normalizedName
-  })
-  const dids = [...new Set(matches.map(route => route.outgoingDid))]
-  return dids.length ? dids : undefined
+  return undefined
 }
 
 export const findOutgoingDidForAgent = (
