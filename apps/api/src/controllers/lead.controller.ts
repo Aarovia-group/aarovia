@@ -254,23 +254,66 @@ export const assignLead = async (req: AuthRequest, res: Response) => {
 
 export const bulkAssignLeads = async (req: AuthRequest, res: Response) => {
   try {
-    const { leadIds, assignedToId } = req.body
-    if (!Array.isArray(leadIds) || leadIds.length === 0 || !assignedToId) {
+    const { leadIds, assignedToId } = req.body || {}
+    if (
+      !Array.isArray(leadIds)
+      || leadIds.length === 0
+      || !leadIds.every((leadId: unknown) => typeof leadId === 'string' && leadId.length > 0)
+      || typeof assignedToId !== 'string'
+      || !assignedToId
+    ) {
       return res.status(400).json({ success: false, message: 'Lead IDs and an assignee are required' })
     }
+    const uniqueLeadIds = [...new Set(leadIds as string[])]
     const user = await prisma.user.findFirst({ where: { id: assignedToId, isActive: true }, select: { name: true } })
     if (!user) return res.status(400).json({ success: false, message: 'An active team member is required' })
 
-    await prisma.$transaction([
-      prisma.lead.updateMany({ where: { id: { in: leadIds }, isActive: true }, data: { assignedToId } }),
-      ...leadIds.map((leadId: string) => prisma.activity.create({
-        data: { leadId, userId: req.user?.id, type: 'LEAD_ASSIGNED', description: `Lead assigned to ${user.name}`, metadata: { assignedToId, bulk: true } },
-      })),
-    ])
+    const assignment = await prisma.$transaction(async (transaction) => {
+      const leads = await transaction.lead.findMany({
+        where: { id: { in: uniqueLeadIds }, isActive: true },
+        select: { id: true, assignedToId: true },
+      })
+      if (leads.length !== uniqueLeadIds.length) {
+        throw Object.assign(new Error('Some selected leads are no longer active. Refresh the list and try again.'), { statusCode: 409 })
+      }
 
-    res.json({ success: true, message: `${leadIds.length} leads assigned successfully` })
+      const updateResult = await transaction.lead.updateMany({
+        where: { id: { in: uniqueLeadIds }, isActive: true },
+        data: { assignedToId },
+      })
+      if (updateResult.count !== uniqueLeadIds.length) {
+        throw Object.assign(new Error('Lead assignments changed while the operation was in progress. Refresh and try again.'), { statusCode: 409 })
+      }
+
+      const changedLeads = leads.filter((lead) => lead.assignedToId !== assignedToId)
+      if (changedLeads.length > 0) {
+        await transaction.activity.createMany({
+          data: changedLeads.map((lead) => ({
+            leadId: lead.id,
+            userId: req.user?.id,
+            type: 'LEAD_ASSIGNED',
+            description: `Lead assigned to ${user.name}`,
+            metadata: { assignedToId, bulk: true },
+          })),
+        })
+      }
+
+      return { assignedCount: changedLeads.length, alreadyAssignedCount: leads.length - changedLeads.length }
+    })
+
+    const message = assignment.assignedCount === 0
+      ? `All ${assignment.alreadyAssignedCount} selected leads are already assigned to ${user.name}`
+      : assignment.alreadyAssignedCount > 0
+        ? `${assignment.assignedCount} leads assigned to ${user.name}; ${assignment.alreadyAssignedCount} were already assigned`
+        : `${assignment.assignedCount} leads assigned to ${user.name}`
+    res.json({ success: true, message, data: assignment })
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Failed to assign leads', error })
+    const statusCode = (error as { statusCode?: number })?.statusCode || 500
+    if (statusCode === 500) console.error('[Leads] Failed to assign leads', error)
+    const message = statusCode === 409 && error instanceof Error
+      ? error.message
+      : 'Failed to assign leads'
+    res.status(statusCode).json({ success: false, message })
   }
 }
 
