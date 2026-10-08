@@ -1,44 +1,47 @@
 import nodemailer from 'nodemailer'
 import prisma from './prisma'
 
-const emailSettingKeys = ['zoho_email', 'zoho_app_password', 'zoho_smtp_host', 'zoho_smtp_port', 'email_from_name']
+const getStoredEmailSetting = async (key: string) => {
+  const setting = await prisma.settings.findUnique({ where: { key } })
+  return setting?.value?.trim() || ''
+}
 
-export const getEmailConfiguration = async () => {
-  const settings = await prisma.settings.findMany({ where: { key: { in: emailSettingKeys } } })
-  const values = settings.reduce<Record<string, string>>((result, setting) => {
-    result[setting.key] = setting.value
-    return result
-  }, {})
+export const getSmtpOptions = async () => {
+  const envUser = process.env.SMTP_USER || process.env.GMAIL_USER
+  const envPass = process.env.SMTP_PASS || process.env.GMAIL_APP_PASSWORD
+  const [storedUser, storedPass] = envUser && envPass
+    ? ['', '']
+    : await Promise.all([
+        envUser ? Promise.resolve('') : getStoredEmailSetting('smtp_user'),
+        envPass ? Promise.resolve('') : getStoredEmailSetting('smtp_pass'),
+      ])
+  const user = envUser || storedUser
+  const pass = envPass || storedPass
+  const host = process.env.SMTP_HOST
+  const port = process.env.SMTP_PORT ? Number(process.env.SMTP_PORT) : undefined
+  const secure = process.env.SMTP_SECURE ? process.env.SMTP_SECURE === 'true' : undefined
 
-  const email = values.zoho_email || ''
-  const password = values.zoho_app_password || ''
-  const host = values.zoho_smtp_host || 'smtp.zoho.in'
-  const port = Number(values.zoho_smtp_port || 465)
-
-  if (!email || !password || !host || ![465, 587].includes(port)) {
-    throw new Error('Zoho SMTP is not fully configured. Save the Zoho email, app password, host, and SMTP port in Settings.')
+  if (!user || !pass) {
+    throw new Error('SMTP credentials are not configured. Save Zoho credentials in Settings > Email Config or set SMTP_USER/SMTP_PASS.')
   }
 
   return {
-    email,
-    password,
-    host,
-    port,
-    fromName: values.email_from_name || 'Aarovia Real Estates',
+    host: host || 'smtp.zoho.in',
+    port: port || 587,
+    secure: secure ?? false,
+    auth: { user, pass },
+    tls: { rejectUnauthorized: true },
   }
 }
 
-export const createTransporter = async () => {
-  const configuration = await getEmailConfiguration()
-  return {
-    transporter: nodemailer.createTransport({
-      host: configuration.host,
-      port: configuration.port,
-      secure: configuration.port === 465,
-      requireTLS: configuration.port === 587,
-      auth: { user: configuration.email, pass: configuration.password },
-    }),
-    email: configuration.email,
-    fromName: configuration.fromName,
-  }
+export const createTransporter = () => {
+  return getSmtpOptions().then(options => nodemailer.createTransport(options))
 }
+
+export const getCustomerFacingEmail = async () =>
+  process.env.SMTP_USER
+  || process.env.GMAIL_USER
+  || await getStoredEmailSetting('smtp_user')
+
+export const getSenderDisplayName = async () =>
+  (await getStoredEmailSetting('from_name')) || process.env.FROM_NAME || 'Aarovia Real Estates'

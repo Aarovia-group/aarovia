@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { Button, Card, CardHeader, CardTitle, CardContent } from '@/components/ui/index'
 import { leadApi } from '@/lib/api'
+import api from '@/lib/api'
 import { LEAD_SOURCES, LEAD_STATUSES, PROPERTY_TYPES } from '@/lib/utils'
 import { toast } from '@/components/ui/toaster'
 import { useForm } from 'react-hook-form'
@@ -12,6 +13,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { createLeadSchema } from '@/types/schemas'
 import { ArrowLeft, Save, User } from 'lucide-react'
 import Link from 'next/link'
+import { isValidInternationalPhone, normalizeInternationalPhone } from '@/lib/phone'
 
 type EditLeadFormValues = {
   name: string
@@ -22,8 +24,10 @@ type EditLeadFormValues = {
   source: string
   status: string
   propertyType: string
+  projectId: string
   remarks: string
   nextFollowupDate: string
+  assignedToId: string
 }
 
 export default function LeadEditPage() {
@@ -50,13 +54,27 @@ export default function LeadEditPage() {
           source: lead.source,
           status: lead.status,
           propertyType: lead.propertyType || '',
+          projectId: lead.projectId || '',
           remarks: lead.remarks || '',
           nextFollowupDate: lead.nextFollowupDate
             ? new Date(lead.nextFollowupDate).toISOString().slice(0, 10)
             : '',
+          assignedToId: lead.assignedToId || '',
         } as EditLeadFormValues)
       : undefined,
   })
+
+  const { data: usersData } = useQuery({
+    queryKey: ['active-team-members'],
+    queryFn: () => api.get('/users', { params: { limit: 100 } }),
+  })
+  const activeTeamMembers = (usersData?.data?.data || []).filter((user: any) => user.isActive)
+
+  const { data: projectsData } = useQuery({
+    queryKey: ['projects', 'active'],
+    queryFn: () => api.get('/projects', { params: { isActive: true } }),
+  })
+  const activeProjects = projectsData?.data?.data || []
 
   const updateMutation = useMutation({
     mutationFn: (data: any) => leadApi.update(id, data),
@@ -72,9 +90,11 @@ export default function LeadEditPage() {
   const onSubmit = (data: any) => {
     const payload = {
       ...data,
+      mobile: normalizeInternationalPhone(data.mobile),
       budget: data.budget ? parseFloat(data.budget) : null,
       nextFollowupDate: data.nextFollowupDate || null,
       propertyType: data.propertyType || null,
+      projectId: data.projectId || null,
     }
     updateMutation.mutate(payload)
   }
@@ -145,7 +165,7 @@ export default function LeadEditPage() {
                   </Field>
 
                   <Field label="Mobile Number" required error={errors.mobile?.message as string}>
-                    <input {...register('mobile', { required: 'Mobile is required' })} className={inputClass} placeholder="+91 XXXXX XXXXX" />
+                    <input {...register('mobile', { required: 'Mobile is required', validate: value => isValidInternationalPhone(value) || 'Include a valid country code, e.g. +919876543210' })} type="tel" autoComplete="tel" className={inputClass} placeholder="+919876543210" />
                   </Field>
 
                   <Field label="Email Address">
@@ -198,6 +218,24 @@ export default function LeadEditPage() {
                       <option value="">Not specified</option>
                       {PROPERTY_TYPES.map(t => (
                         <option key={t.value} value={t.value}>{t.label}</option>
+                      ))}
+                    </select>
+                  </Field>
+
+                  <Field label="Project">
+                    <select {...register('projectId')} className={selectClass}>
+                      <option value="">No project</option>
+                      {activeProjects.map((project: any) => (
+                        <option key={project.id} value={project.id}>{project.name}</option>
+                      ))}
+                    </select>
+                  </Field>
+
+                  <Field label="Assign To">
+                    <select {...register('assignedToId')} className={selectClass}>
+                      <option value="">Unassigned</option>
+                      {activeTeamMembers.map((user: any) => (
+                        <option key={user.id} value={user.id}>{user.name} ({user.role.replace(/_/g, ' ')})</option>
                       ))}
                     </select>
                   </Field>

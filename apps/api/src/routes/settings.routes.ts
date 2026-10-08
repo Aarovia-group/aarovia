@@ -1,430 +1,304 @@
 import { Router } from 'express'
 import { authenticate, authorize } from '../middleware/auth.middleware'
 import prisma from '../utils/prisma'
-import { getTwilioSmsConfiguration, getWhatsAppConfiguration } from '../services/whatsapp.service'
+import { parseIncomingCallRoutes, parseOutgoingDidRoutes, validateIncomingCallRoutes, validateOutgoingDidRoutes } from '../services/incoming-call-routing'
+import { getSmsConfig, smsSettingFields } from '../services/sms-config'
+import type { AuthRequest } from '../middleware/auth.middleware'
 
 const router = Router()
 router.use(authenticate)
 
+const adsSecretKeys = [
+  'meta_app_secret', 'meta_lead_verify_token', 'meta_lead_access_token', 'meta_ads_access_token',
+  'google_lead_webhook_key', 'google_ads_client_secret', 'google_ads_refresh_token',
+  'google_ads_developer_token',
+]
+
 const adsSettingKeys = [
-  'meta_app_id',
-  'meta_app_secret',
-  'meta_lead_verify_token',
-  'meta_lead_access_token',
-  'meta_ads_access_token',
-  'meta_ad_account_id',
-  'google_lead_webhook_key',
-  'google_ads_client_id',
-  'google_ads_client_secret',
-  'google_ads_refresh_token',
-  'google_ads_developer_token',
-  'google_ads_customer_id',
-  'google_ads_login_customer_id',
-] as const
+  'meta_app_id', 'meta_app_secret', 'meta_lead_verify_token', 'meta_lead_access_token', 'meta_ads_access_token', 'meta_ad_account_id',
+  'google_lead_webhook_key', 'google_ads_client_id', 'google_ads_client_secret', 'google_ads_refresh_token',
+  'google_ads_developer_token', 'google_ads_customer_id', 'google_ads_login_customer_id',
+]
 
-const adsSecretKeys = new Set<string>([
-  'meta_app_secret',
-  'meta_lead_verify_token',
-  'meta_lead_access_token',
-  'meta_ads_access_token',
-  'google_lead_webhook_key',
-  'google_ads_client_secret',
-  'google_ads_refresh_token',
-  'google_ads_developer_token',
-])
+const adsEnvironmentKeys: Record<string, string> = {
+  meta_app_id: 'META_APP_ID',
+  meta_app_secret: 'META_APP_SECRET',
+  meta_lead_verify_token: 'META_LEAD_VERIFY_TOKEN',
+  meta_lead_access_token: 'META_LEAD_ACCESS_TOKEN',
+  meta_ads_access_token: 'META_ADS_ACCESS_TOKEN',
+  meta_ad_account_id: 'META_AD_ACCOUNT_ID',
+  google_lead_webhook_key: 'GOOGLE_LEAD_WEBHOOK_KEY',
+  google_ads_client_id: 'GOOGLE_ADS_CLIENT_ID',
+  google_ads_client_secret: 'GOOGLE_ADS_CLIENT_SECRET',
+  google_ads_refresh_token: 'GOOGLE_ADS_REFRESH_TOKEN',
+  google_ads_developer_token: 'GOOGLE_ADS_DEVELOPER_TOKEN',
+  google_ads_customer_id: 'GOOGLE_ADS_CUSTOMER_ID',
+  google_ads_login_customer_id: 'GOOGLE_ADS_LOGIN_CUSTOMER_ID',
+}
 
-const brandingKeys = ['brand_company_name', 'brand_logo_url', 'crm_domain', 'brand_accent_color'] as const
-const protectedSettingKeys = [
-  'wa_access_token',
-  'twilio_auth_token',
-  'twilio_api_key_secret',
-  'sms_twilio_auth_token',
-  'sms_twilio_api_key_secret',
-  'gmail_app_password',
-  'smtp_pass',
-  'zoho_app_password',
-  'meta_app_secret',
-  'meta_lead_verify_token',
-  'meta_lead_access_token',
-  'meta_ads_access_token',
-  'google_lead_webhook_key',
-  'google_ads_client_secret',
-  'google_ads_refresh_token',
-  'google_ads_developer_token',
-  ...adsSecretKeys,
+const voiceSettings = [
+  { key: 'mcube_api_token', field: 'apiToken', env: 'MCUBE_API_TOKEN', secret: true },
+  { key: 'mcube_agent_phone_number', field: 'agentNumber', env: 'MCUBE_AGENT_PHONE_NUMBER' },
+  { key: 'mcube_click_to_call_url', field: 'url', env: 'MCUBE_CLICK_TO_CALL_URL' },
+  { key: 'mcube_api_token_field', field: 'tokenField', env: 'MCUBE_API_TOKEN_FIELD' },
+  { key: 'mcube_api_token_prefix', field: 'tokenPrefix', env: 'MCUBE_API_TOKEN_PREFIX' },
+  { key: 'mcube_agent_field', field: 'agentField', env: 'MCUBE_AGENT_FIELD' },
+  { key: 'mcube_customer_field', field: 'customerField', env: 'MCUBE_CUSTOMER_FIELD' },
+  { key: 'mcube_did_field', field: 'didField', env: 'MCUBE_DID_FIELD' },
+  { key: 'mcube_refurl_field', field: 'refurlField', env: 'MCUBE_REFURL_FIELD' },
+  { key: 'mcube_refurl', field: 'refurl', env: 'MCUBE_REFURL' },
+  { key: 'mcube_call_release_token', field: 'callReleaseToken', env: 'MCUBE_CALL_RELEASE_TOKEN', secret: true },
+]
+
+const twilioWhatsAppSettings = [
+  { key: 'twilio_account_sid', field: 'accountSid', env: 'TWILIO_ACCOUNT_SID' },
+  { key: 'twilio_auth_token', field: 'authToken', env: 'TWILIO_AUTH_TOKEN', secret: true },
+  { key: 'twilio_api_key_sid', field: 'apiKeySid', env: 'TWILIO_API_KEY_SID' },
+  { key: 'twilio_api_key_secret', field: 'apiKeySecret', env: 'TWILIO_API_KEY_SECRET', secret: true },
+  { key: 'twilio_phone_number', field: 'phoneNumber', env: 'TWILIO_PHONE_NUMBER' },
+  { key: 'twilio_whatsapp_template_sid', field: 'templateSid', env: 'TWILIO_WHATSAPP_TEMPLATE_SID' },
 ]
 
 router.get('/', async (req, res) => {
   try {
+    const isAdmin = ['SUPER_ADMIN', 'ADMIN'].includes((req as AuthRequest).user?.role || '')
     const settings = await prisma.settings.findMany({
-      where: { key: { notIn: protectedSettingKeys } },
+      where: isAdmin
+        ? { key: { notIn: ['smtp_pass', 'wa_access_token', ...adsSecretKeys] } }
+        : { key: { in: ['company_name', 'logo_url', 'accent_color'] } },
     })
     const map = settings.reduce((acc: any, s) => { acc[s.key] = s.value; return acc }, {})
     res.json({ success: true, data: map })
   } catch (e) { res.status(500).json({ success: false, message: 'Failed to fetch settings' }) }
 })
 
-router.get('/branding', async (_req, res) => {
-  try {
-    const settings = await prisma.settings.findMany({ where: { key: { in: [...brandingKeys] } } })
-    const values = settings.reduce<Record<string, string>>((result, setting) => {
-      result[setting.key] = setting.value
-      return result
-    }, {})
-    res.json({
-      success: true,
-      data: {
-        companyName: values.brand_company_name || 'Aarovia',
-        logoUrl: values.brand_logo_url || '/aarovia-mark.png',
-        domain: values.crm_domain || 'aarovia.co.in',
-        accentColor: values.brand_accent_color || '#C9A84C',
-      },
-    })
-  } catch {
-    res.status(500).json({ success: false, message: 'Failed to load branding settings' })
-  }
-})
-
-router.post('/branding', authorize('SUPER_ADMIN', 'ADMIN'), async (req, res) => {
-  try {
-    const { companyName, domain, logoUrl, accentColor } = req.body || {}
-    if (typeof companyName !== 'string' || !companyName.trim()) {
-      return res.status(400).json({ success: false, message: 'Company name is required' })
-    }
-    if (typeof domain !== 'string' || !domain.trim()) {
-      return res.status(400).json({ success: false, message: 'CRM domain is required' })
-    }
-    if (typeof logoUrl !== 'string' || typeof accentColor !== 'string' || !/^#[0-9a-fA-F]{6}$/.test(accentColor)) {
-      return res.status(400).json({ success: false, message: 'A valid logo URL and accent color are required' })
-    }
-    if (logoUrl.startsWith('/') && !logoUrl.startsWith('//')) {
-      if (!/^\/[a-zA-Z0-9/_\-.]+$/.test(logoUrl)) {
-        return res.status(400).json({ success: false, message: 'Logo path is invalid' })
-      }
-    } else if (logoUrl) {
-      let parsedLogoUrl: URL
-      try {
-        parsedLogoUrl = new URL(logoUrl)
-      } catch {
-        return res.status(400).json({ success: false, message: 'Logo URL must be a valid HTTPS image URL' })
-      }
-      if (parsedLogoUrl.protocol !== 'https:') {
-        return res.status(400).json({ success: false, message: 'Logo URL must use HTTPS' })
-      }
-    }
-    const values = [companyName.trim(), logoUrl.trim(), domain.trim(), accentColor]
-    await prisma.$transaction(brandingKeys.map((key, index) => prisma.settings.upsert({
-      where: { key },
-      update: { value: values[index], group: 'branding' },
-      create: { key, value: values[index], group: 'branding' },
-    })))
-    res.json({
-      success: true,
-      data: { companyName: values[0], logoUrl: values[1], domain: values[2], accentColor: values[3] },
-      message: 'Branding settings saved',
-    })
-  } catch {
-    res.status(500).json({ success: false, message: 'Failed to save branding settings' })
-  }
-})
-
 router.get('/ads', authorize('SUPER_ADMIN', 'ADMIN'), async (_req, res) => {
   try {
-    const settings = await prisma.settings.findMany({ where: { key: { in: [...adsSettingKeys] } } })
-    const values = settings.reduce<Record<string, string>>((result, setting) => {
-      result[setting.key] = setting.value
+    const settings = await prisma.settings.findMany({ where: { key: { in: adsSettingKeys } } })
+    const storedValues = settings.reduce((result: Record<string, string>, item) => {
+      result[item.key] = item.value
       return result
     }, {})
-    const data = Object.fromEntries(adsSettingKeys.map((key) => [
-      adsSecretKeys.has(key) ? `${key}_configured` : key,
-      adsSecretKeys.has(key) ? Boolean(values[key]) : values[key] || '',
-    ]))
-    Object.assign(data, {
-      metaConfigured: Boolean(values.meta_app_id && values.meta_app_secret && (values.meta_lead_access_token || values.meta_ads_access_token)),
-      googleConfigured: Boolean(values.google_ads_client_id && values.google_ads_client_secret && values.google_ads_refresh_token && values.google_ads_developer_token && values.google_ads_customer_id),
+    const configuredValues = adsSettingKeys.reduce((result: Record<string, string>, key) => {
+      result[key] = storedValues[key] || process.env[adsEnvironmentKeys[key]] || ''
+      return result
+    }, {})
+    const values = adsSettingKeys.reduce((result: Record<string, string>, key) => {
+      result[key] = adsSecretKeys.includes(key) ? (configuredValues[key] ? '********' : '') : configuredValues[key]
+      return result
+    }, {})
+    const has = (key: string) => Boolean(configuredValues[key])
+    res.json({ success: true, data: {
+      ...values,
+      metaActive: has('meta_lead_access_token') && has('meta_ads_access_token') && has('meta_ad_account_id'),
+      googleActive: has('google_ads_client_id') && has('google_ads_client_secret') && has('google_ads_refresh_token') && has('google_ads_developer_token') && has('google_ads_customer_id'),
+    } })
+  } catch (e) { res.status(500).json({ success: false, message: 'Failed to fetch Ads settings' }) }
+})
+
+router.post('/ads', authorize('SUPER_ADMIN', 'ADMIN'), async (req, res) => {
+  try {
+    const values = req.body || {}
+    await Promise.all(adsSettingKeys.map(key => {
+      const value = typeof values[key] === 'string' ? values[key].trim() : ''
+      if (!value || value === '********') return Promise.resolve()
+      return prisma.settings.upsert({
+        where: { key },
+        update: { value, group: 'ads' },
+        create: { key, value, group: 'ads' },
+      })
+    }))
+    res.json({ success: true, message: 'Ads credentials saved and integrations activated' })
+  } catch (e) { res.status(500).json({ success: false, message: 'Failed to save Ads credentials' }) }
+})
+
+router.get('/voice', authorize('SUPER_ADMIN', 'ADMIN'), async (_req, res) => {
+  try {
+    const settings = await prisma.settings.findMany({
+      where: { key: { in: [...voiceSettings.map(item => item.key), 'mcube_incoming_routes', 'mcube_outgoing_dids'] } },
     })
+    const values = settings.reduce((result: Record<string, string>, item) => {
+      result[item.key] = item.value
+      return result
+    }, {})
+    const data = voiceSettings.reduce((result: Record<string, unknown>, item) => {
+      const value = values[item.key] || process.env[item.env] || ''
+      result[item.field] = item.secret ? '' : value
+      if (item.field === 'apiToken') result.hasApiToken = Boolean(value)
+      if (item.field === 'callReleaseToken') result.hasCallReleaseToken = Boolean(value)
+      return result
+    }, {})
+    data.incomingRoutes = parseIncomingCallRoutes(values.mcube_incoming_routes)
+    data.outgoingDids = parseOutgoingDidRoutes(values.mcube_outgoing_dids)
+    data.url = data.url || 'https://api.mcube.com/Restmcube-api/outbound-calls'
+    data.tokenField = data.tokenField || 'HTTP_AUTHORIZATION'
+    data.agentField = data.agentField || 'exenumber'
+    data.customerField = data.customerField || 'custnumber'
+    data.didField = data.didField || 'did'
+    data.refurlField = data.refurlField || 'refurl'
+    data.refurl = data.refurl || '1'
+    data.configured = Boolean(data.hasApiToken && data.agentNumber)
     res.json({ success: true, data })
   } catch {
-    res.status(500).json({ success: false, message: 'Failed to fetch Ads settings' })
+    res.status(500).json({ success: false, message: 'Failed to fetch call API settings' })
   }
 })
 
 router.get('/email', authorize('SUPER_ADMIN', 'ADMIN'), async (_req, res) => {
   try {
     const settings = await prisma.settings.findMany({
-      where: { key: { in: ['zoho_email', 'zoho_smtp_host', 'zoho_smtp_port', 'email_from_name', 'zoho_app_password'] } },
+      where: { key: { in: ['smtp_user', 'smtp_pass', 'from_name'] } },
+      select: { key: true, value: true },
     })
-    const values = settings.reduce<Record<string, string>>((result, setting) => {
+    const values = settings.reduce((result: Record<string, string>, setting) => {
       result[setting.key] = setting.value
       return result
     }, {})
     res.json({
       success: true,
       data: {
-        zohoEmail: values.zoho_email || 'admin@aarovia.co.in',
-        smtpHost: values.zoho_smtp_host || 'smtp.zoho.in',
-        smtpPort: Number(values.zoho_smtp_port || 465),
-        fromName: values.email_from_name || 'Aarovia Real Estates',
-        appPasswordConfigured: Boolean(values.zoho_app_password),
-        configured: Boolean(values.zoho_email && values.zoho_app_password),
+        smtpUser: values.smtp_user || process.env.SMTP_USER || process.env.GMAIL_USER || '',
+        fromName: values.from_name || process.env.FROM_NAME || 'Aarovia Real Estates',
+        hasSmtpPassword: Boolean(values.smtp_pass || process.env.SMTP_PASS || process.env.GMAIL_APP_PASSWORD),
       },
     })
   } catch {
-    res.status(500).json({ success: false, message: 'Failed to fetch Zoho email settings' })
+    res.status(500).json({ success: false, message: 'Failed to fetch email configuration' })
+  }
+})
+
+router.post('/voice', authorize('SUPER_ADMIN', 'ADMIN'), async (req, res) => {
+  try {
+    const body = req.body || {}
+    const incomingRoutes = body.incomingRoutes === undefined ? undefined : validateIncomingCallRoutes(body.incomingRoutes)
+    const outgoingDids = body.outgoingDids === undefined ? undefined : validateOutgoingDidRoutes(body.outgoingDids)
+    const currentToken = await prisma.settings.findUnique({ where: { key: 'mcube_api_token' } })
+    const token = typeof body.apiToken === 'string' && body.apiToken.trim() && body.apiToken !== '********'
+      ? body.apiToken.trim()
+      : currentToken?.value || process.env.MCUBE_API_TOKEN || ''
+    const agentNumber = typeof body.agentNumber === 'string' && body.agentNumber.trim()
+      ? body.agentNumber.trim()
+      : process.env.MCUBE_AGENT_PHONE_NUMBER || ''
+
+    if (!token || !agentNumber) {
+      return res.status(400).json({ success: false, message: 'MCUBE API token and agent phone number are required' })
+    }
+
+    const updates = voiceSettings.map(item => {
+      const submitted = body[item.field]
+      if (item.secret) {
+        if (typeof submitted !== 'string' || !submitted.trim() || submitted === '********') return Promise.resolve()
+        return prisma.settings.upsert({
+          where: { key: item.key },
+          update: { value: submitted.trim(), group: 'voice' },
+          create: { key: item.key, value: submitted.trim(), group: 'voice' },
+        })
+      }
+      if (typeof submitted !== 'string') return Promise.resolve()
+      return prisma.settings.upsert({
+        where: { key: item.key },
+        update: { value: submitted.trim(), group: 'voice' },
+        create: { key: item.key, value: submitted.trim(), group: 'voice' },
+      })
+    })
+    if (incomingRoutes !== undefined) {
+      updates.push(prisma.settings.upsert({
+        where: { key: 'mcube_incoming_routes' },
+        update: { value: JSON.stringify(incomingRoutes), group: 'voice' },
+        create: { key: 'mcube_incoming_routes', value: JSON.stringify(incomingRoutes), group: 'voice' },
+      }))
+    }
+    if (outgoingDids !== undefined) {
+      updates.push(prisma.settings.upsert({
+        where: { key: 'mcube_outgoing_dids' },
+        update: { value: JSON.stringify(outgoingDids), group: 'voice' },
+        create: { key: 'mcube_outgoing_dids', value: JSON.stringify(outgoingDids), group: 'voice' },
+      }))
+    }
+    await Promise.all(updates)
+
+    const callReleaseToken = await prisma.settings.findUnique({ where: { key: 'mcube_call_release_token' } })
+    res.json({
+      success: true,
+      data: {
+        hasApiToken: Boolean(token),
+        hasCallReleaseToken: Boolean(callReleaseToken?.value || process.env.MCUBE_CALL_RELEASE_TOKEN),
+        configured: true,
+      },
+      message: 'Call API settings saved',
+    })
+  } catch (error) {
+    if (error instanceof Error && (
+      error.message.startsWith('Incoming call routes')
+      || error.message.startsWith('Incoming route ')
+      || error.message.startsWith('Incoming number ')
+      || error.message.startsWith('Outgoing DID routes ')
+      || error.message.startsWith('Outgoing DID route ')
+      || error.message.startsWith('Outgoing DID for ')
+    )) {
+      return res.status(400).json({ success: false, message: error.message })
+    }
+    res.status(500).json({ success: false, message: 'Failed to save call API settings' })
   }
 })
 
 router.post('/email', authorize('SUPER_ADMIN', 'ADMIN'), async (req, res) => {
   try {
-    const { zohoEmail, zohoAppPassword, smtpHost, smtpPort, fromName } = req.body || {}
-    const email = typeof zohoEmail === 'string' ? zohoEmail.trim().toLowerCase() : ''
-    const host = typeof smtpHost === 'string' ? smtpHost.trim().toLowerCase() : ''
-    const port = Number(smtpPort)
-    const displayName = typeof fromName === 'string' ? fromName.trim() : ''
-    const password = typeof zohoAppPassword === 'string' ? zohoAppPassword.trim() : ''
-
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      return res.status(400).json({ success: false, message: 'Enter a valid Zoho email address' })
-    }
-    if (!/^[a-z0-9.-]+\.[a-z]{2,}$/i.test(host)) {
-      return res.status(400).json({ success: false, message: 'Enter a valid Zoho SMTP hostname' })
-    }
-    if (![465, 587].includes(port)) {
-      return res.status(400).json({ success: false, message: 'Zoho SMTP port must be 465 or 587' })
-    }
-    if (!displayName) {
-      return res.status(400).json({ success: false, message: 'From name is required' })
-    }
-    if (password.length > 512) {
-      return res.status(400).json({ success: false, message: 'Zoho app password is too long' })
-    }
-
-    const emailSettings = [
-      ['zoho_email', email],
-      ['zoho_smtp_host', host],
-      ['zoho_smtp_port', String(port)],
-      ['email_from_name', displayName],
-    ] as const
-    const existingPassword = await prisma.settings.findUnique({ where: { key: 'zoho_app_password' } })
-    if (!password && !existingPassword?.value) {
-      return res.status(400).json({ success: false, message: 'Email password is required for the first setup' })
-    }
-
-    await prisma.$transaction(async (transaction) => {
-      for (const [key, value] of emailSettings) {
-        await transaction.settings.upsert({
-          where: { key },
-          update: { value, group: 'email' },
-          create: { key, value, group: 'email' },
-        })
-      }
-      if (password) {
-        await transaction.settings.upsert({
-          where: { key: 'zoho_app_password' },
-          update: { value: password, group: 'email' },
-          create: { key: 'zoho_app_password', value: password, group: 'email' },
-        })
-      }
-      await transaction.settings.deleteMany({
-        where: { key: { in: ['gmail_user', 'gmail_app_password', 'smtp_user', 'smtp_pass', 'from_name'] } },
-      })
+    const submittedUser = req.body.smtpUser || req.body.gmailUser
+    const submittedPassword = req.body.smtpPassword || req.body.gmailAppPassword
+    const existing = await prisma.settings.findMany({
+      where: { key: { in: ['smtp_user', 'smtp_pass'] } },
+      select: { key: true, value: true },
     })
-    res.json({ success: true, message: 'Zoho SMTP settings saved' })
-  } catch {
-    res.status(500).json({ success: false, message: 'Failed to save Zoho email settings' })
-  }
-})
-
-router.post('/ads', authorize('SUPER_ADMIN', 'ADMIN'), async (req, res) => {
-  try {
-    const body = req.body || {}
-    if (adsSettingKeys.some((key) => body[key] !== undefined && typeof body[key] !== 'string')) {
-      return res.status(400).json({ success: false, message: 'Ads settings must be submitted as text values' })
-    }
-    const updates = adsSettingKeys.flatMap((key) => {
-      const value = body[key]
-      if (typeof value !== 'string' || !value.trim()) return []
-      return [prisma.settings.upsert({
-        where: { key },
-        update: { value: value.trim(), group: 'ads' },
-        create: { key, value: value.trim(), group: 'ads' },
-      })]
-    })
-    await prisma.$transaction(updates)
-    res.json({ success: true, message: 'Ads credentials saved' })
-  } catch {
-    res.status(500).json({ success: false, message: 'Failed to save Ads settings' })
-  }
-})
-
-router.get('/whatsapp/status', async (_req, res) => {
-  try {
-    const configuration = await getWhatsAppConfiguration()
-    res.json({
-      success: true,
-      data: {
-        provider: configuration.provider,
-        configured: configuration.configured,
-        providerLocked: configuration.providerLocked,
-      },
-    })
-  } catch {
-    res.status(500).json({ success: false, message: 'Failed to fetch WhatsApp status' })
-  }
-})
-
-router.get('/whatsapp', authorize('SUPER_ADMIN', 'ADMIN'), async (_req, res) => {
-  try {
-    const configuration = await getWhatsAppConfiguration()
-    res.json({
-      success: true,
-      data: {
-        phoneId: configuration.meta.phoneId,
-        hasAccessToken: Boolean(configuration.meta.accessToken),
-        businessId: configuration.meta.businessId,
-        configured: configuration.metaConfigured,
-        provider: configuration.provider,
-        providerLocked: configuration.providerLocked,
-      },
-    })
-  } catch {
-    res.status(500).json({ success: false, message: 'Failed to fetch Meta WhatsApp API settings' })
-  }
-})
-
-router.post('/whatsapp', authorize('SUPER_ADMIN', 'ADMIN'), async (req, res) => {
-  try {
-    if (process.env.WHATSAPP_PROVIDER && process.env.WHATSAPP_PROVIDER.toUpperCase() !== 'META') {
-      return res.status(400).json({ success: false, message: 'Provider is locked by the WHATSAPP_PROVIDER environment variable' })
-    }
-    const body = req.body || {}
-    const [currentPhoneId, currentAccessToken, currentBusinessId] = await Promise.all([
-      prisma.settings.findUnique({ where: { key: 'wa_phone_id' } }),
-      prisma.settings.findUnique({ where: { key: 'wa_access_token' } }),
-      prisma.settings.findUnique({ where: { key: 'wa_business_id' } }),
-    ])
-    const phoneId = process.env.WHATSAPP_PHONE_ID || (typeof body.phoneId === 'string' && body.phoneId.trim()) || currentPhoneId?.value || ''
-    const accessToken = process.env.WHATSAPP_ACCESS_TOKEN || (typeof body.accessToken === 'string' && body.accessToken.trim()) || currentAccessToken?.value || ''
-    const businessId = process.env.WHATSAPP_BUSINESS_ACCOUNT_ID || (typeof body.businessId === 'string' && body.businessId.trim()) || currentBusinessId?.value || ''
-    if (!phoneId || !accessToken) {
-      return res.status(400).json({ success: false, message: 'Meta WhatsApp Phone Number ID and Access Token are required' })
-    }
-    await Promise.all([
-      ...([
-        ['phoneId', 'wa_phone_id', 'WHATSAPP_PHONE_ID'],
-        ['accessToken', 'wa_access_token', 'WHATSAPP_ACCESS_TOKEN'],
-        ['businessId', 'wa_business_id', 'WHATSAPP_BUSINESS_ACCOUNT_ID'],
-      ] as const).map(([field, key, env]) => {
-        const submitted = typeof body[field] === 'string' ? body[field].trim() : ''
-        if (process.env[env] || !submitted) return Promise.resolve()
-        return prisma.settings.upsert({
-          where: { key },
-          update: { value: submitted, group: 'whatsapp' },
-          create: { key, value: submitted, group: 'whatsapp' },
-        })
-      }),
-      prisma.settings.upsert({ where: { key: 'wa_provider' }, update: { value: 'META', group: 'whatsapp' }, create: { key: 'wa_provider', value: 'META', group: 'whatsapp' } }),
-    ])
-    res.json({ success: true, data: { provider: 'META', hasAccessToken: true }, message: 'Meta WhatsApp API settings saved' })
-  } catch { res.status(500).json({ success: false, message: 'Failed to save Meta WhatsApp API settings' }) }
-})
-
-router.get('/whatsapp/twilio', authorize('SUPER_ADMIN', 'ADMIN'), async (_req, res) => {
-  try {
-    const configuration = await getWhatsAppConfiguration()
-    res.json({
-      success: true,
-      data: {
-        provider: configuration.provider,
-        providerLocked: configuration.providerLocked,
-        accountSid: configuration.twilio.accountSid,
-        authTokenConfigured: Boolean(configuration.twilio.authToken),
-        apiKeySid: configuration.twilio.apiKeySid,
-        apiKeySecretConfigured: Boolean(configuration.twilio.apiKeySecret),
-        phoneNumber: configuration.twilio.phoneNumber,
-        smsPhoneNumber: configuration.twilio.smsPhoneNumber,
-        templateSid: configuration.twilio.templateSid,
-        configured: configuration.twilioConfigured,
-      },
-    })
-  } catch {
-    res.status(500).json({ success: false, message: 'Failed to fetch Twilio WhatsApp settings' })
-  }
-})
-
-router.post('/whatsapp/twilio', authorize('SUPER_ADMIN', 'ADMIN'), async (req, res) => {
-  try {
-    if (process.env.WHATSAPP_PROVIDER && process.env.WHATSAPP_PROVIDER.toUpperCase() !== 'TWILIO') {
-      return res.status(400).json({ success: false, message: 'Provider is locked by the WHATSAPP_PROVIDER environment variable' })
-    }
-    const body = req.body || {}
-    const keys = [
-      ['accountSid', 'twilio_account_sid', 'TWILIO_ACCOUNT_SID'],
-      ['authToken', 'twilio_auth_token', 'TWILIO_AUTH_TOKEN'],
-      ['apiKeySid', 'twilio_api_key_sid', 'TWILIO_API_KEY_SID'],
-      ['apiKeySecret', 'twilio_api_key_secret', 'TWILIO_API_KEY_SECRET'],
-      ['phoneNumber', 'twilio_phone_number', 'TWILIO_PHONE_NUMBER'],
-      ['smsPhoneNumber', 'twilio_sms_phone_number', 'TWILIO_SMS_PHONE_NUMBER'],
-      ['templateSid', 'twilio_whatsapp_template_sid', 'TWILIO_WHATSAPP_TEMPLATE_SID'],
-    ] as const
-    const currentSettings = await prisma.settings.findMany({ where: { key: { in: keys.map(([, key]) => key) } } })
-    const current = currentSettings.reduce<Record<string, string>>((result, setting) => {
+    const existingValues = existing.reduce((result: Record<string, string>, setting) => {
       result[setting.key] = setting.value
       return result
     }, {})
-    const values = keys.reduce<Record<string, string>>((result, [field, key, env]) => {
-      const submitted = typeof body[field] === 'string' ? body[field].trim() : ''
-      result[key] = process.env[env] || submitted || current[key] || ''
-      return result
-    }, {})
-    const accountSid = values.twilio_account_sid
-    const authToken = values.twilio_auth_token
-    const apiKeySid = values.twilio_api_key_sid
-    const apiKeySecret = values.twilio_api_key_secret
-    const phoneNumber = values.twilio_phone_number
-    if (!(accountSid && (authToken || (apiKeySid && apiKeySecret)) && phoneNumber)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Twilio Account SID, WhatsApp sender number, and Auth Token or API key pair are required',
-      })
+    const smtpUser = typeof submittedUser === 'string' && submittedUser.trim()
+      ? submittedUser.trim()
+      : existingValues.smtp_user || process.env.SMTP_USER || process.env.GMAIL_USER || ''
+    const smtpPassword = typeof submittedPassword === 'string' && submittedPassword
+      ? submittedPassword
+      : existingValues.smtp_pass || process.env.SMTP_PASS || process.env.GMAIL_APP_PASSWORD || ''
+    const fromName = typeof req.body.fromName === 'string' && req.body.fromName.trim()
+      ? req.body.fromName.trim()
+      : 'Aarovia Real Estates'
+    if (!smtpUser || !smtpPassword) {
+      return res.status(400).json({ success: false, message: 'SMTP username and password are required' })
     }
-    await Promise.all([
-      ...keys.map(([field, key, env]) => {
-        const submitted = typeof body[field] === 'string' ? body[field].trim() : ''
-        const value = process.env[env] ? '' : submitted
-        if (!value) return Promise.resolve()
-        return prisma.settings.upsert({
-          where: { key },
-          update: { value, group: 'whatsapp-twilio' },
-          create: { key, value, group: 'whatsapp-twilio' },
-        })
-      }),
-      prisma.settings.upsert({
-        where: { key: 'wa_provider' },
-        update: { value: 'TWILIO', group: 'whatsapp' },
-        create: { key: 'wa_provider', value: 'TWILIO', group: 'whatsapp' },
-      }),
-    ])
-    res.json({ success: true, data: { provider: 'TWILIO', configured: true }, message: 'Twilio WhatsApp settings saved' })
-  } catch {
-    res.status(500).json({ success: false, message: 'Failed to save Twilio WhatsApp settings' })
-  }
+    const updates = [
+      prisma.settings.upsert({ where: { key: 'smtp_user' }, update: { value: smtpUser.trim() }, create: { key: 'smtp_user', value: smtpUser.trim(), group: 'email' } }),
+      prisma.settings.upsert({ where: { key: 'from_name' }, update: { value: fromName }, create: { key: 'from_name', value: fromName, group: 'email' } }),
+      prisma.settings.deleteMany({ where: { key: { in: ['gmail_user', 'gmail_app_password'] } } }),
+    ]
+    if (typeof submittedPassword === 'string' && submittedPassword) {
+      updates.push(prisma.settings.upsert({
+        where: { key: 'smtp_pass' },
+        update: { value: submittedPassword },
+        create: { key: 'smtp_pass', value: submittedPassword, group: 'email' },
+      }))
+    }
+    await Promise.all(updates)
+    res.json({
+      success: true,
+      data: { smtpUser, fromName, hasSmtpPassword: true },
+      message: 'Email configuration saved',
+    })
+  } catch (e) { res.status(500).json({ success: false, message: 'Failed to save email config' }) }
 })
 
 router.get('/sms/twilio', authorize('SUPER_ADMIN', 'ADMIN'), async (_req, res) => {
   try {
-    const configuration = await getTwilioSmsConfiguration()
-    res.json({
-      success: true,
-      data: {
-        accountSid: configuration.accountSid,
-        authTokenConfigured: Boolean(configuration.authToken),
-        apiKeySid: configuration.apiKeySid,
-        apiKeySecretConfigured: Boolean(configuration.apiKeySecret),
-        smsPhoneNumber: configuration.smsPhoneNumber,
-        configured: configuration.configured,
-      },
-    })
+    const config = await getSmsConfig()
+    res.json({ success: true, data: {
+      accountSid: config.accountSid,
+      apiKeySid: config.apiKeySid,
+      phoneNumber: config.phoneNumber,
+      messagingServiceSid: config.messagingServiceSid,
+      authTokenConfigured: Boolean(config.authToken),
+      apiKeySecretConfigured: Boolean(config.apiKeySecret),
+      configured: Boolean(config.accountSid && (config.phoneNumber || config.messagingServiceSid) && (config.authToken || (config.apiKeySid && config.apiKeySecret))),
+    } })
   } catch {
     res.status(500).json({ success: false, message: 'Failed to fetch Twilio SMS settings' })
   }
@@ -433,61 +307,204 @@ router.get('/sms/twilio', authorize('SUPER_ADMIN', 'ADMIN'), async (_req, res) =
 router.post('/sms/twilio', authorize('SUPER_ADMIN', 'ADMIN'), async (req, res) => {
   try {
     const body = req.body || {}
-    const keys = [
-      ['accountSid', 'sms_twilio_account_sid', 'TWILIO_ACCOUNT_SID'],
-      ['authToken', 'sms_twilio_auth_token', 'TWILIO_AUTH_TOKEN'],
-      ['apiKeySid', 'sms_twilio_api_key_sid', 'TWILIO_API_KEY_SID'],
-      ['apiKeySecret', 'sms_twilio_api_key_secret', 'TWILIO_API_KEY_SECRET'],
-      ['smsPhoneNumber', 'twilio_sms_phone_number', 'TWILIO_SMS_PHONE_NUMBER'],
-    ] as const
-    const lookupKeys: string[] = [...new Set([
-      ...keys.map(([, key]) => key),
-      'twilio_account_sid',
-      'twilio_auth_token',
-      'twilio_api_key_sid',
-      'twilio_api_key_secret',
-    ])]
-    const settings = await prisma.settings.findMany({ where: { key: { in: lookupKeys } } })
-    const stored = settings.reduce<Record<string, string>>((result, setting) => {
-      result[setting.key] = setting.value
-      return result
-    }, {})
-    const values = keys.reduce<Record<string, string>>((result, [field, key, env]) => {
-      const submitted = typeof body[field] === 'string' ? body[field].trim() : ''
-      const sharedKey = key.replace(/^sms_/, '')
-      result[key] = process.env[env] || submitted || stored[key] || stored[sharedKey] || ''
-      return result
-    }, {})
-    const accountSid = values.sms_twilio_account_sid
-    const authToken = values.sms_twilio_auth_token
-    const apiKeySid = values.sms_twilio_api_key_sid
-    const apiKeySecret = values.sms_twilio_api_key_secret
-    const smsPhoneNumber = values.twilio_sms_phone_number
-    if (!(accountSid && (authToken || (apiKeySid && apiKeySecret)) && smsPhoneNumber)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Twilio Account SID, SMS sender number, and Auth Token or API key pair are required',
-      })
+    const current = await getSmsConfig()
+    const proposed = { ...current }
+    for (const item of smsSettingFields) {
+      const submitted = typeof body[item.field] === 'string' ? body[item.field].trim() : ''
+      if (!process.env[item.env] && (typeof body[item.field] === 'string') && (!item.secret || submitted)) {
+        proposed[item.field] = submitted
+      }
     }
-    if (!/^(?:\+[1-9]\d{7,14}|\d{10,15})$/.test(smsPhoneNumber.replace(/[\s().-]/g, ''))) {
-      return res.status(400).json({ success: false, message: 'Enter a valid SMS sender number in international format' })
+    const configured = Boolean(proposed.accountSid && (proposed.phoneNumber || proposed.messagingServiceSid) && (proposed.authToken || (proposed.apiKeySid && proposed.apiKeySecret)))
+    if (!configured) {
+      return res.status(400).json({ success: false, message: 'Twilio Account SID, sender number or Messaging Service SID, and Auth Token or API key pair are required' })
     }
 
-    await prisma.$transaction(async (transaction) => {
-      for (const [field, key, env] of keys) {
-        const submitted = typeof body[field] === 'string' ? body[field].trim() : ''
-        if (process.env[env] || !submitted) continue
-        await transaction.settings.upsert({
-          where: { key },
-          update: { value: submitted, group: 'twilio-sms' },
-          create: { key, value: submitted, group: 'twilio-sms' },
-        })
-      }
+    const updates = smsSettingFields.map(item => {
+      const submitted = typeof body[item.field] === 'string' ? body[item.field].trim() : ''
+      if (item.secret && !submitted) return Promise.resolve()
+      if (typeof body[item.field] !== 'string') return Promise.resolve()
+      return prisma.settings.upsert({
+        where: { key: item.key },
+        update: { value: submitted, group: 'sms' },
+        create: { key: item.key, value: submitted, group: 'sms' },
+      })
     })
-    res.json({ success: true, data: { configured: true }, message: 'Twilio SMS settings saved' })
+    await Promise.all(updates)
+    res.json({ success: true, data: { configured }, message: 'Twilio SMS settings saved' })
   } catch {
     res.status(500).json({ success: false, message: 'Failed to save Twilio SMS settings' })
   }
+})
+
+router.get('/whatsapp', authorize('SUPER_ADMIN', 'ADMIN'), async (_req, res) => {
+  try {
+    const settings = await prisma.settings.findMany({
+      where: { key: { in: [
+        'wa_provider', 'wa_phone_id', 'wa_access_token', 'wa_business_id', 'wa_template_name', 'wa_allow_raw_text',
+        ...twilioWhatsAppSettings.map(item => item.key),
+      ] } },
+    })
+    const values = settings.reduce((result: Record<string, string>, item) => {
+      result[item.key] = item.value
+      return result
+    }, {})
+    const phoneId = process.env.WHATSAPP_PHONE_ID || values.wa_phone_id || ''
+    const accessToken = process.env.WHATSAPP_ACCESS_TOKEN || values.wa_access_token || ''
+    const twilioConfigured = Boolean(
+      (process.env.TWILIO_ACCOUNT_SID || values.twilio_account_sid)
+      && (process.env.TWILIO_AUTH_TOKEN || values.twilio_auth_token || (process.env.TWILIO_API_KEY_SID || values.twilio_api_key_sid) && (process.env.TWILIO_API_KEY_SECRET || values.twilio_api_key_secret))
+      && (process.env.TWILIO_PHONE_NUMBER || values.twilio_phone_number),
+    )
+    const provider = (
+      process.env.WHATSAPP_PROVIDER
+      || values.wa_provider
+      || (phoneId && accessToken ? 'META' : twilioConfigured ? 'TWILIO' : 'META')
+    ).toUpperCase()
+    res.json({ success: true, data: {
+      phoneId,
+      hasAccessToken: Boolean(accessToken),
+      businessId: process.env.WHATSAPP_BUSINESS_ID || values.wa_business_id || '',
+      templateName: process.env.WHATSAPP_TEMPLATE_NAME || values.wa_template_name || '',
+      allowRawText: values.wa_allow_raw_text === 'true',
+      configured: Boolean(phoneId && accessToken),
+      provider,
+      providerLocked: Boolean(process.env.WHATSAPP_PROVIDER),
+    } })
+  } catch {
+    res.status(500).json({ success: false, message: 'Failed to fetch WhatsApp settings' })
+  }
+})
+
+router.post('/whatsapp', authorize('SUPER_ADMIN', 'ADMIN'), async (req, res) => {
+  try {
+    const body = req.body || {}
+    if (process.env.WHATSAPP_PROVIDER && process.env.WHATSAPP_PROVIDER.toUpperCase() !== 'META') {
+      return res.status(400).json({ success: false, message: 'Provider is locked by the WHATSAPP_PROVIDER environment variable' })
+    }
+    const currentAccessToken = await prisma.settings.findUnique({ where: { key: 'wa_access_token' } })
+    const currentPhoneId = await prisma.settings.findUnique({ where: { key: 'wa_phone_id' } })
+    const submittedPhoneId = typeof body.phoneId === 'string' ? body.phoneId.trim() : ''
+    const submittedAccessToken = typeof body.accessToken === 'string' ? body.accessToken.trim() : ''
+    const phoneId = process.env.WHATSAPP_PHONE_ID || submittedPhoneId || currentPhoneId?.value || ''
+    const nextAccessToken = process.env.WHATSAPP_ACCESS_TOKEN || submittedAccessToken || currentAccessToken?.value || ''
+    if (!phoneId || !nextAccessToken) {
+      return res.status(400).json({ success: false, message: 'Meta WhatsApp Phone Number ID and Access Token are required' })
+    }
+    await Promise.all([
+      prisma.settings.upsert({ where: { key: 'wa_phone_id' }, update: { value: phoneId }, create: { key: 'wa_phone_id', value: phoneId, group: 'whatsapp' } }),
+      prisma.settings.upsert({ where: { key: 'wa_access_token' }, update: { value: nextAccessToken }, create: { key: 'wa_access_token', value: nextAccessToken, group: 'whatsapp' } }),
+      prisma.settings.upsert({ where: { key: 'wa_business_id' }, update: { value: body.businessId || '' }, create: { key: 'wa_business_id', value: body.businessId || '', group: 'whatsapp' } }),
+      prisma.settings.upsert({ where: { key: 'wa_template_name' }, update: { value: body.templateName || '' }, create: { key: 'wa_template_name', value: body.templateName || '', group: 'whatsapp' } }),
+      prisma.settings.upsert({ where: { key: 'wa_allow_raw_text' }, update: { value: String(body.allowRawText === true || body.allowRawText === 'true') }, create: { key: 'wa_allow_raw_text', value: String(body.allowRawText === true || body.allowRawText === 'true'), group: 'whatsapp' } }),
+      prisma.settings.upsert({ where: { key: 'wa_provider' }, update: { value: 'META', group: 'whatsapp' }, create: { key: 'wa_provider', value: 'META', group: 'whatsapp' } }),
+    ])
+    res.json({ success: true, data: { hasAccessToken: Boolean(nextAccessToken), provider: 'META' }, message: 'Meta WhatsApp API settings saved' })
+  } catch (e) { res.status(500).json({ success: false, message: 'Failed to save WhatsApp config' }) }
+})
+
+router.get('/whatsapp/twilio', authorize('SUPER_ADMIN', 'ADMIN'), async (_req, res) => {
+  try {
+    const keys = ['wa_provider', 'wa_phone_id', 'wa_access_token', ...twilioWhatsAppSettings.map(item => item.key)]
+    const settings = await prisma.settings.findMany({ where: { key: { in: keys } } })
+    const values = settings.reduce((result: Record<string, string>, item) => {
+      result[item.key] = item.value
+      return result
+    }, {})
+    const getValue = (key: string, env: string) => process.env[env] || values[key] || ''
+    const accountSid = getValue('twilio_account_sid', 'TWILIO_ACCOUNT_SID')
+    const authToken = getValue('twilio_auth_token', 'TWILIO_AUTH_TOKEN')
+    const apiKeySid = getValue('twilio_api_key_sid', 'TWILIO_API_KEY_SID')
+    const apiKeySecret = getValue('twilio_api_key_secret', 'TWILIO_API_KEY_SECRET')
+    const phoneNumber = getValue('twilio_phone_number', 'TWILIO_PHONE_NUMBER')
+    const templateSid = process.env.TWILIO_WHATSAPP_TEMPLATE_SID
+      || process.env.TWILIO_TEMPLATE_SID
+      || values.twilio_whatsapp_template_sid
+      || ''
+    const provider = (process.env.WHATSAPP_PROVIDER || values.wa_provider || '').toUpperCase()
+    const credentialsConfigured = Boolean(accountSid && (authToken || (apiKeySid && apiKeySecret)) && phoneNumber)
+    const metaConfigured = Boolean(
+      (process.env.WHATSAPP_PHONE_ID || values.wa_phone_id)
+      && (process.env.WHATSAPP_ACCESS_TOKEN || values.wa_access_token),
+    )
+    res.json({ success: true, data: {
+      provider: provider || (metaConfigured ? 'META' : credentialsConfigured ? 'TWILIO' : 'META'),
+      providerLocked: Boolean(process.env.WHATSAPP_PROVIDER),
+      accountSid,
+      authTokenConfigured: Boolean(authToken),
+      apiKeySid,
+      apiKeySecretConfigured: Boolean(apiKeySecret),
+      phoneNumber,
+      templateSid,
+      configured: credentialsConfigured,
+    } })
+  } catch {
+    res.status(500).json({ success: false, message: 'Failed to fetch Twilio WhatsApp settings' })
+  }
+})
+
+router.post('/whatsapp/twilio', authorize('SUPER_ADMIN', 'ADMIN'), async (req, res) => {
+  try {
+    const body = req.body || {}
+    if (process.env.WHATSAPP_PROVIDER && process.env.WHATSAPP_PROVIDER.toUpperCase() !== 'TWILIO') {
+      return res.status(400).json({ success: false, message: 'Provider is locked by the WHATSAPP_PROVIDER environment variable' })
+    }
+
+    const keys = ['wa_provider', ...twilioWhatsAppSettings.map(item => item.key)]
+    const settings = await prisma.settings.findMany({ where: { key: { in: keys } } })
+    const current = settings.reduce((result: Record<string, string>, item) => {
+      result[item.key] = item.value
+      return result
+    }, {})
+    const getValue = (field: string, key: string, env: string) => {
+      const submitted = typeof body[field] === 'string' ? body[field].trim() : ''
+      return process.env[env] || submitted || current[key] || ''
+    }
+    const accountSid = getValue('accountSid', 'twilio_account_sid', 'TWILIO_ACCOUNT_SID')
+    const authToken = getValue('authToken', 'twilio_auth_token', 'TWILIO_AUTH_TOKEN')
+    const apiKeySid = getValue('apiKeySid', 'twilio_api_key_sid', 'TWILIO_API_KEY_SID')
+    const apiKeySecret = getValue('apiKeySecret', 'twilio_api_key_secret', 'TWILIO_API_KEY_SECRET')
+    const phoneNumber = getValue('phoneNumber', 'twilio_phone_number', 'TWILIO_PHONE_NUMBER')
+
+    if (!(accountSid && (authToken || (apiKeySid && apiKeySecret)) && phoneNumber)) {
+      return res.status(400).json({ success: false, message: 'Twilio Account SID, WhatsApp sender, and Auth Token or API key pair are required' })
+    }
+
+    const upserts = [prisma.settings.upsert({
+      where: { key: 'wa_provider' },
+      update: { value: 'TWILIO', group: 'whatsapp' },
+      create: { key: 'wa_provider', value: 'TWILIO', group: 'whatsapp' },
+    })]
+    for (const item of twilioWhatsAppSettings) {
+      const submitted = typeof body[item.field] === 'string' ? body[item.field].trim() : ''
+      if (item.secret && (!submitted || submitted === '********')) continue
+      if (!item.secret && typeof body[item.field] !== 'string') continue
+      const value = process.env[item.env] || submitted
+      if (!value) continue
+      upserts.push(prisma.settings.upsert({
+        where: { key: item.key },
+        update: { value, group: 'whatsapp-twilio' },
+        create: { key: item.key, value, group: 'whatsapp-twilio' },
+      }))
+    }
+    await Promise.all(upserts)
+    res.json({ success: true, data: { provider: 'TWILIO', configured: true }, message: 'Twilio WhatsApp settings saved' })
+  } catch {
+    res.status(500).json({ success: false, message: 'Failed to save Twilio WhatsApp settings' })
+  }
+})
+
+router.post('/branding', authorize('SUPER_ADMIN', 'ADMIN'), async (req, res) => {
+  try {
+    const { companyName, domain, logoUrl, accentColor } = req.body
+    await Promise.all([
+      prisma.settings.upsert({ where: { key: 'company_name' }, update: { value: companyName }, create: { key: 'company_name', value: companyName, group: 'branding' } }),
+      prisma.settings.upsert({ where: { key: 'crm_domain' }, update: { value: domain }, create: { key: 'crm_domain', value: domain, group: 'branding' } }),
+      prisma.settings.upsert({ where: { key: 'logo_url' }, update: { value: logoUrl || '' }, create: { key: 'logo_url', value: logoUrl || '', group: 'branding' } }),
+      prisma.settings.upsert({ where: { key: 'accent_color' }, update: { value: accentColor }, create: { key: 'accent_color', value: accentColor, group: 'branding' } }),
+    ])
+    res.json({ success: true, message: 'Branding saved' })
+  } catch (e) { res.status(500).json({ success: false, message: 'Failed to save branding' }) }
 })
 
 export default router

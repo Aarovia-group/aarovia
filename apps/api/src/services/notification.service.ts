@@ -1,6 +1,7 @@
 import prisma from '../utils/prisma'
-import { createTransporter } from '../utils/email'
-import { sendWhatsAppMessage as sendConfiguredWhatsAppMessage } from './whatsapp.service'
+import { createTransporter, getCustomerFacingEmail, getSenderDisplayName } from '../utils/email'
+import { validateWhatsAppDeliveryPolicy } from '../utils/whatsapp-policy'
+import axios from 'axios'
 
 interface NotificationPayload {
   userId: string
@@ -55,10 +56,12 @@ export const sendEmailNotification = async (
   body: string
 ) => {
   try {
-    const { transporter, email, fromName } = await createTransporter()
+    const transporter = await createTransporter()
+    const fromEmail = await getCustomerFacingEmail()
+    const fromName = await getSenderDisplayName()
 
     await transporter.sendMail({
-      from: `"${fromName}" <${email}>`,
+      from: `"${fromName}" <${fromEmail}>`,
       to,
       subject,
       html: body,
@@ -75,14 +78,35 @@ export const sendEmailNotification = async (
 // ============================================
 export const sendWhatsAppNotification = async (to: string, message: string) => {
   try {
-    const data = await sendConfiguredWhatsAppMessage(to, message)
-    return { success: true, data }
-  } catch (error) {
-    console.error('WhatsApp notification failed:', error)
-    return { success: false, error }
+    const hasTemplate = !!(process.env.WHATSAPP_TEMPLATE_NAME || process.env.TWILIO_WHATSAPP_TEMPLATE_SID || process.env.TWILIO_TEMPLATE_SID)
+    const allowRawText = process.env.ALLOW_RAW_WHATSAPP === 'true' || process.env.WHATSAPP_ALLOW_RAW_TEXT === 'true'
+
+    validateWhatsAppDeliveryPolicy({ provider: 'META', hasTemplate, allowRawText })
+
+    const response = await axios.post(
+      `https://graph.facebook.com/v18.0/${process.env.WHATSAPP_PHONE_ID}/messages`,
+      {
+        messaging_product: 'whatsapp',
+        to: to.replace(/\D/g, ''),
+        type: 'text',
+        text: { body: message },
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${process.env.WHATSAPP_ACCESS_TOKEN}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    )
+    return { success: true, data: response.data }
+  } catch (error: any) {
+    const detail = error?.response?.data?.error?.message || error?.response?.data?.message || error?.message
+    console.error('WhatsApp notification failed:', detail)
+    return { success: false, error: detail }
   }
 }
 
+// ============================================
 // Followup reminder service
 // ============================================
 export const sendFollowupReminders = async () => {

@@ -20,9 +20,12 @@ import projectRoutes from './routes/project.routes'
 import settingsRoutes from './routes/settings.routes'
 import emailRoutes from './routes/email.routes'
 import whatsappRoutes from './routes/whatsapp.routes'
+import whatsappWebhookRoutes from './routes/whatsapp-webhook.routes'
 import documentRoutes from './routes/document.routes'
 import postSalesRoutes from './routes/postSales.routes'
 import uploadRoutes from './routes/upload.routes'
+import voiceRoutes from './routes/voice.routes'
+import smsRoutes from './routes/sms.routes'
 import { errorHandler } from './middleware/error.middleware'
 import { notFound } from './middleware/notFound.middleware'
 import { auditLog, requestTimer } from './middleware/audit.middleware'
@@ -61,6 +64,9 @@ const limiter = rateLimit({
 })
 app.use('/api/', limiter)
 
+// Meta verifies webhook subscriptions without CRM authentication or JSON parsing.
+app.use('/api/whatsapp/webhook', whatsappWebhookRoutes)
+
 // Body parsing
 app.use(express.json({ limit: '10mb' }))
 app.use(express.urlencoded({ extended: true, limit: '10mb' }))
@@ -98,6 +104,8 @@ app.use('/api/whatsapp', whatsappRoutes)
 app.use('/api/documents', documentRoutes)
 app.use('/api/post-sales', postSalesRoutes)
 app.use('/api/upload', uploadRoutes)
+app.use('/api/voice', voiceRoutes)
+app.use('/api/sms', smsRoutes)
 
 // Error handling
 app.use(notFound)

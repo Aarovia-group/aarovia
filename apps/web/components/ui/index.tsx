@@ -255,7 +255,7 @@ export function StatCard({ label, value, sub, trend, trendValue, icon, accentCol
 
 // Table
 interface TableProps {
-  headers: string[]
+  headers: ReactNode[]
   children: ReactNode
   className?: string
 }

@@ -78,7 +78,7 @@ export default function WhatsAppPage() {
     if (selectedTemplate.id === 'project_details') {
       sendProjectMutation.mutate({ leadId: data.leadId, mobile: data.mobile })
     } else if (selectedTemplate.id === 'followup') {
-      sendFollowupMutation.mutate({ leadId: data.leadId, customMessage: data.customMessage })
+      sendFollowupMutation.mutate({ leadId: data.leadId, mobile: data.mobile, customMessage: data.customMessage })
     } else {
       toast.info('Template sending — connect your WhatsApp Business API templates')
     }

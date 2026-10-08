@@ -1,108 +1,63 @@
 import axios from 'axios'
-import { Response } from 'express'
-import { AuthRequest } from '../middleware/auth.middleware'
-import { getTwilioSmsConfiguration } from '../services/whatsapp.service'
 import prisma from '../utils/prisma'
+import { getSmsConfig } from '../services/sms-config'
 
-const toE164 = (value: string) => {
-  const number = value.trim()
-  if (/^whatsapp:/i.test(number)) throw new Error('Use an SMS-capable phone number, not a WhatsApp sender')
-  const digits = number.replace(/\D/g, '')
-  if (!digits) throw new Error('A valid phone number is required')
-  if (number.startsWith('+')) return `+${digits}`
-  if (digits.length === 10) return `+91${digits}`
-  if (digits.length >= 11 && digits.length <= 15) return `+${digits}`
-  throw new Error('Enter a valid phone number in international format')
+const normalizeNumber = (value: string) => {
+  const digits = value.replace(/\D/g, '')
+  return value.trim().startsWith('+') ? `+${digits}` : digits.length === 10 ? `+91${digits}` : `+${digits}`
 }
 
-export const sendLeadSms = async (req: AuthRequest, res: Response) => {
-  const { message, consentConfirmed } = req.body || {}
-  if (typeof message !== 'string' || !message.trim()) {
-    return res.status(400).json({ success: false, message: 'SMS message is required' })
-  }
-  if (message.length > 1600) {
-    return res.status(400).json({ success: false, message: 'SMS messages cannot exceed 1600 characters' })
-  }
-  if (consentConfirmed !== true) {
-    return res.status(400).json({ success: false, message: 'Confirm the lead has consented to SMS before sending' })
-  }
-
+export const sendCustomSms = async (req: any, res: any) => {
   try {
-    const lead = await prisma.lead.findUnique({
-      where: { id: req.params.id },
-      select: { id: true, mobile: true },
-    })
-    if (!lead) return res.status(404).json({ success: false, message: 'Lead not found' })
+    const { leadId, mobile, message } = req.body
+    const lead = leadId ? await prisma.lead.findUnique({ where: { id: leadId } }) : null
+    const to = normalizeNumber(mobile || lead?.mobile || '')
+    const text = typeof message === 'string' ? message.trim() : ''
+    const { accountSid, authToken, apiKeySid, apiKeySecret, phoneNumber, messagingServiceSid } = await getSmsConfig()
+    const from = normalizeNumber(phoneNumber)
+    const useApiKey = Boolean(apiKeySid && apiKeySecret)
 
-    const { accountSid, authToken, apiKeySid, apiKeySecret, smsPhoneNumber } = await getTwilioSmsConfiguration()
-    if (!accountSid || !(authToken || (apiKeySid && apiKeySecret)) || !smsPhoneNumber) {
-      return res.status(400).json({
-        success: false,
-        message: 'Configure Twilio credentials and an SMS-capable sender number before sending',
-      })
+    if (!to) return res.status(400).json({ success: false, message: 'No phone number' })
+    if (!text) return res.status(400).json({ success: false, message: 'Message is required' })
+    if (!accountSid || !(authToken || (apiKeySid && apiKeySecret))) {
+      return res.status(503).json({ success: false, message: 'Twilio SMS credentials are not configured' })
+    }
+    if (!(messagingServiceSid || from)) {
+      return res.status(503).json({ success: false, message: 'Configure an SMS sender number or Twilio Messaging Service SID in SMS settings' })
     }
 
-    let from: string
-    let to: string
-    try {
-      from = toE164(smsPhoneNumber)
-      to = toE164(lead.mobile)
-    } catch (error) {
-      return res.status(400).json({
-        success: false,
-        message: error instanceof Error ? error.message : 'A valid SMS phone number is required',
-      })
-    }
+    const smsPayload = new URLSearchParams({ To: to, Body: text })
+    if (messagingServiceSid) smsPayload.set('MessagingServiceSid', messagingServiceSid)
+    else smsPayload.set('From', from)
 
-    let twilioResponse
-    try {
-      twilioResponse = await axios.post(
-        `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`,
-        new URLSearchParams({ From: from, To: to, Body: message.trim() }),
-        {
-          auth: {
-            username: authToken ? accountSid : apiKeySid,
-            password: authToken || apiKeySecret,
-          },
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    const response = await axios.post(
+      `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`,
+      smsPayload,
+      {
+        auth: {
+          username: useApiKey ? apiKeySid : accountSid,
+          password: useApiKey ? apiKeySecret : authToken,
         },
-      )
-    } catch (error) {
-      if (axios.isAxiosError(error)) {
-        const twilioMessage = error.response?.data?.message
-        return res.status(502).json({
-          success: false,
-          message: typeof twilioMessage === 'string' ? `Twilio could not send SMS: ${twilioMessage}` : 'Twilio could not send SMS',
-        })
-      }
-      throw error
-    }
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      },
+    )
 
-    const messageSid = typeof twilioResponse.data?.sid === 'string' ? twilioResponse.data.sid : null
-    const status = typeof twilioResponse.data?.status === 'string' ? twilioResponse.data.status : 'accepted'
-    let activityLogged = true
-    try {
-      await prisma.activity.create({
-        data: {
-          leadId: lead.id,
-          userId: req.user!.id,
-          type: 'SMS_SENT',
-          description: 'SMS sent via Twilio',
-          metadata: { provider: 'TWILIO', messageSid, status },
-        },
-      })
-    } catch (error) {
-      activityLogged = false
-      console.error('[SMS] Message sent but lead activity logging failed', error)
-    }
-
-    return res.status(201).json({
-      success: true,
-      message: activityLogged ? 'SMS sent successfully' : 'SMS sent, but the CRM activity log could not be saved',
-      data: { status, activityLogged },
-    })
-  } catch (error) {
-    console.error('[SMS] Failed to send lead SMS', error)
-    return res.status(500).json({ success: false, message: 'Failed to send SMS' })
+    if (leadId) await prisma.activity.create({ data: { leadId, userId: req.user?.id, type: 'SMS_SENT', description: `SMS sent to ${to}` } })
+    res.json({ success: true, message: 'SMS sent', data: { sid: response.data.sid } })
+  } catch (error: any) {
+    const providerError = error?.response?.data?.message || error?.message
+    console.error('[SMS] Send failed', { code: error?.response?.data?.code, status: error?.response?.status })
+    res.status(502).json({ success: false, message: providerError ? `SMS provider rejected the message (${providerError})` : 'SMS provider is unavailable' })
   }
+}
+
+export const sendBulkSms = async (req: any, res: any) => {
+  const { leadIds, message } = req.body
+  if (!Array.isArray(leadIds) || !leadIds.length || !message?.trim()) return res.status(400).json({ success: false, message: 'Lead IDs and message are required' })
+  const results = await Promise.allSettled(leadIds.map((leadId: string) => new Promise((resolve, reject) => {
+    const finish = (body: any, code = 200) => code >= 400 ? reject(body) : resolve(body)
+    sendCustomSms({ body: { leadId, message }, user: req.user }, { status: (code: number) => ({ json: (body: any) => finish(body, code) }), json: (body: any) => finish(body) })
+  })))
+  const failed = results.filter(result => result.status === 'rejected').length
+  res.json({ success: failed < leadIds.length, message: `SMS sent to ${leadIds.length - failed} of ${leadIds.length} leads`, failed })
 }

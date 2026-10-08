@@ -11,6 +11,7 @@ import { useForm } from 'react-hook-form'
 import { ArrowLeft, Save, UserPlus } from 'lucide-react'
 import Link from 'next/link'
 import api from '@/lib/api'
+import { isValidInternationalPhone, normalizeInternationalPhone } from '@/lib/phone'
 
 type NewLeadFormValues = {
   name: string
@@ -73,6 +74,7 @@ export default function NewLeadPage() {
   const onSubmit = (data: any) => {
     const payload = {
       ...data,
+      mobile: normalizeInternationalPhone(data.mobile),
       budget: data.budget ? parseFloat(data.budget) : null,
       propertyType: data.propertyType || null,
       projectId: data.projectId || null,
@@ -121,7 +123,7 @@ export default function NewLeadPage() {
                   </div>
                   <div>
                     <label className={labelClass}>Mobile Number *</label>
-                    <input {...register('mobile', { required: 'Mobile is required', minLength: { value: 10, message: 'Enter valid number' } })} placeholder="+91 9876543210" className={inputClass} />
+                    <input {...register('mobile', { required: 'Mobile is required', validate: value => isValidInternationalPhone(value) || 'Include a valid country code, e.g. +919876543210' })} type="tel" autoComplete="tel" placeholder="+919876543210" className={inputClass} />
                     {errors.mobile && <p className={errorClass}>{errors.mobile.message as string}</p>}
                   </div>
                   <div>
