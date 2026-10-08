@@ -1,7 +1,9 @@
 import assert from 'node:assert'
-import { parseCookies, parseDuration, getJwtCookieOptions } from './auth.controller'
+import { normalizeLoginEmail, parseCookies, parseDuration, getJwtCookieOptions } from './auth.controller'
 
 try {
+  assert.equal(normalizeLoginEmail(' CRM@AAROVIAGROUP.COM '), 'crm@aaroviagroup.com')
+  assert.equal(normalizeLoginEmail('ADMIN@AAROVIA.CO.IN'), 'admin@aaroviagroup.com')
   assert.equal(parseDuration('15m'), 15 * 60 * 1000)
   assert.equal(parseDuration('1h'), 60 * 60 * 1000)
   assert.equal(parseDuration('30d'), 30 * 24 * 60 * 60 * 1000)

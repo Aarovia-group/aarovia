@@ -13,6 +13,13 @@ const getJwtSecret = () => {
   return secret
 }
 
+export const normalizeLoginEmail = (email: string) => {
+  const normalizedEmail = email.trim().toLowerCase()
+  return normalizedEmail === 'admin@aarovia.co.in'
+    ? 'admin@aaroviagroup.com'
+    : normalizedEmail
+}
+
 export const parseDuration = (value: string) => {
   const match = value.match(/^(\d+)([smhd])$/)
   if (!match) return 0
@@ -141,10 +148,14 @@ export const login = async (req: Request, res: Response) => {
   try {
     const { email, password } = req.body
 
-    const loginEmail = email.toLowerCase() === 'admin@aarovia.co.in'
-      ? 'admin@aaroviagroup.com'
-      : email
-    const user = await prisma.user.findUnique({ where: { email: loginEmail } })
+    if (typeof email !== 'string' || typeof password !== 'string') {
+      return res.status(400).json({ success: false, message: 'Email and password are required' })
+    }
+
+    const loginEmail = normalizeLoginEmail(email)
+    const user = await prisma.user.findFirst({
+      where: { email: { equals: loginEmail, mode: 'insensitive' } },
+    })
     if (!user || !user.isActive) {
       return res.status(401).json({ success: false, message: 'Invalid credentials' })
     }
