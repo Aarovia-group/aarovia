@@ -84,6 +84,9 @@ app.use(auditLog)
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString(), service: 'Aarovia CRM API' })
 })
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString(), service: 'Aarovia CRM API' })
+})
 
 // API Routes
 app.use('/api/auth', authRoutes)
