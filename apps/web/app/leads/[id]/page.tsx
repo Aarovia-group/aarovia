@@ -160,6 +160,7 @@ export default function LeadDetailPage() {
       const response = await voiceApi.startCall(lead.mobile.trim(), id)
       queryClient.invalidateQueries({ queryKey: ['lead', id] })
       setVoiceCall({ callLogId: response.data?.data?.callLogId || null })
+      setIsCalling(false)
       toast.success('Call initiated')
     } catch (error: any) {
       setIsCalling(false)
