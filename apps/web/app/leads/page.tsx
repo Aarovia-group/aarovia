@@ -11,28 +11,34 @@ import { Plus, Download, Upload, Phone, Mail, MessageSquare, Users, LayoutList, 
 import Link from 'next/link'
 import { useForm } from 'react-hook-form'
 
-const LEAD_IMPORT_HEADERS = ['name', 'mobile', 'email', 'budget', 'city', 'source', 'status', 'propertyType', 'remarks', 'nextFollowupDate']
+const LEAD_IMPORT_HEADERS = ['name', 'mobile', 'email', 'budget', 'city', 'source', 'status', 'propertyType', 'project', 'assignedTo', 'remarks', 'nextFollowupDate']
 const LEAD_IMPORT_TEMPLATE = [
   LEAD_IMPORT_HEADERS.join(','),
-  'Sample Lead,+919876543210,sample@example.com,5000000,Bengaluru,WEBSITE,NEW,APARTMENT,Interested in a 2-bedroom apartment,',
+  'Sample Lead,+919876543210,sample@example.com,5000000,Bengaluru,WEBSITE,NEW,APARTMENT,,,Interested in a 2-bedroom apartment,',
 ].join('\n')
 
-const parseCsvLine = (line: string) => {
-  const values: string[] = []
+const parseCsv = (text: string) => {
+  const rows: string[][] = []
+  let row: string[] = []
   let current = ''
   let quoted = false
 
-  for (let index = 0; index < line.length; index += 1) {
-    const character = line[index]
-    if (character === '"') {
-      if (quoted && line[index + 1] === '"') {
+  for (let index = 0; index < text.length; index += 1) {
+    const character = text[index]
+    const next = text[index + 1]
+    if (character === '"' && quoted && next === '"') {
         current += '"'
         index += 1
-      } else {
-        quoted = !quoted
-      }
+    } else if (character === '"') {
+      quoted = !quoted
     } else if (character === ',' && !quoted) {
-      values.push(current.trim())
+      row.push(current.trim())
+      current = ''
+    } else if ((character === '\n' || character === '\r') && !quoted) {
+      if (character === '\r' && next === '\n') index += 1
+      row.push(current.trim())
+      if (row.some(value => value)) rows.push(row)
+      row = []
       current = ''
     } else {
       current += character
@@ -40,8 +46,9 @@ const parseCsvLine = (line: string) => {
   }
 
   if (quoted) throw new Error('CSV contains an unclosed quoted value')
-  values.push(current.trim())
-  return values
+  row.push(current.trim())
+  if (row.some(value => value)) rows.push(row)
+  return rows
 }
 
 export default function LeadsPage() {
@@ -106,43 +113,80 @@ export default function LeadsPage() {
       setImportError('')
       setImportSummary(null)
       setIsImporting(true)
-      const lines = (await importFile.text()).replace(/^\uFEFF/, '').split(/\r?\n/).filter(line => line.trim())
-      if (lines.length < 2) throw new Error('CSV must contain the template headers and at least one lead')
+      const rows = parseCsv((await importFile.text()).replace(/^\uFEFF/, ''))
+      if (rows.length < 2) throw new Error('CSV must contain a header row and at least one lead')
 
-      const headers = parseCsvLine(lines[0])
-      if (headers.length !== LEAD_IMPORT_HEADERS.length || headers.some((header, index) => header !== LEAD_IMPORT_HEADERS[index])) {
-        throw new Error(`CSV headers must match: ${LEAD_IMPORT_HEADERS.join(',')}`)
+      const fieldAliases: Record<string, string> = {
+        name: 'name', fullname: 'name', leadname: 'name',
+        mobile: 'mobile', phone: 'mobile', phonenumber: 'mobile',
+        email: 'email', emailaddress: 'email', city: 'city',
+        budget: 'budget', budgetamount: 'budget', source: 'source', status: 'status',
+        property: 'propertyType', propertytype: 'propertyType',
+        project: 'projectName', projectname: 'projectName', projectid: 'projectId',
+        assignedto: 'assignedToName', assignedtoname: 'assignedToName',
+        remarks: 'remarks', nextfollowup: 'nextFollowupDate',
+        nextfollowupdate: 'nextFollowupDate', followupdate: 'nextFollowupDate',
       }
-      if (lines.length - 1 > 1000) throw new Error('Import up to 1,000 leads per CSV file')
+      const headers = rows[0].map(header => header.toLowerCase().replace(/[^a-z0-9]/g, ''))
+      const unknownHeaders = headers.filter(header => !fieldAliases[header])
+      if (unknownHeaders.length) throw new Error(`Unknown CSV columns: ${unknownHeaders.join(', ')}`)
+      if (!headers.some(header => fieldAliases[header] === 'name') || !headers.some(header => fieldAliases[header] === 'mobile')) {
+        throw new Error('CSV must include Name and Mobile columns')
+      }
+      if (rows.length - 1 > 1000) throw new Error('Import up to 1,000 leads per CSV file')
 
-      const leads = lines.slice(1).map((line, index) => {
-        const values = parseCsvLine(line)
+      const legacyStatuses: Record<string, string> = {
+        warm: 'FOLLOWUP',
+        hot: 'INTERESTED',
+        cold: 'OPPORTUNITY_NOT_INTERESTED',
+        closed: 'OPPORTUNITY_CLOSED',
+        booked: 'BOOKED',
+      }
+      const leads = rows.slice(1).map((values, index) => {
         if (values.length !== headers.length) throw new Error(`Row ${index + 2} has ${values.length} values; expected ${headers.length}`)
         const lead = headers.reduce<Record<string, string>>((record, header, valueIndex) => {
-          record[header] = values[valueIndex]
+          const field = fieldAliases[header]
+          if (values[valueIndex]) record[field] = values[valueIndex]
           return record
         }, {})
+        if (lead.propertyType && !PROPERTY_TYPES.some(type => type.value === lead.propertyType.toUpperCase())) {
+          lead.projectName = lead.projectName || lead.propertyType
+          delete lead.propertyType
+        }
+        if (lead.mobile) {
+          const digits = lead.mobile.replace(/\D/g, '')
+          if (digits.length === 10 && /^[6-9]/.test(digits)) lead.mobile = `+91${digits}`
+          else if (digits.length === 11 && digits.startsWith('0') && /^[6-9]/.test(digits.slice(1))) lead.mobile = `+91${digits.slice(1)}`
+          else if (lead.mobile.startsWith('+')) lead.mobile = `+${digits}`
+        }
+        const source = (lead.source || '').trim().toLowerCase()
+        lead.source = source === 'cp' || source === 'ref'
+          ? 'REFERRAL'
+          : source === 'direct' || !source
+            ? 'DIRECT_CALL'
+            : source.toUpperCase().replace(/[^A-Z0-9]+/g, '_')
+        const status = (lead.status || '').trim().toLowerCase()
+        lead.status = legacyStatuses[status] || (status ? status.toUpperCase().replace(/[^A-Z0-9]+/g, '_') : 'NEW')
+        if (lead.budget) {
+          const budget = Number(lead.budget.replace(/[,₹\s]/g, ''))
+          if (!Number.isFinite(budget) || budget < 0) throw new Error(`Row ${index + 2} has an invalid budget`)
+          lead.budget = String(budget)
+        }
         if (!lead.name) throw new Error(`Row ${index + 2} is missing a lead name`)
         if (!lead.mobile) throw new Error(`Row ${index + 2} is missing a mobile number`)
-        if (lead.budget && (!Number.isFinite(Number(lead.budget)) || Number(lead.budget) < 0)) {
-          throw new Error(`Row ${index + 2} has an invalid budget`)
-        }
         if (lead.source && !LEAD_SOURCES.some(source => source.value === lead.source.toUpperCase())) {
           throw new Error(`Row ${index + 2} has an invalid source`)
         }
         if (lead.status && !LEAD_STATUSES.some(status => status.value === lead.status.toUpperCase())) {
           throw new Error(`Row ${index + 2} has an invalid status`)
         }
-        if (lead.propertyType && !PROPERTY_TYPES.some(type => type.value === lead.propertyType.toUpperCase())) {
-          throw new Error(`Row ${index + 2} has an invalid property type`)
-        }
         if (lead.nextFollowupDate && Number.isNaN(Date.parse(lead.nextFollowupDate))) {
           throw new Error(`Row ${index + 2} has an invalid next follow-up date`)
         }
         return {
           ...lead,
-          source: lead.source.toUpperCase() || 'WEBSITE',
-          status: lead.status.toUpperCase() || 'NEW',
+          source: lead.source.toUpperCase(),
+          status: lead.status.toUpperCase(),
           propertyType: lead.propertyType ? lead.propertyType.toUpperCase() : null,
           budget: lead.budget || null,
           email: lead.email || null,

@@ -272,6 +272,24 @@ export const bulkImportLeads = async (req: AuthRequest, res: Response) => {
     const validSources: string[] = Object.values(LeadSource)
     const validStatuses: string[] = Object.values(LeadStatus)
     const validPropertyTypes: string[] = Object.values(PropertyType)
+    const activeUsers = await prisma.user.findMany({
+      where: { isActive: true },
+      select: { id: true, name: true },
+    })
+    const activeProjects = await prisma.project.findMany({
+      where: { isActive: true },
+      select: { id: true, name: true },
+    })
+    const usersByName = new Map<string, string[]>()
+    for (const user of activeUsers) {
+      const key = user.name.trim().replace(/\s+/g, ' ').toLowerCase()
+      usersByName.set(key, [...(usersByName.get(key) || []), user.id])
+    }
+    const projectsByName = new Map<string, string[]>()
+    for (const project of activeProjects) {
+      const key = project.name.trim().replace(/\s+/g, ' ').toLowerCase()
+      projectsByName.set(key, [...(projectsByName.get(key) || []), project.id])
+    }
     const results: { created: number; duplicates: number; errors: number; rowErrors: { row: number; message: string }[] } = {
       created: 0,
       duplicates: 0,
@@ -294,6 +312,14 @@ export const bulkImportLeads = async (req: AuthRequest, res: Response) => {
         }
         name = typeof leadData.name === 'string' ? leadData.name.trim() : ''
         mobile = typeof leadData.mobile === 'string' ? leadData.mobile.trim() : ''
+        const mobileDigits = mobile.replace(/\D/g, '')
+        if (!mobile.startsWith('+') && mobileDigits.length === 10 && /^[6-9]/.test(mobileDigits)) {
+          mobile = `+91${mobileDigits}`
+        } else if (!mobile.startsWith('+') && mobileDigits.length === 11 && mobileDigits.startsWith('0') && /^[6-9]/.test(mobileDigits.slice(1))) {
+          mobile = `+91${mobileDigits.slice(1)}`
+        } else if (mobile.startsWith('+')) {
+          mobile = `+${mobileDigits}`
+        }
         source = typeof leadData.source === 'string' && leadData.source ? leadData.source.toUpperCase() : 'WEBSITE'
         status = typeof leadData.status === 'string' && leadData.status ? leadData.status.toUpperCase() : 'NEW'
         propertyType = typeof leadData.propertyType === 'string' && leadData.propertyType
@@ -308,11 +334,24 @@ export const bulkImportLeads = async (req: AuthRequest, res: Response) => {
 
         if (!name || !mobile) throw new Error('Name and mobile are required')
         if (name.length > 200 || mobile.length > 40) throw new Error('Name or mobile exceeds the allowed length')
+        if (!/^\+[1-9]\d{7,14}$/.test(mobile)) throw new Error('Mobile must be a valid international number; correct this row before importing')
         if (!validSources.includes(source)) throw new Error('Invalid lead source')
         if (!validStatuses.includes(status)) throw new Error('Invalid lead status')
         if (propertyType && !validPropertyTypes.includes(propertyType)) throw new Error('Invalid property type')
         if (budget !== null && (!Number.isFinite(budget) || budget < 0)) throw new Error('Invalid budget')
         if (nextFollowupDate && Number.isNaN(nextFollowupDate.getTime())) throw new Error('Invalid next follow-up date')
+        const assignedToName = typeof leadData.assignedToName === 'string' ? leadData.assignedToName.trim() : ''
+        const projectName = typeof leadData.projectName === 'string' ? leadData.projectName.trim() : ''
+        if (assignedToName) {
+          const matches = usersByName.get(assignedToName.replace(/\s+/g, ' ').toLowerCase()) || []
+          if (matches.length !== 1) throw new Error('Assigned To must match exactly one active CRM user')
+          leadData.assignedToId = matches[0]
+        }
+        if (projectName) {
+          const matches = projectsByName.get(projectName.replace(/\s+/g, ' ').toLowerCase()) || []
+          if (matches.length !== 1) throw new Error('Project must match exactly one active CRM project')
+          leadData.projectId = matches[0]
+        }
       } catch (error) {
         results.errors++
         results.rowErrors.push({
@@ -336,7 +375,8 @@ export const bulkImportLeads = async (req: AuthRequest, res: Response) => {
             propertyType: propertyType as PropertyType | null,
             remarks: typeof leadData.remarks === 'string' && leadData.remarks.trim() ? leadData.remarks.trim() : null,
             nextFollowupDate,
-            assignedToId: req.user?.id,
+            projectId: typeof leadData.projectId === 'string' && leadData.projectId ? leadData.projectId : null,
+            assignedToId: typeof leadData.assignedToId === 'string' && leadData.assignedToId ? leadData.assignedToId : req.user?.id,
             createdById: req.user?.id,
             isDuplicate: !!duplicate,
           },
