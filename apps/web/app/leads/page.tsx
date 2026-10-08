@@ -473,7 +473,7 @@ export default function LeadsPage() {
                 {isAdmin && <Td><input type="checkbox" checked={selectedLeadIds.includes(lead.id)} onChange={() => setSelectedLeadIds(current => current.includes(lead.id) ? current.filter(id => id !== lead.id) : [...current, lead.id])} className="h-4 w-4 accent-[#b27a16]" /></Td>}
                 <Td>
                   <div>
-                    <Link href={`/leads/${lead.id}`} className="font-medium text-white hover:text-gold transition-colors">{lead.name}</Link>
+                    <Link href={`/leads/${lead.id}`} className="font-medium text-[#172033] hover:text-gold transition-colors">{lead.name}</Link>
                     {lead.email && <p className="text-[10px] text-slate">{lead.email}</p>}
                     {lead.city && <p className="text-[10px] text-slate">{lead.city}</p>}
                   </div>
