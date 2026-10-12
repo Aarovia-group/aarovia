@@ -43,6 +43,7 @@ export default function DashboardPage() {
   const { data: pipelineData } = useQuery({
     queryKey: ['lead-pipeline'],
     queryFn: () => leadApi.getPipeline(),
+    refetchInterval: 60000,
   })
 
   const stats = statsData?.data?.data

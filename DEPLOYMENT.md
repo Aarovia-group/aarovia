@@ -33,6 +33,11 @@
 - `TWILIO_SMS_PHONE_NUMBER` (optional; must be an SMS-enabled Twilio sender; configure separately from the WhatsApp sender)
 - `TWILIO_WHATSAPP_TEMPLATE_SID` (optional; use a template with a message body variable `{{1}}`)
 
+### MCUBE Incoming Calls
+- Configure MCUBE to send its call-completion callback to `https://aarovia-api.vercel.app/api/voice/callback`.
+- The CRM uses the callback to match the caller, create a lead when no active lead exists, log the call, and route the lead using the incoming DID settings.
+- This callback records calls after MCUBE sends call details; MCUBE must separately configure inbound DID/agent ringing and enable callback delivery. Verify delivery in the `aarovia-api` Vercel runtime logs.
+
 ### 2. Web Project
 - Root Directory: `apps/web`
 - Build Command: `npm run build`

@@ -88,6 +88,11 @@ export const parseIncomingCallRoutes = (value?: string | null): IncomingCallRout
   }
 }
 
+export const findIncomingCallRoute = (routes: IncomingCallRoute[], numbers: unknown[]) => {
+  const incomingNumbers = new Set(numbers.map(normalizeRoutingPhone).filter(Boolean))
+  return routes.find(route => incomingNumbers.has(route.incomingNumber))
+}
+
 export const validateOutgoingDidRoutes = (value: unknown): OutgoingDidRoute[] => {
   if (!Array.isArray(value)) throw new Error('Outgoing DID routes must be an array')
 

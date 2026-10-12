@@ -1,11 +1,23 @@
 import assert from 'node:assert'
 import {
   DEFAULT_OUTGOING_DID_ROUTES,
+  DEFAULT_INCOMING_CALL_ROUTES,
+  findIncomingCallRoute,
   findOutgoingDidForAgent,
   parseOutgoingDidRoutes,
 } from './incoming-call-routing'
 
 try {
+  assert.equal(
+    findIncomingCallRoute(DEFAULT_INCOMING_CALL_ROUTES, ['+91 9071126875'])?.agentName,
+    'maruthi',
+  )
+  assert.equal(
+    findIncomingCallRoute(DEFAULT_INCOMING_CALL_ROUTES, ['8071439584', '9071127154'])?.agentName,
+    'vinod',
+  )
+  assert.equal(findIncomingCallRoute(DEFAULT_INCOMING_CALL_ROUTES, ['9999999999']), undefined)
+
   const routes = parseOutgoingDidRoutes()
   assert.equal(findOutgoingDidForAgent(routes, 'Amar', 'SALES_EXECUTIVE', 0, 'SA Global-Primia-Digital'), '8071439585')
   assert.equal(findOutgoingDidForAgent(routes, 'Amar', 'SALES_EXECUTIVE', 0, 'SA Global-Verzure-Digital'), '8071439585')

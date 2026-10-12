@@ -1,7 +1,7 @@
 import { Request, Response } from 'express'
 import { AuthRequest } from '../middleware/auth.middleware'
 import { releaseMcubeCall, startMcubeCall } from '../services/mcube.service'
-import { findOutgoingDidForAgent, getOutgoingDidsForAgent, normalizeRoutingPhone, parseIncomingCallRoutes, parseOutgoingDidRoutes } from '../services/incoming-call-routing'
+import { findIncomingCallRoute, findOutgoingDidForAgent, getOutgoingDidsForAgent, normalizeRoutingPhone, parseIncomingCallRoutes, parseOutgoingDidRoutes } from '../services/incoming-call-routing'
 import prisma from '../utils/prisma'
 
 const normalizeVoiceNumber = (value: string) => {
@@ -92,21 +92,20 @@ export const receiveMcubeCallback = async (req: Request, res: Response) => {
   try {
     const payload = req.body || {}
     const recordingUrl = getRecordingUrl(payload)
-    const direction = String(payload.direction || payload.call_type || payload.calltype || 'unknown')
-    const isIncoming = /inbound|incoming|^in$/i.test(direction.trim())
-    const customerNumbers = (isIncoming
-      ? [payload.callfrom, payload.call_from, payload.caller_number, payload.callerNumber, payload.callerid, payload.from, payload.custnumber, payload.customer_number, payload.customerNumber, payload.phone, payload.mobile, payload.callto, payload.clicktocalldid]
-      : [payload.callto, payload.clicktocalldid, payload.custnumber, payload.customer_number, payload.customerNumber]
-    ).map(digitsOnly).filter((number: string) => number.length === 10)
-    const customerNumber = customerNumbers[0]
+    const direction = String(payload.direction || payload.call_type || payload.calltype || payload.callDirection || payload.call_direction || 'unknown')
     const callId = String(payload.callid || payload.call_id || payload.id || '').trim()
     const [users, routesSetting] = await Promise.all([
       prisma.user.findMany({ where: { isActive: true }, select: { id: true, name: true, phone: true, role: true } }),
       prisma.settings.findUnique({ where: { key: 'mcube_incoming_routes' }, select: { value: true } }),
     ])
     const incomingRoutes = parseIncomingCallRoutes(routesSetting?.value)
-    const incomingNumbers = isIncoming ? getIncomingLineNumbers(payload) : []
-    const incomingRoute = incomingRoutes.find(route => incomingNumbers.includes(route.incomingNumber))
+    const incomingRoute = findIncomingCallRoute(incomingRoutes, getIncomingLineNumbers(payload))
+    const isIncoming = /inbound|incoming|^in$/i.test(direction.trim()) || Boolean(incomingRoute)
+    const customerNumbers = (isIncoming
+      ? [payload.callfrom, payload.call_from, payload.caller_number, payload.callerNumber, payload.callerid, payload.from, payload.custnumber, payload.customer_number, payload.customerNumber, payload.phone, payload.mobile]
+      : [payload.callto, payload.custnumber, payload.customer_number, payload.customerNumber]
+    ).map(digitsOnly).filter((number: string) => number.length === 10)
+    const customerNumber = customerNumbers[0]
     const agentPhone = digitsOnly(payload.emp_phone)
     const callbackAgentName = normalizeAgentName(payload.agentname)
     const callbackNameMatches = callbackAgentName
