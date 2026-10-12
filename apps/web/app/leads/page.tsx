@@ -40,6 +40,7 @@ export default function LeadsPage() {
   const { data, isLoading } = useQuery({
     queryKey: ['leads', page, search, statusFilter, sourceFilter, projectFilter],
     queryFn: () => leadApi.getAll({ page, limit: 20, search: search || undefined, status: statusFilter || undefined, source: sourceFilter || undefined, projectId: projectFilter || undefined }),
+    refetchInterval: 60000,
   })
 
   const { data: projectsData } = useQuery({
