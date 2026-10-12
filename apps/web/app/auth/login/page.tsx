@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
+import Image from 'next/image'
 import { authApi } from '@/lib/api'
 import { useAuthStore } from '@/lib/store/auth.store'
 import { Eye, EyeOff, Lock, Mail } from 'lucide-react'
@@ -69,8 +70,8 @@ export default function LoginPage() {
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 rounded-full border border-gold" />
         </div>
         <div className="relative text-center">
-          <div className="w-20 h-20 rounded-2xl gold-gradient mx-auto mb-6 flex items-center justify-center">
-            <span className="font-display text-3xl font-bold text-navy">A</span>
+          <div className="w-24 h-24 mx-auto mb-6 relative">
+            <Image src="/aarovia-mark.png" alt="Aarovia logo" fill priority className="object-contain" />
           </div>
           <h1 className="font-display text-4xl font-semibold text-[#172033] mb-3">Aarovia</h1>
           <p className="text-gold text-sm tracking-[4px] uppercase mb-8">Real Estates</p>
@@ -91,8 +92,8 @@ export default function LoginPage() {
       <div className="flex-1 flex items-center justify-center p-8">
         <div className="w-full max-w-md">
           <div className="lg:hidden flex items-center gap-3 mb-10 justify-center">
-            <div className="w-10 h-10 rounded-xl gold-gradient flex items-center justify-center">
-              <span className="font-display font-bold text-navy">A</span>
+            <div className="w-10 h-10 relative flex-shrink-0">
+              <Image src="/aarovia-mark.png" alt="Aarovia logo" fill priority className="object-contain" />
             </div>
             <div>
               <div className="font-display text-xl text-[#172033]">Aarovia</div>
