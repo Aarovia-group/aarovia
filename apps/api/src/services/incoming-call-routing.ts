@@ -10,6 +10,18 @@ export interface OutgoingDidRoute {
   projectName?: string
 }
 
+export const DEFAULT_MCUBE_EXECUTIVE_NUMBERS: Record<string, string> = {
+  amar: '9448825051',
+  chirag: '9187980599',
+  kalyani: '9187980596',
+  mahesh: '9187980592',
+  maruthi: '9187980598',
+  nithin: '9187980593',
+  vinod: '9187980594',
+  ravi: '9342393549',
+  admin: '9342393549',
+}
+
 export const DEFAULT_INCOMING_CALL_ROUTES: IncomingCallRoute[] = [
   { incomingNumber: '9071126875', agentPhone: '9187980598', agentName: 'maruthi' },
   { incomingNumber: '9071126947', agentPhone: '9187980593', agentName: 'Nithin' },
@@ -36,6 +48,13 @@ export const DEFAULT_OUTGOING_DID_ROUTES: OutgoingDidRoute[] = [
 ]
 
 const normalizeAgentName = (value: string) => value.toLowerCase().replace(/[^a-z0-9]/g, '')
+
+export const getMcubeExecutiveNumber = (agentName?: string | null, fallback?: string) => {
+  const normalizedName = normalizeAgentName(agentName || '')
+  const executiveName = Object.keys(DEFAULT_MCUBE_EXECUTIVE_NUMBERS)
+    .find(name => normalizedName === name || normalizedName.startsWith(name))
+  return executiveName ? DEFAULT_MCUBE_EXECUTIVE_NUMBERS[executiveName] : fallback
+}
 
 const canonicalizeOutgoingDidRoutes = (routes: OutgoingDidRoute[]) => {
   const fixedAgentNames = new Set([

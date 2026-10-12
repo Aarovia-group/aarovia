@@ -34,11 +34,11 @@ const getRequiredConfig = async () => {
   }
 }
 
-export const startMcubeCall = async (customerNumber: string, outgoingDid?: string) => {
+export const startMcubeCall = async (customerNumber: string, outgoingDid?: string, executiveNumber?: string) => {
   const { url, token, agentNumber, tokenField, tokenPrefix, agentField, customerField, didField, refurlField, refurl } = await getRequiredConfig()
   const payload: Record<string, string> = {
     [tokenField]: `${tokenPrefix}${token}`,
-    [agentField]: agentNumber,
+    [agentField]: executiveNumber || agentNumber,
     [customerField]: customerNumber,
     [refurlField]: refurl,
   }

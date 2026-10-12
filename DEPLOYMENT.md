@@ -38,6 +38,10 @@
 - The CRM uses the callback to match the caller, create a lead when no active lead exists, log the call, and route the lead using the incoming DID settings.
 - This callback records calls after MCUBE sends call details; MCUBE must separately configure inbound DID/agent ringing and enable callback delivery. Verify delivery in the `aarovia-api` Vercel runtime logs.
 
+### MCUBE Outgoing Calls
+- The CRM sends each recognized agent's MCUBE executive number as `exenumber`; the outgoing DID is a separate caller-ID field.
+- Agents must be logged in to MCUBE and opted in for outbound calls before starting a call. A logged-out executive or one already on a call may be rejected by MCUBE.
+
 ### 2. Web Project
 - Root Directory: `apps/web`
 - Build Command: `npm run build`

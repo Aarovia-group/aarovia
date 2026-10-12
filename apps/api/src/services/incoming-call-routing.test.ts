@@ -2,8 +2,10 @@ import assert from 'node:assert'
 import {
   DEFAULT_OUTGOING_DID_ROUTES,
   DEFAULT_INCOMING_CALL_ROUTES,
+  DEFAULT_MCUBE_EXECUTIVE_NUMBERS,
   findIncomingCallRoute,
   findOutgoingDidForAgent,
+  getMcubeExecutiveNumber,
   parseOutgoingDidRoutes,
 } from './incoming-call-routing'
 
@@ -17,6 +19,14 @@ try {
     'vinod',
   )
   assert.equal(findIncomingCallRoute(DEFAULT_INCOMING_CALL_ROUTES, ['9999999999']), undefined)
+
+  assert.equal(getMcubeExecutiveNumber('Kalyani'), '9187980596')
+  assert.equal(getMcubeExecutiveNumber('Mahesh'), '9187980592')
+  assert.equal(getMcubeExecutiveNumber('Maruthi'), '9187980598')
+  assert.equal(getMcubeExecutiveNumber('Vinod'), '9187980594')
+  assert.equal(getMcubeExecutiveNumber('Amar'), '9448825051')
+  assert.equal(getMcubeExecutiveNumber('Unknown Agent', '9000000000'), '9000000000')
+  assert.equal(Object.keys(DEFAULT_MCUBE_EXECUTIVE_NUMBERS).length, 9)
 
   const routes = parseOutgoingDidRoutes()
   assert.equal(findOutgoingDidForAgent(routes, 'Amar', 'SALES_EXECUTIVE', 0, 'SA Global-Primia-Digital'), '8071439585')

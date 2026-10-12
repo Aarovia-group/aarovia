@@ -1,7 +1,7 @@
 import { Request, Response } from 'express'
 import { AuthRequest } from '../middleware/auth.middleware'
 import { releaseMcubeCall, startMcubeCall } from '../services/mcube.service'
-import { findIncomingCallRoute, findOutgoingDidForAgent, getOutgoingDidsForAgent, normalizeRoutingPhone, parseIncomingCallRoutes, parseOutgoingDidRoutes } from '../services/incoming-call-routing'
+import { findIncomingCallRoute, findOutgoingDidForAgent, getMcubeExecutiveNumber, getOutgoingDidsForAgent, normalizeRoutingPhone, parseIncomingCallRoutes, parseOutgoingDidRoutes } from '../services/incoming-call-routing'
 import prisma from '../utils/prisma'
 
 const normalizeVoiceNumber = (value: string) => {
@@ -327,9 +327,11 @@ export const startVoiceCall = async (req: AuthRequest, res: Response) => {
     }
     const outgoingDid = await getNextOutgoingDid(outgoingRoutes, req.user?.name, req.user?.role, lead?.project?.name)
 
-    const result = await startMcubeCall(customerNumber, outgoingDid)
+    const executiveNumber = getMcubeExecutiveNumber(req.user?.name)
+    const result = await startMcubeCall(customerNumber, outgoingDid, executiveNumber)
     console.info('[Voice] MCUBE outbound call response', { status: result.status, agentName: req.user?.name, outgoingDid })
     if (result.data?.status === false) {
+      console.warn('[Voice] MCUBE rejected outbound call', { agentName: req.user?.name, message: result.data.msg })
       return res.status(502).json({ success: false, message: result.data.msg || 'MCUBE rejected the call request' })
     }
     const callId = findMcubeCallId(result.data)
