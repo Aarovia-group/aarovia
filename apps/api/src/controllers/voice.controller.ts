@@ -54,7 +54,7 @@ const getNextOutgoingDid = async (
   if (!agentKey) return undefined
 
   return prisma.$transaction(async transaction => {
-    await transaction.$queryRaw`SELECT pg_advisory_xact_lock(8071439584)`
+    await transaction.$queryRaw`SELECT 1 AS locked FROM (SELECT pg_advisory_xact_lock(8071439584)) AS advisory_lock`
     const counterSetting = await transaction.settings.findUnique({
       where: { key: 'mcube_outgoing_did_rotation' },
       select: { value: true },
