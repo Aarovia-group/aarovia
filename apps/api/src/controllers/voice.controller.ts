@@ -38,8 +38,13 @@ const getRecordingUrl = (payload: Record<string, any>) => {
   return candidates.find((value) => typeof value === 'string' && value.trim())?.trim() || null
 }
 
-const getNextOutgoingDid = async (routes: ReturnType<typeof parseOutgoingDidRoutes>, agentName?: string, role?: string) => {
-  const dids = getOutgoingDidsForAgent(routes, agentName, role)
+const getNextOutgoingDid = async (
+  routes: ReturnType<typeof parseOutgoingDidRoutes>,
+  agentName?: string,
+  role?: string,
+  projectName?: string,
+) => {
+  const dids = getOutgoingDidsForAgent(routes, agentName, role, projectName)
   if (!dids?.length) return undefined
   if (dids.length === 1) return dids[0]
 
@@ -72,7 +77,7 @@ const getNextOutgoingDid = async (routes: ReturnType<typeof parseOutgoingDidRout
       throw new Error(`Invalid MCUBE outgoing DID rotation counter for ${agentKey}`)
     }
     counters[agentKey] = callIndex + 1
-    const did = findOutgoingDidForAgent(routes, agentName, role, callIndex)
+    const did = findOutgoingDidForAgent(routes, agentName, role, callIndex, projectName)
     if (!did) throw new Error(`No MCUBE outgoing DID configured for ${agentKey}`)
     await transaction.settings.upsert({
       where: { key: 'mcube_outgoing_did_rotation' },
@@ -306,7 +311,7 @@ export const startVoiceCall = async (req: AuthRequest, res: Response) => {
     const leadId = typeof req.body?.leadId === 'string' ? req.body.leadId : ''
     const [lead, outgoingDidSetting] = leadId
       ? await Promise.all([
-          prisma.lead.findUnique({ where: { id: leadId }, select: { id: true } }),
+          prisma.lead.findUnique({ where: { id: leadId }, select: { id: true, project: { select: { name: true } } } }),
           prisma.settings.findUnique({ where: { key: 'mcube_outgoing_dids' }, select: { value: true } }),
         ])
       : [null, await prisma.settings.findUnique({ where: { key: 'mcube_outgoing_dids' }, select: { value: true } })]
@@ -321,7 +326,7 @@ export const startVoiceCall = async (req: AuthRequest, res: Response) => {
       })
       console.info('[Voice] Repaired persisted MCUBE outgoing DID routes to canonical CRM-user mappings')
     }
-    const outgoingDid = await getNextOutgoingDid(outgoingRoutes, req.user?.name, req.user?.role)
+    const outgoingDid = await getNextOutgoingDid(outgoingRoutes, req.user?.name, req.user?.role, lead?.project?.name)
 
     const result = await startMcubeCall(customerNumber, outgoingDid)
     console.info('[Voice] MCUBE outbound call response', { status: result.status, agentName: req.user?.name, outgoingDid })

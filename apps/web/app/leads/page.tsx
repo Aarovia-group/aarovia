@@ -60,7 +60,15 @@ export default function LeadsPage() {
       setShowCreate(false)
       toast.success('Lead created successfully')
     },
-    onError: () => toast.error('Failed to create lead'),
+    onError: (error: any) => {
+      const apiError = error.response?.data
+      const validationErrors = Array.isArray(apiError?.errors)
+        ? apiError.errors.map((item: { field?: string; message?: string }) =>
+          [item.field, item.message].filter(Boolean).join(': '),
+        ).filter(Boolean).join('; ')
+        : ''
+      toast.error(validationErrors || apiError?.message || error.message || 'Failed to create lead')
+    },
   })
 
   const deleteMutation = useMutation({
@@ -161,7 +169,14 @@ export default function LeadsPage() {
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm()
 
-  const onSubmit = (data: any) => createMutation.mutate({ ...data, projectId: data.projectId || null })
+  const onSubmit = (data: any) => createMutation.mutate({
+    ...data,
+    mobile: normalizeInternationalPhone(data.mobile),
+    budget: data.budget ? parseFloat(data.budget) : null,
+    propertyType: data.propertyType || null,
+    projectId: data.projectId || null,
+    nextFollowupDate: data.nextFollowupDate || null,
+  })
 
   const parseCSV = (text: string) => {
     const rows: string[][] = []

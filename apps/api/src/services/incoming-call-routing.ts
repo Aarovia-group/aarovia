@@ -7,6 +7,7 @@ export interface IncomingCallRoute {
 export interface OutgoingDidRoute {
   agentName: string
   outgoingDid: string
+  projectName?: string
 }
 
 export const DEFAULT_INCOMING_CALL_ROUTES: IncomingCallRoute[] = [
@@ -29,6 +30,7 @@ export const DEFAULT_OUTGOING_DID_ROUTES: OutgoingDidRoute[] = [
   { agentName: 'Mahesh', outgoingDid: '8071439583' },
   { agentName: 'Chirag', outgoingDid: '8071439584' },
   { agentName: 'Amar', outgoingDid: '8071439584' },
+  { agentName: 'Amar', outgoingDid: '8071439585', projectName: 'SA Global' },
   { agentName: 'Vinod', outgoingDid: '8071439585' },
   { agentName: 'Admin', outgoingDid: '8071439585' },
 ]
@@ -94,12 +96,13 @@ export const validateOutgoingDidRoutes = (value: unknown): OutgoingDidRoute[] =>
     if (!route || typeof route !== 'object') throw new Error(`Outgoing DID route ${index + 1} must be an object`)
     const agentName = typeof route.agentName === 'string' ? route.agentName.trim() : ''
     const outgoingDid = normalizeRoutingPhone(route.outgoingDid)
+    const projectName = typeof route.projectName === 'string' ? route.projectName.trim() : ''
     const normalizedAgent = normalizeAgentName(agentName)
     if (!agentName || !outgoingDid) throw new Error(`Outgoing DID route ${index + 1} requires an agent name and valid DID`)
-    const routeKey = `${normalizedAgent}:${outgoingDid}`
+    const routeKey = `${normalizedAgent}:${outgoingDid}:${normalizeAgentName(projectName)}`
     if (seenRoutes.has(routeKey)) throw new Error(`Outgoing DID ${outgoingDid} for ${agentName} is configured more than once`)
     seenRoutes.add(routeKey)
-    return { agentName, outgoingDid }
+    return { agentName, outgoingDid, ...(projectName ? { projectName } : {}) }
   })
   return canonicalizeOutgoingDidRoutes(routes)
 }
@@ -114,15 +117,27 @@ export const parseOutgoingDidRoutes = (value?: string | null): OutgoingDidRoute[
   }
 }
 
-export const getOutgoingDidsForAgent = (routes: OutgoingDidRoute[], agentName?: string | null, role?: string | null) => {
+export const getOutgoingDidsForAgent = (
+  routes: OutgoingDidRoute[],
+  agentName?: string | null,
+  role?: string | null,
+  projectName?: string | null,
+) => {
   if (agentName?.trim()) {
     const normalizedName = normalizeAgentName(agentName)
     const canonicalNames = new Set(['mahesh', 'maruthi', 'kalyani', 'nithin', 'chirag', 'amar', 'vinod', 'admin'])
     const canonicalName = [...canonicalNames].find(name => normalizedName === name || normalizedName.startsWith(name))
-    const matches = routes.filter(route => {
+    const agentRoutes = routes.filter(route => {
       const routeName = normalizeAgentName(route.agentName)
       return canonicalName ? routeName === canonicalName : routeName === normalizedName
     })
+    const normalizedProject = normalizeAgentName(projectName || '')
+    const projectRoutes = normalizedProject
+      ? agentRoutes.filter(route => route.projectName && normalizedProject.includes(normalizeAgentName(route.projectName)))
+      : []
+    const matches = projectRoutes.length
+      ? projectRoutes
+      : agentRoutes.filter(route => !route.projectName)
     const dids = [...new Set(matches.map(route => route.outgoingDid))]
     if (dids.length) return dids
   }
@@ -136,8 +151,9 @@ export const findOutgoingDidForAgent = (
   agentName?: string | null,
   role?: string | null,
   callIndex = 0,
+  projectName?: string | null,
 ) => {
-  const dids = getOutgoingDidsForAgent(routes, agentName, role)
+  const dids = getOutgoingDidsForAgent(routes, agentName, role, projectName)
   if (!dids?.length) return undefined
   const safeIndex = Number.isSafeInteger(callIndex) && callIndex >= 0 ? callIndex : 0
   return dids[safeIndex % dids.length]

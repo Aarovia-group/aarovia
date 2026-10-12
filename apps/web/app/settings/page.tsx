@@ -187,7 +187,9 @@ export default function SettingsPage() {
         ).join('\n')
         : '',
       outgoingDidsText: Array.isArray(settings.outgoingDids)
-        ? settings.outgoingDids.map((route: { agentName: string; outgoingDid: string }) => `${route.agentName}, ${route.outgoingDid}`).join('\n')
+        ? settings.outgoingDids.map((route: { agentName: string; outgoingDid: string; projectName?: string }) =>
+          [route.agentName, route.outgoingDid, route.projectName].filter(Boolean).join(', '),
+        ).join('\n')
         : '',
     })
   }, [voiceSettingsData, resetVoice])
@@ -318,11 +320,11 @@ export default function SettingsPage() {
         return { incomingNumber, agentPhone, agentName }
       })
       const outgoingDids = data.outgoingDidsText.split(/\r?\n/).map(line => line.trim()).filter(Boolean).map((line, index) => {
-        const [agentName, outgoingDid] = line.split(',').map(value => value.trim())
+        const [agentName, outgoingDid, projectName] = line.split(',').map(value => value.trim())
         if (!agentName || !outgoingDid) {
-          throw new Error(`Outgoing DID line ${index + 1} must be: CRM agent name, outgoing DID`)
+          throw new Error(`Outgoing DID line ${index + 1} must be: CRM agent name, outgoing DID, optional project name`)
         }
-        return { agentName, outgoingDid }
+        return { agentName, outgoingDid, ...(projectName ? { projectName } : {}) }
       })
       const response = await api.post('/settings/voice', { ...data, incomingRoutes, outgoingDids })
       setHasSavedVoiceToken(Boolean(response.data?.data?.hasApiToken))
@@ -690,9 +692,9 @@ export default function SettingsPage() {
                     </p>
                   </div>
                   <div>
-                    <h3 className="text-sm font-medium text-white mb-2">Fixed Outgoing DID by CRM User</h3>
-                    <p className="text-xs text-slate mb-3">Mahesh, Maruthi, Kalyani, and Nithin rotate between the first two DIDs. Chirag and Amar use the third; Vinod and all Admin roles use the fourth.</p>
-                    <label className="block text-xs font-medium text-slate-light mb-1.5">CRM agent name, outgoing DID (one mapping per line)</label>
+                    <h3 className="text-sm font-medium text-white mb-2">Outgoing DID by CRM User and Project</h3>
+                    <p className="text-xs text-slate mb-3">Mahesh, Maruthi, Kalyani, and Nithin rotate between the first two DIDs. Chirag uses the Lake Estate DID. Amar uses the Lake Estate DID by default and the SA Global DID for SA Global leads. Vinod and all Admin roles use the fourth DID.</p>
+                    <label className="block text-xs font-medium text-slate-light mb-1.5">CRM agent name, outgoing DID, optional project name (one mapping per line)</label>
                     <textarea
                       {...regVoice('outgoingDidsText')}
                       rows={4}
