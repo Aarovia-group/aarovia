@@ -123,6 +123,7 @@ export const receiveMcubeCallback = async (req: Request, res: Response) => {
           ...incomingRoutes.map(route => route.agentPhone),
           ...Object.values(DEFAULT_MCUBE_EXECUTIVE_NUMBERS),
           ...users.map(user => user.phone),
+          agentPhone,
         ])
       : [payload.callto, payload.custnumber, payload.customer_number, payload.customerNumber]
         .map(digitsOnly)

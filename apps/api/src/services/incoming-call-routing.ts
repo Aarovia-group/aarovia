@@ -122,7 +122,7 @@ export const findIncomingCallerNumber = (
     'callernumber', 'callernum', 'from', 'from_number', 'fromnumber', 'ani', 'cli',
     'custnumber', 'cust_number', 'customer_number', 'customerNumber', 'customer_phone',
     'customerPhone', 'customer_mobile', 'customerMobile', 'mobile', 'mobile_no',
-    'mobilenumber', 'mobileNumber', 'phone', 'src', 'source_number',
+    'mobilenumber', 'mobileNumber', 'phone', 'src', 'source_number', 'callto', 'call_to',
   ]
   const excluded = new Set(excludedNumbers.map(normalizeRoutingPhone).filter(Boolean))
   const records = [payload, ...['call', 'data', 'details', 'call_data', 'call_details', 'callData']

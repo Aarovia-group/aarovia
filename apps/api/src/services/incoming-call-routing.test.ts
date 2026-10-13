@@ -23,6 +23,7 @@ try {
 
   assert.equal(findIncomingCallerNumber({ callfrom: '+91 9916043625', callto: '9071126875' }, ['9071126875']), '9916043625')
   assert.equal(findIncomingCallerNumber({ data: { callerNumber: '9916043625' } }), '9916043625')
+  assert.equal(findIncomingCallerNumber({ clicktocalldid: '9071127087', callto: '9916043625' }, ['9071127087']), '9916043625')
   assert.equal(findIncomingCallerNumber({ callto: '9071126875', clicktocalldid: '9071126875' }, ['9071126875']), undefined)
   assert.equal(findIncomingCallerNumber({ callto: '9187980593' }, ['9187980593']), undefined)
 
