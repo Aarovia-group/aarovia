@@ -34,8 +34,11 @@
 - `TWILIO_WHATSAPP_TEMPLATE_SID` (optional; use a template with a message body variable `{{1}}`)
 
 ### MCUBE Incoming Calls
-- Configure MCUBE to send its call-completion callback to `https://aarovia-api.vercel.app/api/voice/callback`.
-- The CRM uses the callback to match the caller, create a lead when no active lead exists, log the call, and route the lead using the incoming DID settings.
+- Configure MCUBE to send its call-completion callback to `https://aarovia-api.vercel.app/api/voice/callback?token=<MCUBE_WEBHOOK_TOKEN>`.
+- Set `MCUBE_WEBHOOK_TOKEN` on the `aarovia-api` Vercel project. The callback also accepts this token in the `x-mcube-webhook-token` header. If the variable is unset, token validation is disabled.
+- MCUBE pop-up notifications can use `/api/voice/popup`; they are acknowledged without creating leads.
+- Apply the inbound call migration and run `npx ts-node prisma/seed-mcube-incoming-dids.ts` from `apps/api` to populate project, channel, and assigned-agent routes. The seed script only adds/updates mappings and never deletes leads or users.
+- The CRM matches calls by mobile, mapped project, and assigned agent; calls to unconfigured DIDs still create unassigned leads without a project.
 - This callback records calls after MCUBE sends call details; MCUBE must separately configure inbound DID/agent ringing and enable callback delivery. Verify delivery in the `aarovia-api` Vercel runtime logs.
 
 ### MCUBE Outgoing Calls
