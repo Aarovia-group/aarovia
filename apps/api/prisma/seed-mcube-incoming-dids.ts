@@ -7,7 +7,7 @@ const routes = [
   { did: '9071126947', projects: ['Hara Rassai Vijayam', 'Hara Vijayam', 'Hara Rassai Vijayam - ATL/BTL'], channel: 'ATL_BTL', agents: ['Mahesh', 'Maruthi', 'Kalyani', 'Nithin'], outgoingDid: '8071439583' },
   { did: '9071127087', projects: ['Lake Estate', 'Lake Estate - Digital'], channel: 'DIGITAL', agents: ['Chirag', 'Amar'], outgoingDid: '8071439584' },
   { did: '9071127140', projects: ['Lake Estate', 'Lake Estate - ATL/BTL'], channel: 'ATL_BTL', agents: ['Chirag', 'Amar'], outgoingDid: '8071439584' },
-  { did: '9071127154', projects: ['SA Global - Primia', 'SA Global - Primia - Digital'], channel: 'DIGITAL', agents: ['Vinod', 'Amar'], outgoingDid: '8071439585' },
+  { did: '9071127154', projects: ['Primia', 'SA Global - Primia', 'SA Global - Primia - Digital'], channel: 'DIGITAL', agents: ['Vinod', 'Amar'], outgoingDid: '8071439585' },
   { did: '9071127168', projects: ['SA Global - Verzure', 'SA Global - Verzure - Digital'], channel: 'DIGITAL', agents: ['Vinod', 'Amar'], outgoingDid: '8071439585' },
 ] satisfies Array<{
   did: string
