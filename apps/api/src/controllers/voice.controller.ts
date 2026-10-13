@@ -280,7 +280,7 @@ const processIncomingCallback = async (
       const agent = chooseIncomingCallAgent(assignedAgents, answeringAgent, roundRobinIndex, Boolean(mapping))
       const projectId = mapping?.projectId || null
       const leadIdentityLock = `${normalizeRoutingPhone(callerNumber)}:${projectId || ''}:${agent?.id || ''}`
-      await transaction.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${leadIdentityLock}, 0))`
+      await transaction.$queryRaw`SELECT 1 AS locked FROM (SELECT pg_advisory_xact_lock(hashtextextended(${leadIdentityLock}, 0))) AS advisory_lock`
       const inboundActivityDetails = {
         provider: 'MCUBE',
         callId: callId || null,
