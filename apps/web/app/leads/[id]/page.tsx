@@ -457,7 +457,7 @@ export default function LeadDetailPage() {
                         </button>
                       </div>
                       <div className="flex items-center gap-3 mt-2">
-                        <span className="text-[10px] text-slate">By: {call.user?.name}</span>
+                        <span className="text-[10px] text-slate">By: {call.user?.name || 'MCUBE'}</span>
                         {call.duration && <span className="text-[10px] text-slate">Duration: {call.duration}s</span>}
                       </div>
                       {editingCallId === call.id && (

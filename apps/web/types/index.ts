@@ -157,7 +157,7 @@ export interface CallLog {
   recordingUrl?: string
   calledAt: string
   leadId: string
-  userId: string
+  userId?: string | null
   user?: Pick<User, 'name'>
 }
 
