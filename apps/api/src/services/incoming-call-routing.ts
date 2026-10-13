@@ -135,6 +135,15 @@ export const findIncomingCallerNumber = (
       if (candidate && !excluded.has(candidate)) return candidate
     }
   }
+
+  for (const record of records) {
+    const callId = String(record.callid || record.call_id || '').replace(/\D/g, '')
+    const match = callId.match(/^(\d{10})(\d{10})$/)
+    if (!match || Number(match[2]) < 1_000_000_000) continue
+    const candidate = normalizeRoutingPhone(match[1])
+    if (candidate && !excluded.has(candidate)) return candidate
+  }
+
   return undefined
 }
 
