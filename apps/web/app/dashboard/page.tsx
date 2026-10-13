@@ -22,7 +22,7 @@ export default function DashboardPage() {
   const { data: statsData, isLoading: statsLoading, refetch } = useQuery({
     queryKey: ['dashboard-stats'],
     queryFn: () => reportApi.getDashboard(),
-    refetchInterval: 60000,
+    refetchInterval: 30000,
   })
 
   const { data: revenueData } = useQuery({
@@ -95,8 +95,8 @@ export default function DashboardPage() {
 
       {/* Stats Row 1 */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-        <StatCard label="Total Leads" value={stats?.totalLeads?.toLocaleString() || '—'} sub="All time" icon={<Users className="w-4 h-4" />} accentColor="gold" trend="up" trendValue={`${stats?.leadGrowth || 0}%`} />
-        <StatCard label="New Today" value={stats?.newLeadsToday || '—'} sub="leads added" icon={<UserPlus className="w-4 h-4" />} accentColor="green" />
+        <StatCard label="Total Leads" value={stats?.totalLeads?.toLocaleString() ?? '—'} sub="All time" icon={<Users className="w-4 h-4" />} accentColor="gold" trend="up" trendValue={`${stats?.leadGrowth || 0}%`} />
+        <StatCard label="New Today" value={stats?.newLeadsToday ?? '—'} sub="leads added" icon={<UserPlus className="w-4 h-4" />} accentColor="green" />
         <StatCard label="Site Visits" value={stats?.siteVisitsThisMonth || '—'} sub="this month" icon={<Calendar className="w-4 h-4" />} accentColor="blue" />
         <StatCard label="Bookings" value={stats?.bookingsThisMonth || '—'} sub="this month" icon={<BookOpen className="w-4 h-4" />} accentColor="orange" trend="up" trendValue={`${stats?.bookingGrowth || 0}%`} />
       </div>

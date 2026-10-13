@@ -5,6 +5,14 @@ import { AuthRequest } from '../middleware/auth.middleware'
 export const getDashboardStats = async (req: AuthRequest, res: Response) => {
   try {
     const today = new Date()
+    const indiaOffset = 5.5 * 60 * 60 * 1000
+    const indiaToday = new Date(today.getTime() + indiaOffset)
+    const startOfToday = new Date(Date.UTC(
+      indiaToday.getUTCFullYear(),
+      indiaToday.getUTCMonth(),
+      indiaToday.getUTCDate(),
+    ) - indiaOffset)
+    const startOfTomorrow = new Date(startOfToday.getTime() + 24 * 60 * 60 * 1000)
     const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1)
     const startOfLastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1)
     const endOfLastMonth = new Date(today.getFullYear(), today.getMonth(), 0)
@@ -18,7 +26,7 @@ export const getDashboardStats = async (req: AuthRequest, res: Response) => {
       inventoryAvailable, inventorySold, leadsLastMonth, bookingsLastMonth,
     ] = await Promise.all([
       prisma.lead.count({ where: { ...where, isActive: true } }),
-      prisma.lead.count({ where: { ...where, isActive: true, createdAt: { gte: new Date(today.toDateString()) } } }),
+      prisma.lead.count({ where: { ...where, isActive: true, createdAt: { gte: startOfToday, lt: startOfTomorrow } } }),
       prisma.lead.count({ where: { ...where, isActive: true, nextFollowupDate: { lte: today } } }),
       prisma.siteVisit.count({ where: { scheduledAt: { gte: startOfMonth } } }),
       prisma.booking.count({ where: { bookingDate: { gte: startOfMonth } } }),
