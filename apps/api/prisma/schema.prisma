@@ -33,6 +33,11 @@ enum LeadStatus {
   BOOKED
 }
 
+enum IncomingCallChannel {
+  DIGITAL
+  ATL_BTL
+}
+
 enum LeadSource {
   MAGICBRICKS
   FACEBOOK
@@ -123,6 +128,7 @@ model User {
   loginHistory   LoginHistory[]
   refreshTokens  RefreshToken[]
   quotations     Quotation[]
+  incomingCallDidAssignments IncomingCallDidAgent[]
 
   @@map("users")
 }
@@ -168,6 +174,7 @@ model Project {
   leads           Lead[]
   quotations      Quotation[]
   emailTemplates  EmailTemplate[]
+  incomingCallDids IncomingCallDid[]
 
   @@map("projects")
 }
@@ -233,13 +240,49 @@ model CallLog {
   notes       String?
   recordingUrl String?
   calledAt    DateTime  @default(now())
+  callId      String?   @unique
+  caller      String?
+  did         String?
+  direction   String?
+  endTime     DateTime?
+  rawPayload  Json?
 
   leadId      String
   lead        Lead      @relation(fields: [leadId], references: [id])
-  userId      String
-  user        User      @relation(fields: [userId], references: [id])
+  userId      String?
+  user        User?     @relation(fields: [userId], references: [id], onDelete: Restrict)
 
   @@map("call_logs")
+}
+
+model IncomingCallDid {
+  id               String                @id @default(cuid())
+  did              String                @unique
+  channel           IncomingCallChannel
+  outgoingDid       String?
+  isActive          Boolean               @default(true)
+  roundRobinCursor  Int                   @default(0)
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @updatedAt
+
+  projectId         String?
+  project           Project?              @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  assignedAgents    IncomingCallDidAgent[]
+
+  @@map("incoming_call_dids")
+}
+
+model IncomingCallDidAgent {
+  incomingCallDidId String
+  userId            String
+  position          Int
+
+  incomingCallDid   IncomingCallDid @relation(fields: [incomingCallDidId], references: [id], onDelete: Cascade)
+  user              User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([incomingCallDidId, userId])
+  @@unique([incomingCallDidId, position])
+  @@map("incoming_call_did_agents")
 }
 
 model Note {
