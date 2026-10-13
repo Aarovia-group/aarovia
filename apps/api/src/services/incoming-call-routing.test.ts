@@ -4,6 +4,7 @@ import {
   DEFAULT_INCOMING_CALL_ROUTES,
   DEFAULT_MCUBE_EXECUTIVE_NUMBERS,
   findIncomingCallRoute,
+  findIncomingCallerNumber,
   findOutgoingDidForAgent,
   getMcubeExecutiveNumber,
   parseOutgoingDidRoutes,
@@ -19,6 +20,11 @@ try {
     'vinod',
   )
   assert.equal(findIncomingCallRoute(DEFAULT_INCOMING_CALL_ROUTES, ['9999999999']), undefined)
+
+  assert.equal(findIncomingCallerNumber({ callfrom: '+91 9916043625', callto: '9071126875' }, ['9071126875']), '9916043625')
+  assert.equal(findIncomingCallerNumber({ data: { callerNumber: '9916043625' } }), '9916043625')
+  assert.equal(findIncomingCallerNumber({ callto: '9071126875', clicktocalldid: '9071126875' }, ['9071126875']), undefined)
+  assert.equal(findIncomingCallerNumber({ callto: '9187980593' }, ['9187980593']), undefined)
 
   assert.equal(getMcubeExecutiveNumber('Kalyani'), '9187980596')
   assert.equal(getMcubeExecutiveNumber('Mahesh'), '9187980592')

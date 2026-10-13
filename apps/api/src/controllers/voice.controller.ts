@@ -1,7 +1,7 @@
 import { Request, Response } from 'express'
 import { AuthRequest } from '../middleware/auth.middleware'
 import { releaseMcubeCall, startMcubeCall } from '../services/mcube.service'
-import { findIncomingCallRoute, findOutgoingDidForAgent, getMcubeExecutiveNumber, getOutgoingDidsForAgent, normalizeRoutingPhone, parseIncomingCallRoutes, parseOutgoingDidRoutes } from '../services/incoming-call-routing'
+import { DEFAULT_MCUBE_EXECUTIVE_NUMBERS, findIncomingCallRoute, findIncomingCallerNumber, findOutgoingDidForAgent, getMcubeExecutiveNumber, getOutgoingDidsForAgent, normalizeRoutingPhone, parseIncomingCallRoutes, parseOutgoingDidRoutes } from '../services/incoming-call-routing'
 import prisma from '../utils/prisma'
 
 const normalizeVoiceNumber = (value: string) => {
@@ -101,11 +101,6 @@ export const receiveMcubeCallback = async (req: Request, res: Response) => {
     const incomingRoutes = parseIncomingCallRoutes(routesSetting?.value)
     const incomingRoute = findIncomingCallRoute(incomingRoutes, getIncomingLineNumbers(payload))
     const isIncoming = /inbound|incoming|^in$/i.test(direction.trim()) || Boolean(incomingRoute)
-    const customerNumbers = (isIncoming
-      ? [payload.callfrom, payload.call_from, payload.caller_number, payload.callerNumber, payload.callerid, payload.from, payload.custnumber, payload.customer_number, payload.customerNumber, payload.phone, payload.mobile]
-      : [payload.callto, payload.custnumber, payload.customer_number, payload.customerNumber]
-    ).map(digitsOnly).filter((number: string) => number.length === 10)
-    const customerNumber = customerNumbers[0]
     const agentPhone = digitsOnly(payload.emp_phone)
     const callbackAgentName = normalizeAgentName(payload.agentname)
     const callbackNameMatches = callbackAgentName
@@ -122,6 +117,16 @@ export const receiveMcubeCallback = async (req: Request, res: Response) => {
     const agent = isIncoming
       ? callbackAgent || mappedAgent || fallbackAgent
       : callbackAgent || fallbackAgent
+    const customerNumber = isIncoming
+      ? findIncomingCallerNumber(payload, [
+          ...incomingRoutes.map(route => route.incomingNumber),
+          ...incomingRoutes.map(route => route.agentPhone),
+          ...Object.values(DEFAULT_MCUBE_EXECUTIVE_NUMBERS),
+          ...users.map(user => user.phone),
+        ])
+      : [payload.callto, payload.custnumber, payload.customer_number, payload.customerNumber]
+        .map(digitsOnly)
+        .find(number => number.length === 10)
     const existingCall = callId
       ? await prisma.callLog.findFirst({ where: { notes: { contains: callId } }, include: { lead: true } })
       : null
@@ -213,6 +218,20 @@ export const receiveMcubeCallback = async (req: Request, res: Response) => {
       console.error('[Voice] Incoming MCUBE route has no matching active CRM agent', {
         incomingNumber: incomingRoute.incomingNumber,
         agentName: incomingRoute.agentName,
+      })
+    }
+    if (isIncoming && !customerNumber) {
+      const nestedPayloadFields = ['call', 'data', 'details', 'call_data', 'call_details', 'callData']
+        .flatMap(key => {
+          const value = payload[key]
+          return value && typeof value === 'object' && !Array.isArray(value)
+            ? Object.keys(value).map(field => `${key}.${field}`)
+            : []
+        })
+      console.error('[Voice] Incoming MCUBE callback has no caller number; lead was not created', {
+        callId,
+        incomingNumber: incomingRoute?.incomingNumber,
+        payloadFields: [...Object.keys(payload), ...nestedPayloadFields],
       })
     }
     console.info('[Voice] MCUBE callback received', {

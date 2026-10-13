@@ -112,6 +112,32 @@ export const findIncomingCallRoute = (routes: IncomingCallRoute[], numbers: unkn
   return routes.find(route => incomingNumbers.has(route.incomingNumber))
 }
 
+export const findIncomingCallerNumber = (
+  payload: Record<string, unknown>,
+  excludedNumbers: unknown[] = [],
+) => {
+  const callerFields = [
+    'callfrom', 'call_from', 'call_from_number', 'caller', 'callerid', 'caller_id',
+    'caller_no', 'caller_number', 'callerNumber', 'caller_phone', 'callerphone',
+    'callernumber', 'callernum', 'from', 'from_number', 'fromnumber', 'ani', 'cli',
+    'custnumber', 'cust_number', 'customer_number', 'customerNumber', 'customer_phone',
+    'customerPhone', 'customer_mobile', 'customerMobile', 'mobile', 'mobile_no',
+    'mobilenumber', 'mobileNumber', 'phone', 'src', 'source_number',
+  ]
+  const excluded = new Set(excludedNumbers.map(normalizeRoutingPhone).filter(Boolean))
+  const records = [payload, ...['call', 'data', 'details', 'call_data', 'call_details', 'callData']
+    .map(key => payload[key])
+    .filter((value): value is Record<string, unknown> => Boolean(value) && typeof value === 'object' && !Array.isArray(value))]
+
+  for (const record of records) {
+    for (const field of callerFields) {
+      const candidate = normalizeRoutingPhone(record[field])
+      if (candidate && !excluded.has(candidate)) return candidate
+    }
+  }
+  return undefined
+}
+
 export const validateOutgoingDidRoutes = (value: unknown): OutgoingDidRoute[] => {
   if (!Array.isArray(value)) throw new Error('Outgoing DID routes must be an array')
 
