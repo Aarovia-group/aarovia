@@ -60,6 +60,38 @@ export const getLeads = async (req: AuthRequest, res: Response) => {
   }
 }
 
+export const exportLeads = async (req: AuthRequest, res: Response) => {
+  try {
+    const { status, source, search, projectId } = req.query
+    const where: any = { isActive: true }
+
+    if (status) where.status = status
+    if (source) where.source = source
+    if (projectId) where.projectId = projectId as string
+    if (search) {
+      where.OR = [
+        { name: { contains: search as string, mode: 'insensitive' } },
+        { mobile: { contains: search as string } },
+        { email: { contains: search as string, mode: 'insensitive' } },
+      ]
+    }
+
+    const leads = await prisma.lead.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      include: {
+        assignedTo: { select: { id: true, name: true, avatar: true } },
+        project: { select: { id: true, name: true } },
+        _count: { select: { activities: true, callLogs: true, tasks: true } },
+      },
+    })
+
+    res.json({ success: true, data: leads })
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Failed to export leads', error })
+  }
+}
+
 export const getLeadById = async (req: AuthRequest, res: Response) => {
   try {
     const lead = await prisma.lead.findUnique({

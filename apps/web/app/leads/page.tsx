@@ -325,7 +325,7 @@ export default function LeadsPage() {
   const handleExport = async () => {
     try {
       setIsExporting(true)
-      const response = await leadApi.getAll({ limit: 5000, search: search || undefined, status: statusFilter || undefined, source: sourceFilter || undefined, projectId: projectFilter || undefined })
+      const response = await leadApi.exportAll({ search: search || undefined, status: statusFilter || undefined, source: sourceFilter || undefined, projectId: projectFilter || undefined })
       const exportLeads = response.data?.data || []
       if (!exportLeads.length) { toast.error('No leads to export'); return }
       const headers = ['Name', 'Mobile', 'Email', 'City', 'Budget', 'Source', 'Status', 'Project', 'Assigned To', 'Next Followup']
@@ -373,7 +373,7 @@ export default function LeadsPage() {
           <input ref={importInputRef} type="file" accept=".csv,text/csv" className="hidden" onChange={handleImport} />
           <Button variant="secondary" size="sm" loading={isImporting} icon={<Upload className="w-3.5 h-3.5" />} onClick={() => importInputRef.current?.click()}>Import</Button>
           <Button variant="ghost" size="sm" icon={<FileDown className="w-3.5 h-3.5" />} onClick={downloadImportTemplate}>Sample CSV</Button>
-          <Button variant="secondary" size="sm" loading={isExporting} icon={<Download className="w-3.5 h-3.5" />} onClick={handleExport}>Export</Button>
+          {isAdmin && <Button variant="secondary" size="sm" loading={isExporting} icon={<Download className="w-3.5 h-3.5" />} onClick={handleExport}>Export</Button>}
           <Button size="sm" icon={<Plus className="w-3.5 h-3.5" />} onClick={() => setShowCreate(true)}>Add Lead</Button>
         </div>
       }
