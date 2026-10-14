@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { getLeads, getLeadById, createLead, updateLead, deleteLead, activateLead, updateLeadStatus, assignLead, bulkAssignLeads, transferAgentLeads, bulkAssignProject, addCallLog, updateCallLog, deleteCallLog, deleteCallLogs, addNote, scheduleSiteVisit, getPipelineLeads, bulkImportLeads } from '../controllers/lead.controller'
+import { getLeads, exportLeads, getLeadById, createLead, updateLead, deleteLead, activateLead, updateLeadStatus, assignLead, bulkAssignLeads, transferAgentLeads, bulkAssignProject, addCallLog, updateCallLog, deleteCallLog, deleteCallLogs, addNote, scheduleSiteVisit, getPipelineLeads, bulkImportLeads } from '../controllers/lead.controller'
 import { authenticate, authorize, authorizeModule } from '../middleware/auth.middleware'
 import { validate } from '../middleware/validate.middleware'
 import { createLeadSchema } from '../validations/schemas'
@@ -9,6 +9,7 @@ router.use(authenticate)
 router.use(authorizeModule('leads'))
 
 router.get('/', getLeads)
+router.get('/export', authorize('SUPER_ADMIN', 'ADMIN'), exportLeads)
 router.get('/pipeline', getPipelineLeads)
 router.post('/bulk-import', authorize('SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER'), bulkImportLeads)
 router.post('/', authorize('SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER', 'SALES_EXECUTIVE', 'TELECALLER', 'CRM_TEAM'), validate(createLeadSchema), createLead)

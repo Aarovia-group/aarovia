@@ -156,6 +156,7 @@ export const settingsApi = {
 
 export const leadApi = {
   getAll: (params?: any) => api.get('/leads', { params }),
+  exportAll: (params?: any) => api.get('/leads/export', { params }),
   getById: (id: string) => api.get(`/leads/${id}`),
   getPipeline: () => api.get('/leads/pipeline'),
   create: (data: any) => api.post('/leads', data),
