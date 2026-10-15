@@ -69,6 +69,26 @@ export const getQuotationById = async (req: Request, res: Response) => {
       where: { id: req.params.id },
       include: {
         lead: true, project: true, inventory: true,
+        booking: {
+          select: {
+            id: true,
+            bookingNumber: true,
+            invoices: {
+              orderBy: { createdAt: 'desc' },
+              select: {
+                id: true,
+                invoiceNumber: true,
+                status: true,
+                amount: true,
+                gstAmount: true,
+                totalAmount: true,
+                dueDate: true,
+                paidDate: true,
+                createdAt: true,
+              },
+            },
+          },
+        },
         createdBy: { select: { id: true, name: true, email: true } },
         paymentMilestones: { orderBy: { dueDate: 'asc' } },
       },

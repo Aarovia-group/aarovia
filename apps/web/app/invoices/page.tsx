@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { Suspense, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { Button, Card, Table, Tr, Td, SearchInput, EmptyState, Modal } from '@/components/ui/index'
@@ -18,15 +19,17 @@ const STATUS_STYLES: Record<string, string> = {
   OVERDUE: 'bg-red-500/20 text-red-400 border-red-500/30',
 }
 
-export default function InvoicesPage() {
+function InvoicesPageContent() {
   const queryClient = useQueryClient()
+  const searchParams = useSearchParams()
+  const bookingId = searchParams.get('bookingId') || ''
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
   const [showCreate, setShowCreate] = useState(false)
 
   const { data, isLoading } = useQuery({
-    queryKey: ['invoices', search, statusFilter],
-    queryFn: () => api.get('/invoices', { params: { search: search || undefined, status: statusFilter || undefined } }),
+    queryKey: ['invoices', search, statusFilter, bookingId],
+    queryFn: () => api.get('/invoices', { params: { search: search || undefined, status: statusFilter || undefined, bookingId: bookingId || undefined } }),
   })
 
   const updateStatusMutation = useMutation({
@@ -46,11 +49,14 @@ export default function InvoicesPage() {
   return (
     <AppLayout
       title="Invoices"
-      subtitle={`${invoices.length} invoices`}
+      subtitle={bookingId ? `${invoices.length} invoices for this booking` : `${invoices.length} invoices`}
       actions={
         <Button size="sm" icon={<Plus className="w-3.5 h-3.5" />} onClick={() => setShowCreate(true)}>New Invoice</Button>
       }
     >
+      {bookingId && (
+        <p className="text-xs text-slate mb-3">Showing invoices linked to the selected quotation booking.</p>
+      )}
       <div className="flex gap-2 mb-4 flex-wrap">
         <div className="flex-1 min-w-0 sm:min-w-[200px]">
           <SearchInput value={search} onChange={setSearch} placeholder="Search invoices..." />
@@ -168,5 +174,13 @@ export default function InvoicesPage() {
         </form>
       </Modal>
     </AppLayout>
+  )
+}
+
+export default function InvoicesPage() {
+  return (
+    <Suspense fallback={<AppLayout title="Invoices"><div className="py-16 text-center text-slate">Loading invoices...</div></AppLayout>}>
+      <InvoicesPageContent />
+    </Suspense>
   )
 }

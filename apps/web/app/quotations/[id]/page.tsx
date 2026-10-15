@@ -7,7 +7,7 @@ import { Button, Card, CardHeader, CardTitle, CardContent, Badge } from '@/compo
 import { quotationApi, emailApi, whatsappApi } from '@/lib/api'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import { toast } from '@/components/ui/toaster'
-import { ArrowLeft, Mail, MessageSquare, Download, Edit2, CheckCircle, FileText, Building2, User, Calendar } from 'lucide-react'
+import { ArrowLeft, Mail, MessageSquare, Download, Edit2, CheckCircle, FileText, Building2, User, Calendar, Receipt } from 'lucide-react'
 import Link from 'next/link'
 
 const STATUS_FLOW = ['DRAFT', 'SHARED', 'NEGOTIATION', 'APPROVED', 'CONVERTED']
@@ -203,6 +203,56 @@ export default function QuotationDetailPage() {
               </CardContent>
             </Card>
           )}
+
+          <Card>
+            <CardHeader>
+              <CardTitle><Receipt className="w-4 h-4 text-gold" />Invoice Details</CardTitle>
+              {q.booking && <span className="text-xs text-slate">{q.booking.bookingNumber}</span>}
+            </CardHeader>
+            <CardContent>
+              {!q.booking ? (
+                <p className="text-sm text-slate">An invoice can be linked after this quotation is converted to a booking.</p>
+              ) : q.booking.invoices.length === 0 ? (
+                <p className="text-sm text-slate">No invoices have been created for this booking yet.</p>
+              ) : (
+                <div className="space-y-3">
+                  {q.booking.invoices.map((invoice: any) => (
+                    <Link
+                      key={invoice.id}
+                      href={`/invoices?bookingId=${encodeURIComponent(q.booking.id)}`}
+                      className="block rounded-lg border border-navy-border bg-navy p-3 hover:border-gold/40 transition-colors"
+                    >
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <span className="text-sm font-medium text-gold">{invoice.invoiceNumber}</span>
+                        <span className="text-[10px] px-2 py-0.5 rounded-full border border-navy-border text-slate-light">
+                          {invoice.status.replace(/_/g, ' ')}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-3 text-xs">
+                        <div>
+                          <p className="text-slate">Amount</p>
+                          <p className="text-slate-light mt-0.5">{formatCurrency(invoice.amount)}</p>
+                        </div>
+                        <div>
+                          <p className="text-slate">GST</p>
+                          <p className="text-slate-light mt-0.5">{formatCurrency(invoice.gstAmount)}</p>
+                        </div>
+                        <div>
+                          <p className="text-slate">Total</p>
+                          <p className="text-white font-medium mt-0.5">{formatCurrency(invoice.totalAmount)}</p>
+                        </div>
+                        <div>
+                          <p className="text-slate">Due Date</p>
+                          <p className="text-slate-light mt-0.5">{invoice.dueDate ? formatDate(invoice.dueDate) : '—'}</p>
+                        </div>
+                      </div>
+                      <p className="text-[10px] text-blue-400 mt-3">View invoices for this booking →</p>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
           {/* Notes */}
           {q.notes && (
