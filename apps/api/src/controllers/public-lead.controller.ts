@@ -16,6 +16,13 @@ export const normalizeIndianMobile = (value: string) => {
   return /^[6-9]\d{9}$/.test(digits) ? `+91${digits}` : null
 }
 
+const HARA_PROJECT_NAMES = ['Hara Rassai Vijayam', 'Hara Vijayam'] as const
+
+export const findHaraProject = <T extends { id: string; name: string }>(projects: T[]) =>
+  HARA_PROJECT_NAMES
+    .map(name => projects.find(project => project.name.trim().toLowerCase() === name.toLowerCase()))
+    .find(Boolean)
+
 export const captureWebsiteLead = async (req: Request, res: Response) => {
   const parsed = leadCaptureSchema.safeParse(req.body)
   if (!parsed.success) {
@@ -35,13 +42,14 @@ export const captureWebsiteLead = async (req: Request, res: Response) => {
   }
 
   try {
-    const project = await prisma.project.findFirst({
-      where: { name: { equals: 'Hara Vijayam', mode: 'insensitive' }, isActive: true },
-      select: { id: true },
+    const projects = await prisma.project.findMany({
+      where: { name: { in: [...HARA_PROJECT_NAMES], mode: 'insensitive' }, isActive: true },
+      select: { id: true, name: true },
     })
+    const project = findHaraProject(projects)
 
     if (!project) {
-      console.error('[Public Lead] Hara Vijayam project is not configured')
+      console.error('[Public Lead] Hara Rassai Vijayam project is not configured')
       return res.status(503).json({ success: false, message: 'Lead capture is temporarily unavailable.' })
     }
 
