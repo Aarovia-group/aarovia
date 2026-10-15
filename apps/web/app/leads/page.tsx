@@ -80,6 +80,18 @@ export default function LeadsPage() {
     },
   })
 
+  const bulkDeleteMutation = useMutation({
+    mutationFn: () => leadApi.deleteMany(selectedLeadIds),
+    onSuccess: (response: any) => {
+      queryClient.invalidateQueries({ queryKey: ['leads'] })
+      queryClient.invalidateQueries({ queryKey: ['lead-pipeline'] })
+      queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] })
+      setSelectedLeadIds([])
+      toast.success(response.data?.message || 'Selected leads deleted')
+    },
+    onError: (error: any) => toast.error(error.response?.data?.message || 'Failed to delete selected leads'),
+  })
+
   const { data: usersData } = useQuery({
     queryKey: ['active-team-members'],
     queryFn: () => api.get('/users', { params: { limit: 100 } }),
@@ -126,6 +138,12 @@ export default function LeadsPage() {
       `Transfer all ${transferLeadCount} active leads from ${source.name} to ${destination.name}? Lead notes, calls, tasks, and activity history will be kept.`,
     )
     if (confirmed) transferLeadsMutation.mutate()
+  }
+
+  const confirmBulkDelete = () => {
+    if (!selectedLeadIds.length) return
+    const confirmed = window.confirm(`Delete ${selectedLeadIds.length} selected leads? They will be moved to inactive leads.`)
+    if (confirmed) bulkDeleteMutation.mutate()
   }
 
   const bulkProjectMutation = useMutation({
@@ -473,6 +491,7 @@ export default function LeadsPage() {
           </select>
           <Button size="sm" icon={<Building2 className="w-3.5 h-3.5" />} disabled={!bulkProject} loading={bulkProjectMutation.isPending} onClick={() => bulkProjectMutation.mutate()}>Assign Project</Button>
           <Button size="sm" icon={<Send className="w-3.5 h-3.5" />} onClick={() => setShowBulkMessage(true)}>Message Selected</Button>
+          <Button size="sm" variant="danger" icon={<Trash2 className="w-3.5 h-3.5" />} loading={bulkDeleteMutation.isPending} onClick={confirmBulkDelete}>Delete Selected</Button>
           <Button size="sm" variant="ghost" onClick={() => setSelectedLeadIds([])}>Clear</Button>
         </div>
       )}
