@@ -7,6 +7,7 @@ import rateLimit from 'express-rate-limit'
 
 import authRoutes from './routes/auth.routes'
 import leadRoutes from './routes/lead.routes'
+import publicLeadRoutes from './routes/public-lead.routes'
 import customerRoutes from './routes/customer.routes'
 import inventoryRoutes from './routes/inventory.routes'
 import quotationRoutes from './routes/quotation.routes'
@@ -43,6 +44,8 @@ app.use(helmet())
 const frontendOrigins = process.env.NODE_ENV === 'production'
   ? [
       ...(process.env.FRONTEND_URL ? process.env.FRONTEND_URL.split(',').map((url) => url.trim()) : ['https://aarovia.co.in', 'https://www.aarovia.co.in']),
+      'https://hararassai.aaroviagroup.com',
+      'https://www.hararassai.aaroviagroup.com',
       'https://web-aarovia.vercel.app',
       'https://aarovia-crm-light.vercel.app',
     ]
@@ -90,6 +93,7 @@ app.get('/api/health', (req, res) => {
 
 // API Routes
 app.use('/api/auth', authRoutes)
+app.use('/api/public/leads', publicLeadRoutes)
 app.use('/api/leads', leadRoutes)
 app.use('/api/customers', customerRoutes)
 app.use('/api/inventory', inventoryRoutes)
