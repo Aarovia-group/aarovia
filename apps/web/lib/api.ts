@@ -163,6 +163,7 @@ export const leadApi = {
   bulkImport: (leads: any[]) => api.post('/leads/bulk-import', { leads }),
   update: (id: string, data: any) => api.put(`/leads/${id}`, data),
   delete: (id: string) => api.delete(`/leads/${id}`),
+  deleteMany: (leadIds: string[]) => api.delete('/leads/bulk-delete', { data: { leadIds } }),
   activate: (id: string) => api.patch(`/leads/${id}/activate`),
   updateStatus: (id: string, data: any) => api.patch(`/leads/${id}/status`, data),
   assign: (id: string, data: any) => api.patch(`/leads/${id}/assign`, data),

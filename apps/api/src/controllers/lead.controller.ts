@@ -221,6 +221,33 @@ export const deleteLead = async (req: AuthRequest, res: Response) => {
   }
 }
 
+export const bulkDeleteLeads = async (req: AuthRequest, res: Response) => {
+  try {
+    const rawLeadIds = req.body?.leadIds
+    if (!Array.isArray(rawLeadIds) || rawLeadIds.length === 0 || rawLeadIds.some((id: unknown) => typeof id !== 'string' || !id.trim())) {
+      return res.status(400).json({ success: false, message: 'Provide at least one valid lead ID to delete' })
+    }
+
+    const leadIds = [...new Set(rawLeadIds as string[])]
+    if (leadIds.length > 500) {
+      return res.status(400).json({ success: false, message: 'Delete up to 500 leads per request' })
+    }
+
+    const result = await prisma.lead.updateMany({
+      where: { id: { in: leadIds }, isActive: true },
+      data: { isActive: false },
+    })
+
+    res.json({
+      success: true,
+      message: `${result.count} lead${result.count === 1 ? '' : 's'} deleted successfully`,
+      data: { count: result.count },
+    })
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Failed to delete leads', error })
+  }
+}
+
 export const activateLead = async (req: AuthRequest, res: Response) => {
   try {
     const lead = await prisma.lead.update({ where: { id: req.params.id }, data: { isActive: true } })
