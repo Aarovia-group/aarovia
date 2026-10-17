@@ -72,6 +72,7 @@ app.use('/api/', limiter)
 // Meta verifies webhook subscriptions without CRM authentication or JSON parsing.
 app.use('/api/whatsapp/webhook', whatsappWebhookRoutes)
 app.use('/api/meta/leadgen-webhook', metaLeadRoutes)
+app.use('/api/ad-integrations/meta/webhook', metaLeadRoutes)
 app.use('/api/cron/meta-leads', metaLeadCronRoutes)
 
 // Body parsing
