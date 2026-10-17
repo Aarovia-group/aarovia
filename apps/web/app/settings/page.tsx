@@ -115,7 +115,7 @@ export default function SettingsPage() {
   const [hasSavedSmsApiKeySecret, setHasSavedSmsApiKeySecret] = useState(false)
   const [hasSavedVoiceToken, setHasSavedVoiceToken] = useState(false)
   const [hasSavedCallReleaseToken, setHasSavedCallReleaseToken] = useState(false)
-  const [metaActionLoading, setMetaActionLoading] = useState<'subscribe' | 'token-check' | null>(null)
+  const [metaActionLoading, setMetaActionLoading] = useState<'subscribe' | 'token-check' | 'clear-events' | null>(null)
   const hasSavedSmtpPassword = Boolean(emailSettingsData?.data?.data?.hasSmtpPassword)
 
   useEffect(() => {
@@ -375,10 +375,14 @@ export default function SettingsPage() {
     }
   }
 
-  const runMetaAction = async (action: 'subscribe' | 'token-check') => {
+  const runMetaAction = async (action: 'subscribe' | 'token-check' | 'clear-events') => {
+    if (action === 'clear-events' && !window.confirm('Permanently delete all Meta webhook event history? This does not delete leads.')) return
+
     try {
       setMetaActionLoading(action)
-      const response = await api.post(`/meta/leadgen-webhook/${action}`)
+      const response = action === 'clear-events'
+        ? await api.delete('/meta/leadgen-webhook/events')
+        : await api.post(`/meta/leadgen-webhook/${action}`)
       if (action === 'token-check') {
         const result = response.data?.data
         if (!result?.valid) {
@@ -386,6 +390,8 @@ export default function SettingsPage() {
           return
         }
         toast.success(`Meta token is valid${result.type ? ` (${result.type})` : ''}`)
+      } else if (action === 'clear-events') {
+        toast.success(`Cleared ${response.data?.data?.deletedCount || 0} Meta webhook events`)
       } else {
         toast.success(response.data?.message || 'Meta Lead Ads Page subscribed')
       }
@@ -789,7 +795,12 @@ export default function SettingsPage() {
                 <div className="mt-6 rounded-lg border border-navy-border bg-navy p-4">
                   <div className="mb-3 flex items-center justify-between gap-3">
                     <h3 className="text-sm font-medium text-white">Recent Meta webhook events</h3>
-                    <span className="text-[11px] text-slate">Callback: /api/meta/leadgen-webhook</span>
+                    <div className="flex items-center gap-3">
+                      <span className="text-[11px] text-slate">Callback: /api/meta/leadgen-webhook</span>
+                      <Button type="button" variant="secondary" size="sm" disabled={metaActionLoading !== null} onClick={() => runMetaAction('clear-events')}>
+                        {metaActionLoading === 'clear-events' ? 'Clearing...' : 'Clear history'}
+                      </Button>
+                    </div>
                   </div>
                   <div className="space-y-2">
                     {metaWebhookEvents.length ? metaWebhookEvents.map((event: {

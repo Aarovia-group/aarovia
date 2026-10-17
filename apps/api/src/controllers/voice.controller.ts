@@ -4,6 +4,7 @@ import { AuthRequest } from '../middleware/auth.middleware'
 import { releaseMcubeCall, startMcubeCall } from '../services/mcube.service'
 import { DEFAULT_MCUBE_EXECUTIVE_NUMBERS, findIncomingCallRoute, findIncomingCallerNumber, findOutgoingDidForAgent, getMcubeExecutiveNumber, getOutgoingDidsForAgent, normalizeRoutingPhone, parseIncomingCallRoutes, parseOutgoingDidRoutes } from '../services/incoming-call-routing'
 import { chooseIncomingCallAgent, findMappedIncomingDid, getIncomingFollowupDate, hasIncomingCallIdBeenProcessed, getIncomingCallId, getIncomingCaller, getIncomingDid, isInternalOrTestCall, isMissedIncomingCall, normalizeIncomingPhone, planIncomingLead } from '../services/incoming-mcube-call'
+import { notifyManagersOfNewLeads } from '../services/notification.service'
 import prisma from '../utils/prisma'
 
 const normalizeVoiceNumber = (value: string) => {
@@ -299,6 +300,7 @@ const processIncomingCallback = async (
       })
       const leadPlan = planIncomingLead(matchingLeads, callerNumber, projectId, agent?.id || null)
       let lead = leadPlan.action === 'reuse' ? leadPlan.lead : undefined
+      let wasNewLead = false
       const missed = isMissedIncomingCall(callStatus)
       const followupToday = getIncomingFollowupDate(callStatus)
 
@@ -318,6 +320,7 @@ const processIncomingCallback = async (
           },
           select: { id: true, name: true, mobile: true, projectId: true, assignedToId: true },
         })
+        wasNewLead = true
         await transaction.activity.create({
           data: {
             leadId: lead.id,
@@ -360,9 +363,15 @@ const processIncomingCallback = async (
           metadata: inboundActivityDetails,
         },
       })
-      return { leadId: lead.id, duplicate: false, assignedAgentId: agent?.id || null }
+      return {
+        leadId: lead.id,
+        duplicate: false,
+        assignedAgentId: agent?.id || null,
+        newLead: wasNewLead ? { id: lead.id, name: lead.name, mobile: lead.mobile, source: 'DIRECT_CALL' } : null,
+      }
     }, { maxWait: 10000, timeout: 15000 })
 
+    if (result.newLead) await notifyManagersOfNewLeads([result.newLead])
     if (mapping && !assignedAgents.length) {
       console.warn('[Voice] unmapped DID agent group is empty', { did: mapping.did, callId })
     }
@@ -474,6 +483,12 @@ export const receiveMcubeCallback = async (req: Request, res: Response) => {
           metadata: { provider: 'MCUBE', callId, direction },
         },
       })
+      await notifyManagersOfNewLeads([{
+        id: lead.id,
+        name: lead.name,
+        mobile: lead.mobile,
+        source: 'DIRECT_CALL',
+      }])
     }
 
     if (lead && isIncoming && incomingRoute && agent && lead.assignedToId !== agent.id) {

@@ -2,6 +2,7 @@ import { Request, Response } from 'express'
 import { LeadSource, LeadStatus, PropertyType } from '@prisma/client'
 import prisma from '../utils/prisma'
 import { AuthRequest } from '../middleware/auth.middleware'
+import { notifyManagersOfNewLeads } from '../services/notification.service'
 
 export const getLeads = async (req: AuthRequest, res: Response) => {
   try {
@@ -154,6 +155,7 @@ export const createLead = async (req: AuthRequest, res: Response) => {
         type: 'LEAD_CREATED', description: `Lead created by ${req.user?.name}`,
       },
     })
+    await notifyManagersOfNewLeads([{ id: lead.id, name: lead.name, mobile: lead.mobile, source: lead.source }])
 
     res.status(201).json({ success: true, message: 'Lead created successfully', data: lead })
   } catch (error) {
@@ -670,6 +672,7 @@ export const bulkImportLeads = async (req: AuthRequest, res: Response) => {
       errors: 0,
       rowErrors: [],
     }
+    const createdLeadsForNotification: Array<{ id: string; name: string; mobile: string; source: string }> = []
 
     for (const [index, leadData] of leads.entries()) {
       let name = ''
@@ -738,7 +741,7 @@ export const bulkImportLeads = async (req: AuthRequest, res: Response) => {
 
       try {
         const duplicate = await prisma.lead.findFirst({ where: { mobile, isActive: true } })
-        await prisma.lead.create({
+        const createdLead = await prisma.lead.create({
           data: {
             name,
             mobile,
@@ -755,7 +758,9 @@ export const bulkImportLeads = async (req: AuthRequest, res: Response) => {
             createdById: req.user?.id,
             isDuplicate: !!duplicate,
           },
+          select: { id: true, name: true, mobile: true, source: true },
         })
+        createdLeadsForNotification.push(createdLead)
         duplicate ? results.duplicates++ : results.created++
       } catch {
         results.errors++
@@ -763,6 +768,7 @@ export const bulkImportLeads = async (req: AuthRequest, res: Response) => {
       }
     }
 
+    await notifyManagersOfNewLeads(createdLeadsForNotification)
     res.json({ success: true, message: 'Bulk import completed', data: results })
   } catch (error) {
     res.status(500).json({ success: false, message: 'Bulk import failed', error })

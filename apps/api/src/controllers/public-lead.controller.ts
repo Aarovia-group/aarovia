@@ -1,6 +1,7 @@
 import { Request, Response } from 'express'
 import { z } from 'zod'
 import prisma from '../utils/prisma'
+import { notifyManagersOfNewLeads } from '../services/notification.service'
 
 const leadCaptureSchema = z.object({
   fullName: z.string().trim().min(2).max(120),
@@ -85,6 +86,7 @@ export const captureWebsiteLead = async (req: Request, res: Response) => {
       return createdLead
     })
 
+    await notifyManagersOfNewLeads([{ id: lead.id, name: parsed.data.fullName, mobile, source: 'WEBSITE' }])
     return res.status(201).json({
       success: true,
       message: 'Thank you! We will get in touch with you shortly.',

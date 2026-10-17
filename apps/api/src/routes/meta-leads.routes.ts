@@ -2,6 +2,7 @@ import express, { Router } from 'express'
 import { authenticate, authorize } from '../middleware/auth.middleware'
 import {
   checkMetaPageToken,
+  clearMetaWebhookEvents,
   getRecentMetaWebhookEvents,
   receiveMetaLeadWebhook,
   subscribeMetaPage,
@@ -13,6 +14,7 @@ const router = Router()
 router.get('/', verifyMetaLeadWebhook)
 router.post('/', express.raw({ type: 'application/json', limit: '1mb' }), receiveMetaLeadWebhook)
 router.get('/events', authenticate, authorize('SUPER_ADMIN', 'ADMIN'), getRecentMetaWebhookEvents)
+router.delete('/events', authenticate, authorize('SUPER_ADMIN', 'ADMIN'), clearMetaWebhookEvents)
 router.post('/token-check', authenticate, authorize('SUPER_ADMIN', 'ADMIN'), checkMetaPageToken)
 router.post('/subscribe', authenticate, authorize('SUPER_ADMIN', 'ADMIN'), subscribeMetaPage)
 

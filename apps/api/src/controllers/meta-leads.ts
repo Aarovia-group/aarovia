@@ -3,6 +3,7 @@ import { Request, Response } from 'express'
 import axios, { AxiosResponse } from 'axios'
 import { Prisma } from '@prisma/client'
 import prisma from '../utils/prisma'
+import { notifyManagersOfNewLeads } from '../services/notification.service'
 
 type MetaLeadField = { name?: string; values?: string[] }
 export type MetaLeadDetails = {
@@ -189,6 +190,7 @@ export const storeMetaLead = async (
       }
       return created
     })
+    await notifyManagersOfNewLeads([{ id: lead.id, name: fields.name, mobile, source: 'META_ADS' }])
     return { created: true, leadId: lead.id }
   } catch (error) {
     if (typeof error === 'object' && error !== null && 'code' in error && error.code === 'P2002') {
@@ -413,6 +415,16 @@ export const getRecentMetaWebhookEvents = async (_req: Request, res: Response) =
     return res.json({ success: true, data: events })
   } catch {
     return res.status(500).json({ success: false, message: 'Unable to retrieve Meta webhook events.' })
+  }
+}
+
+export const clearMetaWebhookEvents = async (_req: Request, res: Response) => {
+  try {
+    const result = await prisma.metaWebhookLog.deleteMany({})
+    return res.json({ success: true, data: { deletedCount: result.count } })
+  } catch (error) {
+    console.error('[Meta Lead] Failed to clear webhook events', error instanceof Error ? error.name : 'unknown error')
+    return res.status(500).json({ success: false, message: 'Unable to clear Meta webhook events.' })
   }
 }
 
