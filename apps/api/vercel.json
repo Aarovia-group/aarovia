@@ -11,5 +11,12 @@
       "src": "/api/(.*)",
       "dest": "api/[...path].ts"
     }
+  ],
+  "buildCommand": "npx prisma migrate deploy && npm run vercel-build",
+  "crons": [
+    {
+      "path": "/api/cron/meta-leads",
+      "schedule": "0 3 * * *"
+    }
   ]
 }

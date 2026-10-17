@@ -81,6 +81,12 @@ export default function SettingsPage() {
     queryFn: () => api.get('/settings/ads'),
     enabled: activeTab === 'ads',
   })
+  const { data: metaWebhookEventsData } = useQuery({
+    queryKey: ['meta-webhook-events'],
+    queryFn: () => api.get('/meta/leadgen-webhook/events'),
+    enabled: activeTab === 'ads',
+    refetchInterval: 60000,
+  })
   const { data: waSettingsData } = useQuery({
     queryKey: ['whatsapp-settings'],
     queryFn: () => api.get('/settings/whatsapp'),
@@ -109,6 +115,7 @@ export default function SettingsPage() {
   const [hasSavedSmsApiKeySecret, setHasSavedSmsApiKeySecret] = useState(false)
   const [hasSavedVoiceToken, setHasSavedVoiceToken] = useState(false)
   const [hasSavedCallReleaseToken, setHasSavedCallReleaseToken] = useState(false)
+  const [metaActionLoading, setMetaActionLoading] = useState<'subscribe' | 'token-check' | null>(null)
   const hasSavedSmtpPassword = Boolean(emailSettingsData?.data?.data?.hasSmtpPassword)
 
   useEffect(() => {
@@ -368,6 +375,28 @@ export default function SettingsPage() {
     }
   }
 
+  const runMetaAction = async (action: 'subscribe' | 'token-check') => {
+    try {
+      setMetaActionLoading(action)
+      const response = await api.post(`/meta/leadgen-webhook/${action}`)
+      if (action === 'token-check') {
+        const result = response.data?.data
+        if (!result?.valid) {
+          toast.error('Meta Page Access Token is invalid or expired')
+          return
+        }
+        toast.success(`Meta token is valid${result.type ? ` (${result.type})` : ''}`)
+      } else {
+        toast.success(response.data?.message || 'Meta Lead Ads Page subscribed')
+      }
+      queryClient.invalidateQueries({ queryKey: ['meta-webhook-events'] })
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Meta action failed')
+    } finally {
+      setMetaActionLoading(null)
+    }
+  }
+
   const sendTestEmail = async () => {
     if (testEmailSending) return
     try {
@@ -404,6 +433,8 @@ export default function SettingsPage() {
       toast.success('Branding saved successfully')
     } catch { toast.error('Failed to save branding') }
   }
+
+  const metaWebhookEvents = metaWebhookEventsData?.data?.data || []
 
   return (
     <AppLayout title="Settings" subtitle="Configure your CRM preferences and integrations">
@@ -719,7 +750,7 @@ export default function SettingsPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-5">
                   <div className={`rounded-lg border px-4 py-3 text-xs flex items-center justify-between gap-3 ${adsSettingsData?.data?.data?.metaActive ? 'border-green-500/30 bg-green-500/10 text-green-400' : 'border-navy-border bg-navy text-slate'}`}>
                     <span>Meta Ads: {adsSettingsData?.data?.data?.metaActive ? 'Active' : 'Not connected'}</span>
-                    <Button type="button" variant="secondary" size="sm" onClick={() => connectAds('meta')}>Connect Meta</Button>
+                    <Button type="button" variant="secondary" size="sm" disabled={metaActionLoading !== null} onClick={() => runMetaAction('subscribe')}>{metaActionLoading === 'subscribe' ? 'Subscribing...' : 'Subscribe Page'}</Button>
                   </div>
                   <div className={`rounded-lg border px-4 py-3 text-xs flex items-center justify-between gap-3 ${adsSettingsData?.data?.data?.googleActive ? 'border-green-500/30 bg-green-500/10 text-green-400' : 'border-navy-border bg-navy text-slate'}`}>
                     <span>Google Ads: {adsSettingsData?.data?.data?.googleActive ? 'Active' : 'Not connected'}</span>
@@ -728,7 +759,10 @@ export default function SettingsPage() {
                 </div>
                 <form onSubmit={handleAds(onAdsSave)} className="space-y-6">
                   <div>
-                    <h3 className="text-sm font-medium text-white mb-3">Meta Lead Ads</h3>
+                    <div className="mb-3 flex items-center justify-between gap-3">
+                      <h3 className="text-sm font-medium text-white">Meta Lead Ads</h3>
+                      <Button type="button" variant="secondary" size="sm" disabled={metaActionLoading !== null} onClick={() => runMetaAction('token-check')}>{metaActionLoading === 'token-check' ? 'Checking...' : 'Check Token'}</Button>
+                    </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div><label className="block text-xs font-medium text-slate-light mb-1.5">Meta App ID</label><input {...regAds('metaAppId')} placeholder="Meta Developer App ID" className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white font-mono placeholder:text-slate/40 focus:outline-none focus:ring-1 focus:ring-gold/50" /></div>
                       <div><label className="block text-xs font-medium text-slate-light mb-1.5">Meta App Secret</label><input {...regAds('metaAppSecret')} type="password" placeholder="Meta Developer App Secret" className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white font-mono placeholder:text-slate/40 focus:outline-none focus:ring-1 focus:ring-gold/50" /></div>
@@ -752,6 +786,26 @@ export default function SettingsPage() {
                   </div>
                   <Button type="submit" icon={<Save className="w-3.5 h-3.5" />}>Save & Activate Ads Integrations</Button>
                 </form>
+                <div className="mt-6 rounded-lg border border-navy-border bg-navy p-4">
+                  <div className="mb-3 flex items-center justify-between gap-3">
+                    <h3 className="text-sm font-medium text-white">Recent Meta webhook events</h3>
+                    <span className="text-[11px] text-slate">Callback: /api/meta/leadgen-webhook</span>
+                  </div>
+                  <div className="space-y-2">
+                    {metaWebhookEvents.length ? metaWebhookEvents.map((event: {
+                      id: string; timestamp: string; status: string; signatureValid: boolean | null; error: string | null; leadId: string | null
+                    }) => (
+                      <div key={event.id} className="flex flex-wrap items-center justify-between gap-2 border-b border-navy-border pb-2 text-xs last:border-0 last:pb-0">
+                        <span className="text-slate-light">{new Date(event.timestamp).toLocaleString()}</span>
+                        <span className={event.status === 'PROCESSED' ? 'text-green-400' : 'text-slate'}>{event.status}</span>
+                        <span className="text-slate">{event.signatureValid === null ? 'Signature n/a' : event.signatureValid ? 'Signature valid' : 'Signature invalid'}</span>
+                        {event.error && <span className="basis-full text-amber-400">{event.error}</span>}
+                      </div>
+                    )) : (
+                      <p className="text-xs text-slate">No Meta webhook events recorded yet.</p>
+                    )}
+                  </div>
+                </div>
               </CardContent>
             </Card>
           )}
