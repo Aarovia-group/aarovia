@@ -47,6 +47,40 @@ export const notifyManagers = async (title: string, message: string) => {
   return notifyUsers(userIds, title, message)
 }
 
+export const notifyManagersOfNewLeads = async (
+  leads: Array<{ id: string; name: string; mobile: string; source: string }>,
+) => {
+  if (!leads.length) return { count: 0 }
+
+  try {
+    const managers = await prisma.user.findMany({
+      where: { role: { in: ['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER'] }, isActive: true },
+      select: { id: true },
+    })
+    if (!managers.length) {
+      console.warn('[Notifications] No active managers to notify for new leads')
+      return { count: 0 }
+    }
+
+    const notifications = managers.flatMap(({ id: userId }) => leads.map(lead => ({
+      userId,
+      title: 'New Lead Received',
+      message: `${lead.name} (${lead.mobile}) received from ${lead.source.replace(/_/g, ' ')}`,
+      channel: 'IN_APP' as const,
+      metadata: { leadId: lead.id, source: lead.source },
+    })))
+    let count = 0
+    for (let offset = 0; offset < notifications.length; offset += 500) {
+      const result = await prisma.notification.createMany({ data: notifications.slice(offset, offset + 500) })
+      count += result.count
+    }
+    return { count }
+  } catch (error) {
+    console.error('[Notifications] Failed to notify managers of new leads', error instanceof Error ? error.name : 'unknown error')
+    return { count: 0, error: true }
+  }
+}
+
 // ============================================
 // Email notification
 // ============================================
