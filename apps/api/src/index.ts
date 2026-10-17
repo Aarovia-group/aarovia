@@ -22,6 +22,8 @@ import settingsRoutes from './routes/settings.routes'
 import emailRoutes from './routes/email.routes'
 import whatsappRoutes from './routes/whatsapp.routes'
 import whatsappWebhookRoutes from './routes/whatsapp-webhook.routes'
+import metaLeadRoutes from './routes/meta-leads.routes'
+import metaLeadCronRoutes from './routes/meta-lead-cron.routes'
 import documentRoutes from './routes/document.routes'
 import postSalesRoutes from './routes/postSales.routes'
 import uploadRoutes from './routes/upload.routes'
@@ -69,6 +71,8 @@ app.use('/api/', limiter)
 
 // Meta verifies webhook subscriptions without CRM authentication or JSON parsing.
 app.use('/api/whatsapp/webhook', whatsappWebhookRoutes)
+app.use('/api/meta/leadgen-webhook', metaLeadRoutes)
+app.use('/api/cron/meta-leads', metaLeadCronRoutes)
 
 // Body parsing
 app.use(express.json({ limit: '10mb' }))
