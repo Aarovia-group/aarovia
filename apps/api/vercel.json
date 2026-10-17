@@ -12,7 +12,7 @@
       "dest": "api/[...path].ts"
     }
   ],
-  "buildCommand": "if [ \"$VERCEL_ENV\" = \"production\" ]; then npx prisma migrate deploy; fi && npm run vercel-build",
+  "buildCommand": "npx prisma migrate deploy && npm run vercel-build",
   "crons": [
     {
       "path": "/api/cron/meta-leads",
