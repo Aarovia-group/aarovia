@@ -3,6 +3,7 @@ import { createHmac } from 'crypto'
 import {
   extractMetaLeadFields,
   isMetaSignatureValid,
+  matchMetaLeadAppSignature,
   normalizeMetaPhone,
   parseMetaLeadEvents,
 } from './meta-leads'
@@ -14,6 +15,14 @@ const signature = `sha256=${createHmac('sha256', secret).update(payload).digest(
 assert.equal(isMetaSignatureValid(payload, signature, secret), true)
 assert.equal(isMetaSignatureValid(payload, 'sha256=invalid', secret), false)
 assert.equal(isMetaSignatureValid(payload, signature, ''), false)
+assert.deepEqual(
+  matchMetaLeadAppSignature(payload, signature, [
+    { slot: 1, appSecret: 'other-app-secret' },
+    { slot: 2, appSecret: secret },
+  ]),
+  { slot: 2, appSecret: secret },
+)
+assert.equal(matchMetaLeadAppSignature(payload, 'sha256=invalid', [{ appSecret: secret }]), undefined)
 assert.equal(normalizeMetaPhone('9876543210'), '+919876543210')
 assert.equal(normalizeMetaPhone('09876543210'), '+919876543210')
 assert.equal(normalizeMetaPhone('+91 98765 43210'), '+919876543210')

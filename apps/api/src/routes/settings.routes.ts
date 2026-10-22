@@ -10,12 +10,14 @@ router.use(authenticate)
 
 const adsSecretKeys = [
   'meta_app_secret', 'meta_lead_verify_token', 'meta_lead_access_token', 'meta_ads_access_token',
+  'meta_app_secret_2', 'meta_lead_verify_token_2', 'meta_lead_access_token_2',
   'google_lead_webhook_key', 'google_ads_client_secret', 'google_ads_refresh_token',
   'google_ads_developer_token',
 ]
 
 const adsSettingKeys = [
   'meta_app_id', 'meta_app_secret', 'meta_lead_verify_token', 'meta_lead_access_token', 'meta_ads_access_token', 'meta_ad_account_id',
+  'meta_app_id_2', 'meta_app_secret_2', 'meta_lead_verify_token_2', 'meta_lead_access_token_2',
   'google_lead_webhook_key', 'google_ads_client_id', 'google_ads_client_secret', 'google_ads_refresh_token',
   'google_ads_developer_token', 'google_ads_customer_id', 'google_ads_login_customer_id',
 ]
@@ -27,6 +29,10 @@ const adsEnvironmentKeys: Record<string, string> = {
   meta_lead_access_token: 'META_LEAD_ACCESS_TOKEN',
   meta_ads_access_token: 'META_ADS_ACCESS_TOKEN',
   meta_ad_account_id: 'META_AD_ACCOUNT_ID',
+  meta_app_id_2: 'META_APP_ID_2',
+  meta_app_secret_2: 'META_APP_SECRET_2',
+  meta_lead_verify_token_2: 'META_LEAD_VERIFY_TOKEN_2',
+  meta_lead_access_token_2: 'META_LEAD_ACCESS_TOKEN_2',
   google_lead_webhook_key: 'GOOGLE_LEAD_WEBHOOK_KEY',
   google_ads_client_id: 'GOOGLE_ADS_CLIENT_ID',
   google_ads_client_secret: 'GOOGLE_ADS_CLIENT_SECRET',
@@ -91,6 +97,8 @@ router.get('/ads', authorize('SUPER_ADMIN', 'ADMIN'), async (_req, res) => {
     res.json({ success: true, data: {
       ...values,
       metaActive: has('meta_lead_access_token') && has('meta_ads_access_token') && has('meta_ad_account_id'),
+      metaLeadAppActive: has('meta_app_id') && has('meta_app_secret') && has('meta_lead_verify_token') && has('meta_lead_access_token'),
+      metaLeadApp2Active: has('meta_app_id_2') && has('meta_app_secret_2') && has('meta_lead_verify_token_2') && has('meta_lead_access_token_2'),
       googleActive: has('google_ads_client_id') && has('google_ads_client_secret') && has('google_ads_refresh_token') && has('google_ads_developer_token') && has('google_ads_customer_id'),
     } })
   } catch (e) { res.status(500).json({ success: false, message: 'Failed to fetch Ads settings' }) }

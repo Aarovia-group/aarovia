@@ -43,6 +43,21 @@ const settingValue = async (key: string, environmentKey: string) => {
   return setting?.value || process.env[environmentKey] || ''
 }
 
+const getMetaLeadAppConfig = async (slot: 1 | 2) => {
+  const suffix = slot === 1 ? '' : '_2'
+  const envSuffix = slot === 1 ? '' : '_2'
+  const [appId, appSecret, verifyToken, accessToken] = await Promise.all([
+    settingValue(`meta_app_id${suffix}`, `META_APP_ID${envSuffix}`),
+    settingValue(`meta_app_secret${suffix}`, `META_APP_SECRET${envSuffix}`),
+    settingValue(`meta_lead_verify_token${suffix}`, `META_LEAD_VERIFY_TOKEN${envSuffix}`),
+    settingValue(`meta_lead_access_token${suffix}`, `META_LEAD_ACCESS_TOKEN${envSuffix}`),
+  ])
+  return { slot, appId, appSecret, verifyToken, accessToken }
+}
+
+const getMetaLeadAppSlot = (req: Request): 1 | 2 =>
+  req.body?.appSlot === 2 || req.query?.appSlot === '2' ? 2 : 1
+
 export const extractMetaLeadFields = (fields: MetaLeadField[] = []) => {
   const values = new Map<string, string>()
   for (const field of fields) {
@@ -74,6 +89,12 @@ export const isMetaSignatureValid = (body: Buffer, signature: string, appSecret:
   const received = Buffer.from(signature)
   return expected.length === received.length && timingSafeEqual(expected, received)
 }
+
+export const matchMetaLeadAppSignature = <T extends { appSecret: string }>(
+  body: Buffer,
+  signature: string,
+  apps: T[],
+) => apps.find(app => isMetaSignatureValid(body, signature, app.appSecret))
 
 const graphError = (error: unknown) => {
   if (!axios.isAxiosError(error)) return null
@@ -233,8 +254,9 @@ export const verifyMetaLeadWebhook = async (req: Request, res: Response) => {
     })
     logId = log.id
 
-    const verifyToken = await settingValue('meta_lead_verify_token', 'META_LEAD_VERIFY_TOKEN')
-    if (!verifyToken) {
+    const apps = await Promise.all([getMetaLeadAppConfig(1), getMetaLeadAppConfig(2)])
+    const verifyTokens = apps.map(app => app.verifyToken).filter(Boolean)
+    if (!verifyTokens.length) {
       await updateWebhookLog(log.id, { status: 'FAILED', error: 'Webhook verify token is not configured' })
       return res.sendStatus(503)
     }
@@ -242,7 +264,7 @@ export const verifyMetaLeadWebhook = async (req: Request, res: Response) => {
     const mode = req.query['hub.mode']
     const token = req.query['hub.verify_token']
     const challenge = req.query['hub.challenge']
-    if (mode !== 'subscribe' || token !== verifyToken || typeof challenge !== 'string') {
+    if (mode !== 'subscribe' || typeof token !== 'string' || !verifyTokens.includes(token) || typeof challenge !== 'string') {
       await updateWebhookLog(log.id, { status: 'REJECTED', error: 'Invalid webhook verification token or challenge' })
       return res.sendStatus(403)
     }
@@ -282,10 +304,10 @@ export const receiveMetaLeadWebhook = async (req: Request, res: Response) => {
       return res.sendStatus(400)
     }
 
-    const appSecret = await settingValue('meta_app_secret', 'META_APP_SECRET')
     const signature = req.get('x-hub-signature-256') || ''
-    const signatureValid = isMetaSignatureValid(rawBody, signature, appSecret)
-    if (!signatureValid) {
+    const apps = await Promise.all([getMetaLeadAppConfig(1), getMetaLeadAppConfig(2)])
+    const matchedApp = matchMetaLeadAppSignature(rawBody, signature, apps.filter(app => app.appSecret))
+    if (!matchedApp) {
       await updateWebhookLog(log.id, { status: 'REJECTED', signatureValid: false, error: 'Missing or invalid X-Hub-Signature-256' })
       return res.sendStatus(401)
     }
@@ -305,9 +327,9 @@ export const receiveMetaLeadWebhook = async (req: Request, res: Response) => {
       return res.sendStatus(200)
     }
 
-    const accessToken = await settingValue('meta_lead_access_token', 'META_LEAD_ACCESS_TOKEN')
+    const accessToken = matchedApp.accessToken
     if (!accessToken) {
-      await updateWebhookLog(log.id, { status: 'FAILED', error: 'Lead Page Access Token is not configured' })
+      await updateWebhookLog(log.id, { status: 'FAILED', error: `Lead Page Access Token is not configured for Meta app ${matchedApp.slot}` })
       return res.sendStatus(500)
     }
 
@@ -354,15 +376,11 @@ export const receiveMetaLeadWebhook = async (req: Request, res: Response) => {
   }
 }
 
-export const checkMetaPageToken = async (_req: Request, res: Response) => {
+export const checkMetaPageToken = async (req: Request, res: Response) => {
   try {
-    const [appId, appSecret, pageToken] = await Promise.all([
-      settingValue('meta_app_id', 'META_APP_ID'),
-      settingValue('meta_app_secret', 'META_APP_SECRET'),
-      settingValue('meta_lead_access_token', 'META_LEAD_ACCESS_TOKEN'),
-    ])
+    const { appId, appSecret, accessToken: pageToken, slot } = await getMetaLeadAppConfig(getMetaLeadAppSlot(req))
     if (!appId || !appSecret || !pageToken) {
-      return res.status(400).json({ success: false, message: 'Meta App ID, App Secret, and Lead Page Access Token must be saved first.' })
+      return res.status(400).json({ success: false, message: `Meta App ${slot} ID, App Secret, and Lead Page Access Token must be saved first.` })
     }
 
     const response = await axios.get(`${graphBase}/debug_token`, {
@@ -385,10 +403,10 @@ export const checkMetaPageToken = async (_req: Request, res: Response) => {
   }
 }
 
-export const subscribeMetaPage = async (_req: Request, res: Response) => {
+export const subscribeMetaPage = async (req: Request, res: Response) => {
   try {
-    const pageToken = await settingValue('meta_lead_access_token', 'META_LEAD_ACCESS_TOKEN')
-    if (!pageToken) return res.status(400).json({ success: false, message: 'Lead Page Access Token is not configured.' })
+    const { accessToken: pageToken, slot } = await getMetaLeadAppConfig(getMetaLeadAppSlot(req))
+    if (!pageToken) return res.status(400).json({ success: false, message: `Lead Page Access Token for Meta app ${slot} is not configured.` })
 
     const page = await axios.get(`${graphBase}/me`, {
       params: { fields: 'id,name', access_token: pageToken },
@@ -452,44 +470,60 @@ export const runMetaLeadBackfill = async (req: Request, res: Response) => {
     })
     logId = log.id
 
-    const accessToken = await settingValue('meta_lead_access_token', 'META_LEAD_ACCESS_TOKEN')
-    if (!accessToken) throw new Error('Lead Page Access Token is not configured')
-
-    const page = await axios.get(`${graphBase}/me`, {
-      params: { fields: 'id', access_token: accessToken },
-      timeout: 10000,
-    })
-    let formsUrl: string | undefined = `${graphBase}/${encodeURIComponent(page.data.id)}/leadgen_forms`
     let imported = 0
+    const apps = await Promise.all([getMetaLeadAppConfig(1), getMetaLeadAppConfig(2)])
+    const appsWithTokens = apps.filter(app => app.accessToken)
+    if (!appsWithTokens.length) throw new Error('No Meta Lead Ads Page Access Token is configured')
+    const failedApps: number[] = []
 
-    while (formsUrl) {
-      const formsResponse: AxiosResponse<{ data?: Array<{ id: string; name?: string }>; paging?: { next?: string } }> = await axios.get(formsUrl, {
-        params: formsUrl.includes('/leadgen_forms')
-          ? { fields: 'id,name', limit: 100, access_token: accessToken }
-          : undefined,
-        timeout: 10000,
-      })
-      for (const form of formsResponse.data?.data || []) {
-        let leadsUrl: string | undefined = `${graphBase}/${encodeURIComponent(form.id)}/leads`
-        while (leadsUrl) {
-          const leadsResponse: AxiosResponse<{ data?: MetaLeadDetails[]; paging?: { next?: string } }> = await axios.get(leadsUrl, {
-            params: leadsUrl.includes('/leads')
-              ? { fields: leadFields, limit: 100, access_token: accessToken }
+    for (const app of appsWithTokens) {
+      try {
+        const page = await axios.get(`${graphBase}/me`, {
+          params: { fields: 'id', access_token: app.accessToken },
+          timeout: 10000,
+        })
+        let formsUrl: string | undefined = `${graphBase}/${encodeURIComponent(page.data.id)}/leadgen_forms`
+
+        while (formsUrl) {
+          const formsResponse: AxiosResponse<{ data?: Array<{ id: string; name?: string }>; paging?: { next?: string } }> = await axios.get(formsUrl, {
+            params: formsUrl.includes('/leadgen_forms')
+              ? { fields: 'id,name', limit: 100, access_token: app.accessToken }
               : undefined,
             timeout: 10000,
           })
-          for (const lead of leadsResponse.data?.data || []) {
-            const result = await storeMetaLead(lead, { formId: form.id })
-            if (result.created) imported += 1
+          for (const form of formsResponse.data?.data || []) {
+            let leadsUrl: string | undefined = `${graphBase}/${encodeURIComponent(form.id)}/leads`
+            while (leadsUrl) {
+              const leadsResponse: AxiosResponse<{ data?: MetaLeadDetails[]; paging?: { next?: string } }> = await axios.get(leadsUrl, {
+                params: leadsUrl.includes('/leads')
+                  ? { fields: leadFields, limit: 100, access_token: app.accessToken }
+                  : undefined,
+                timeout: 10000,
+              })
+              for (const lead of leadsResponse.data?.data || []) {
+                const result = await storeMetaLead(lead, { formId: form.id })
+                if (result.created) imported += 1
+              }
+              leadsUrl = leadsResponse.data?.paging?.next
+            }
           }
-          leadsUrl = leadsResponse.data?.paging?.next
+          formsUrl = formsResponse.data?.paging?.next
         }
+      } catch (error) {
+        if (!axios.isAxiosError(error)) throw error
+        failedApps.push(app.slot)
+        logGraphError(`running daily lead backfill for app ${app.slot}`, error)
       }
-      formsUrl = formsResponse.data?.paging?.next
     }
 
-    if (logId) await updateWebhookLog(logId, { status: 'CRON_PROCESSED' })
-    return res.json({ success: true, imported })
+    if (failedApps.length === appsWithTokens.length) throw new Error('Meta lead backfill failed for all configured apps')
+    if (logId) {
+      await updateWebhookLog(logId, {
+        status: failedApps.length ? 'CRON_PARTIAL' : 'CRON_PROCESSED',
+        error: failedApps.length ? `Backfill failed for Meta app(s): ${failedApps.join(', ')}` : null,
+      })
+    }
+    return res.json({ success: true, imported, failedApps })
   } catch (error) {
     if (logId) await reportWebhookLogFailure(logId, 'CRON_FAILED', 'Meta lead backfill failed')
     if (axios.isAxiosError(error)) logGraphError('running daily lead backfill', error)
