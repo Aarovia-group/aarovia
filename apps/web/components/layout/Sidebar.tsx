@@ -41,6 +41,7 @@ const navItems = [
       { href: '/email', icon: Mail, label: 'Email Config' },
       { href: '/whatsapp', icon: MessageSquare, label: 'WhatsApp' },
       { href: '/reports', icon: BarChart3, label: 'Reports' },
+      { href: '/reports/summary', icon: BarChart3, label: 'Reports' },
       { href: '/notifications', icon: Bell, label: 'Notifications', badge: 'notif' },
     ],
   },
