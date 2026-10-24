@@ -15,6 +15,7 @@ import bookingRoutes from './routes/booking.routes'
 import invoiceRoutes from './routes/invoice.routes'
 import collectionRoutes from './routes/collection.routes'
 import reportRoutes from './routes/report.routes'
+import reportsSummaryRoutes from './routes/reports-summary.routes'
 import notificationRoutes from './routes/notification.routes'
 import userRoutes from './routes/user.routes'
 import projectRoutes from './routes/project.routes'
@@ -107,6 +108,7 @@ app.use('/api/bookings', bookingRoutes)
 app.use('/api/invoices', invoiceRoutes)
 app.use('/api/collections', collectionRoutes)
 app.use('/api/reports', reportRoutes)
+app.use('/api/reports', reportsSummaryRoutes)
 app.use('/api/notifications', notificationRoutes)
 app.use('/api/users', userRoutes)
 app.use('/api/projects', projectRoutes)
