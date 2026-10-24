@@ -73,7 +73,7 @@ export default function ReportsSummaryPage() {
   }
 
   return (
-    <AppLayout title="Reports" subtitle="Lead performance by project, executive, and source">
+    <AppLayout title="Report Summary" subtitle="Lead performance by project, executive, and source">
       <div className="space-y-4">
         <ReportsSummaryFilters
           from={from}
