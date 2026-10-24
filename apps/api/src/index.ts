@@ -44,6 +44,7 @@ app.set('trust proxy', 1)
 
 // Security middleware
 app.use(helmet())
+app.use('/api/public/leads', require('./routes/lake-estate-website.routes').default)
 const frontendOrigins = process.env.NODE_ENV === 'production'
   ? [
       ...(process.env.FRONTEND_URL ? process.env.FRONTEND_URL.split(',').map((url) => url.trim()) : ['https://aarovia.co.in', 'https://www.aarovia.co.in']),
