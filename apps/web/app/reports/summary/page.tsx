@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { isAxiosError } from 'axios'
 import { AppLayout } from '@/components/layout/AppLayout'
 import api from '@/lib/api'
 import { ReportsSummaryFilters } from '@/components/reports/ReportsSummaryFilters'
@@ -57,6 +58,7 @@ export default function ReportsSummaryPage() {
   })
 
   const report = query.data
+  const isForbidden = query.isError && isAxiosError(query.error) && query.error.response?.status === 403
   const projectRows = useMemo(() => report?.projects || [], [report?.projects])
   const executiveRows = useMemo(() => report?.executives || [], [report?.executives])
   const sourceRows = useMemo(() => report?.sources || [], [report?.sources])
@@ -92,9 +94,18 @@ export default function ReportsSummaryPage() {
           </div>
         )}
         {query.isError && (
-          <div role="alert" className="rounded-lg border border-red-200 bg-red-50 px-4 py-4 text-sm text-red-700">
-            Could not load the report. Please try again.
-            <button type="button" onClick={() => query.refetch()} className="ml-2 font-semibold underline">Retry</button>
+          <div
+            role="alert"
+            className={`rounded-lg px-4 py-4 text-sm ${isForbidden ? 'border border-[#d8e0e8] bg-white text-[#475569]' : 'border border-red-200 bg-red-50 text-red-700'}`}
+          >
+            {isForbidden ? (
+              "You don't have access to this report."
+            ) : (
+              <>
+                Could not load the report. Please try again.
+                <button type="button" onClick={() => query.refetch()} className="ml-2 font-semibold underline">Retry</button>
+              </>
+            )}
           </div>
         )}
         {!query.isLoading && !query.isError && (!from || !to || from > to) && (
