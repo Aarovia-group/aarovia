@@ -19,7 +19,7 @@ type TwilioWAFormValues = { accountSid: string; authToken: string; apiKeySid: st
 type SmsFormValues = { accountSid: string; authToken: string; apiKeySid: string; apiKeySecret: string; phoneNumber: string; messagingServiceSid: string }
 type VoiceFormValues = { apiToken: string; callReleaseToken: string; agentNumber: string; url: string; tokenField: string; tokenPrefix: string; agentField: string; customerField: string; didField: string; refurlField: string; refurl: string; incomingRoutesText: string; outgoingDidsText: string }
 type AdsFormValues = {
-  metaAppId: string; metaAppSecret: string; metaLeadVerifyToken: string; metaLeadAccessToken: string; metaAdsAccessToken: string; metaAdAccountId: string
+  metaAdsAccessToken: string; metaAdAccountId: string
   metaAppId2: string; metaAppSecret2: string; metaLeadVerifyToken2: string; metaLeadAccessToken2: string
   googleLeadWebhookKey: string; googleAdsClientId: string; googleAdsClientSecret: string; googleAdsRefreshToken: string
   googleAdsDeveloperToken: string; googleAdsCustomerId: string; googleAdsLoginCustomerId: string
@@ -116,7 +116,7 @@ export default function SettingsPage() {
   const [hasSavedSmsApiKeySecret, setHasSavedSmsApiKeySecret] = useState(false)
   const [hasSavedVoiceToken, setHasSavedVoiceToken] = useState(false)
   const [hasSavedCallReleaseToken, setHasSavedCallReleaseToken] = useState(false)
-  const [metaActionLoading, setMetaActionLoading] = useState<'subscribe' | 'subscribe-2' | 'token-check' | 'token-check-2' | 'clear-events' | null>(null)
+  const [metaActionLoading, setMetaActionLoading] = useState<'subscribe-2' | 'token-check-2' | 'clear-events' | null>(null)
   const hasSavedSmtpPassword = Boolean(emailSettingsData?.data?.data?.hasSmtpPassword)
 
   useEffect(() => {
@@ -206,10 +206,6 @@ export default function SettingsPage() {
     const settings = adsSettingsData?.data?.data
     if (!settings) return
     resetAds({
-      metaAppId: settings.meta_app_id || '',
-      metaAppSecret: settings.meta_app_secret || '',
-      metaLeadVerifyToken: settings.meta_lead_verify_token || '',
-      metaLeadAccessToken: settings.meta_lead_access_token || '',
       metaAppId2: settings.meta_app_id_2 || '',
       metaAppSecret2: settings.meta_app_secret_2 || '',
       metaLeadVerifyToken2: settings.meta_lead_verify_token_2 || '',
@@ -352,10 +348,6 @@ export default function SettingsPage() {
   const onAdsSave = async (data: AdsFormValues) => {
     try {
       await api.post('/settings/ads', {
-        meta_app_id: data.metaAppId,
-        meta_app_secret: data.metaAppSecret,
-        meta_lead_verify_token: data.metaLeadVerifyToken,
-        meta_lead_access_token: data.metaLeadAccessToken,
         meta_app_id_2: data.metaAppId2,
         meta_app_secret_2: data.metaAppSecret2,
         meta_lead_verify_token_2: data.metaLeadVerifyToken2,
@@ -384,26 +376,26 @@ export default function SettingsPage() {
     }
   }
 
-  const runMetaAction = async (action: 'subscribe' | 'token-check' | 'clear-events', appSlot: 1 | 2 = 1) => {
+  const runMetaAction = async (action: 'subscribe' | 'token-check' | 'clear-events') => {
     if (action === 'clear-events' && !window.confirm('Permanently delete all Meta webhook event history? This does not delete leads.')) return
 
     try {
-      const loadingKey = action === 'clear-events' ? action : appSlot === 2 ? `${action}-2` as const : action
+      const loadingKey = action === 'clear-events' ? action : `${action}-2` as const
       setMetaActionLoading(loadingKey)
       const response = action === 'clear-events'
         ? await api.delete('/meta/leadgen-webhook/events')
-        : await api.post(`/meta/leadgen-webhook/${action}`, { appSlot })
+        : await api.post(`/meta/leadgen-webhook/${action}`, { appSlot: 2 })
       if (action === 'token-check') {
         const result = response.data?.data
         if (!result?.valid) {
           toast.error('Meta Page Access Token is invalid or expired')
           return
         }
-        toast.success(`Meta app ${appSlot} token is valid${result.type ? ` (${result.type})` : ''}`)
+        toast.success(`Meta App 2 token is valid${result.type ? ` (${result.type})` : ''}`)
       } else if (action === 'clear-events') {
         toast.success(`Cleared ${response.data?.data?.deletedCount || 0} Meta webhook events`)
       } else {
-        toast.success(response.data?.message || `Meta app ${appSlot} Lead Ads Page subscribed`)
+        toast.success(response.data?.message || 'Meta App 2 Lead Ads Page subscribed')
       }
       queryClient.invalidateQueries({ queryKey: ['meta-webhook-events'] })
     } catch (error: any) {
@@ -766,7 +758,6 @@ export default function SettingsPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-5">
                   <div className={`rounded-lg border px-4 py-3 text-xs flex items-center justify-between gap-3 ${adsSettingsData?.data?.data?.metaActive ? 'border-green-500/30 bg-green-500/10 text-green-400' : 'border-navy-border bg-navy text-slate'}`}>
                     <span>Meta Ads: {adsSettingsData?.data?.data?.metaActive ? 'Active' : 'Not connected'}</span>
-                    <Button type="button" variant="secondary" size="sm" disabled={metaActionLoading !== null} onClick={() => runMetaAction('subscribe')}>{metaActionLoading === 'subscribe' ? 'Subscribing...' : 'Subscribe Page (App 1)'}</Button>
                   </div>
                   <div className={`rounded-lg border px-4 py-3 text-xs flex items-center justify-between gap-3 ${adsSettingsData?.data?.data?.googleActive ? 'border-green-500/30 bg-green-500/10 text-green-400' : 'border-navy-border bg-navy text-slate'}`}>
                     <span>Google Ads: {adsSettingsData?.data?.data?.googleActive ? 'Active' : 'Not connected'}</span>
@@ -775,33 +766,26 @@ export default function SettingsPage() {
                 </div>
                 <form onSubmit={handleAds(onAdsSave)} className="space-y-6">
                   <div>
-                    <div className="mb-3 flex items-center justify-between gap-3">
-                      <h3 className="text-sm font-medium text-white">Meta Lead Ads</h3>
-                      <Button type="button" variant="secondary" size="sm" disabled={metaActionLoading !== null} onClick={() => runMetaAction('token-check')}>{metaActionLoading === 'token-check' ? 'Checking...' : 'Check Token'}</Button>
-                    </div>
+                    <h3 className="text-sm font-medium text-white mb-3">Meta Ads Reporting</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div><label className="block text-xs font-medium text-slate-light mb-1.5">Meta App ID</label><input {...regAds('metaAppId')} placeholder="Meta Developer App ID" className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white font-mono placeholder:text-slate/40 focus:outline-none focus:ring-1 focus:ring-gold/50" /></div>
-                      <div><label className="block text-xs font-medium text-slate-light mb-1.5">Meta App Secret</label><input {...regAds('metaAppSecret')} type="password" placeholder="Meta Developer App Secret" className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white font-mono placeholder:text-slate/40 focus:outline-none focus:ring-1 focus:ring-gold/50" /></div>
-                      <div><label className="block text-xs font-medium text-slate-light mb-1.5">Webhook Verify Token</label><input {...regAds('metaLeadVerifyToken')} type="password" placeholder="Meta webhook verification token" className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white font-mono placeholder:text-slate/40 focus:outline-none focus:ring-1 focus:ring-gold/50" /></div>
                       <div><label className="block text-xs font-medium text-slate-light mb-1.5">Ad Account ID</label><input {...regAds('metaAdAccountId')} placeholder="act_123... or 123..." className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white font-mono placeholder:text-slate/40 focus:outline-none focus:ring-1 focus:ring-gold/50" /></div>
-                      <div><label className="block text-xs font-medium text-slate-light mb-1.5">Lead Page Access Token</label><textarea {...regAds('metaLeadAccessToken')} rows={2} placeholder="Meta Page access token" className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white font-mono placeholder:text-slate/40 focus:outline-none focus:ring-1 focus:ring-gold/50 resize-none" /></div>
                       <div><label className="block text-xs font-medium text-slate-light mb-1.5">Ads Reporting Access Token</label><textarea {...regAds('metaAdsAccessToken')} rows={2} placeholder="Meta Ads access token" className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white font-mono placeholder:text-slate/40 focus:outline-none focus:ring-1 focus:ring-gold/50 resize-none" /></div>
                     </div>
                   </div>
                   <div>
                     <div className="mb-3 flex items-center justify-between gap-3">
                       <div>
-                        <h3 className="text-sm font-medium text-white">Additional Meta Lead Ads App</h3>
-                        <p className="mt-1 text-[11px] text-slate">Configure app 1394606339457296 separately. Each app needs its own secret, verify token, and Page access token. Meta must also enable Lead Ads webhooks for the app; apps in Development mode only receive eligible test/developer events.</p>
+                        <h3 className="text-sm font-medium text-white">Meta Lead Ads (App 2)</h3>
+                        <p className="mt-1 text-[11px] text-slate">Meta Lead Ads use App 2 only. Meta must enable the Page leadgen subscription for this app; apps in Development mode only receive eligible test/developer events.</p>
                       </div>
                       <div className="flex gap-2">
-                        <Button type="button" variant="secondary" size="sm" disabled={metaActionLoading !== null} onClick={() => runMetaAction('token-check', 2)}>{metaActionLoading === 'token-check-2' ? 'Checking...' : 'Check App 2 Token'}</Button>
-                        <Button type="button" variant="secondary" size="sm" disabled={metaActionLoading !== null} onClick={() => runMetaAction('subscribe', 2)}>{metaActionLoading === 'subscribe-2' ? 'Subscribing...' : 'Subscribe App 2 Page'}</Button>
+                        <Button type="button" variant="secondary" size="sm" disabled={metaActionLoading !== null} onClick={() => runMetaAction('token-check')}>{metaActionLoading === 'token-check-2' ? 'Checking...' : 'Check App 2 Token'}</Button>
+                        <Button type="button" variant="secondary" size="sm" disabled={metaActionLoading !== null} onClick={() => runMetaAction('subscribe')}>{metaActionLoading === 'subscribe-2' ? 'Subscribing...' : 'Subscribe App 2 Page'}</Button>
                       </div>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div><label className="block text-xs font-medium text-slate-light mb-1.5">Additional Meta App ID</label><input {...regAds('metaAppId2')} placeholder="1394606339457296" className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white font-mono placeholder:text-slate/40 focus:outline-none focus:ring-1 focus:ring-gold/50" /></div>
-                      <div><label className="block text-xs font-medium text-slate-light mb-1.5">Additional Meta App Secret</label><input {...regAds('metaAppSecret2')} type="password" autoComplete="new-password" placeholder="App 2 secret; blank keeps saved secret" className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white font-mono placeholder:text-slate/40 focus:outline-none focus:ring-1 focus:ring-gold/50" /></div>
+                      <div><label className="block text-xs font-medium text-slate-light mb-1.5">Meta App ID</label><input {...regAds('metaAppId2')} placeholder="1394606339457296" className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white font-mono placeholder:text-slate/40 focus:outline-none focus:ring-1 focus:ring-gold/50" /></div>
+                      <div><label className="block text-xs font-medium text-slate-light mb-1.5">Meta App Secret</label><input {...regAds('metaAppSecret2')} type="password" autoComplete="new-password" placeholder="App 2 secret; blank keeps saved secret" className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white font-mono placeholder:text-slate/40 focus:outline-none focus:ring-1 focus:ring-gold/50" /></div>
                       <div><label className="block text-xs font-medium text-slate-light mb-1.5">App 2 Webhook Verify Token</label><input {...regAds('metaLeadVerifyToken2')} type="password" autoComplete="new-password" placeholder="Webhook verification token configured in Meta" className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white font-mono placeholder:text-slate/40 focus:outline-none focus:ring-1 focus:ring-gold/50" /></div>
                       <div><label className="block text-xs font-medium text-slate-light mb-1.5">App 2 Lead Page Access Token</label><textarea {...regAds('metaLeadAccessToken2')} rows={2} placeholder="Page access token generated for App 2" className="w-full bg-navy border border-navy-border rounded-lg px-3 py-2 text-sm text-white font-mono placeholder:text-slate/40 focus:outline-none focus:ring-1 focus:ring-gold/50 resize-none" /></div>
                     </div>

@@ -43,20 +43,15 @@ const settingValue = async (key: string, environmentKey: string) => {
   return setting?.value || process.env[environmentKey] || ''
 }
 
-const getMetaLeadAppConfig = async (slot: 1 | 2) => {
-  const suffix = slot === 1 ? '' : '_2'
-  const envSuffix = slot === 1 ? '' : '_2'
+const getMetaLeadAppConfig = async () => {
   const [appId, appSecret, verifyToken, accessToken] = await Promise.all([
-    settingValue(`meta_app_id${suffix}`, `META_APP_ID${envSuffix}`),
-    settingValue(`meta_app_secret${suffix}`, `META_APP_SECRET${envSuffix}`),
-    settingValue(`meta_lead_verify_token${suffix}`, `META_LEAD_VERIFY_TOKEN${envSuffix}`),
-    settingValue(`meta_lead_access_token${suffix}`, `META_LEAD_ACCESS_TOKEN${envSuffix}`),
+    settingValue('meta_app_id_2', 'META_APP_ID_2'),
+    settingValue('meta_app_secret_2', 'META_APP_SECRET_2'),
+    settingValue('meta_lead_verify_token_2', 'META_LEAD_VERIFY_TOKEN_2'),
+    settingValue('meta_lead_access_token_2', 'META_LEAD_ACCESS_TOKEN_2'),
   ])
-  return { slot, appId, appSecret, verifyToken, accessToken }
+  return { slot: 2 as const, appId, appSecret, verifyToken, accessToken }
 }
-
-const getMetaLeadAppSlot = (req: Request): 1 | 2 =>
-  req.body?.appSlot === 2 || req.query?.appSlot === '2' ? 2 : 1
 
 export const extractMetaLeadFields = (fields: MetaLeadField[] = []) => {
   const values = new Map<string, string>()
@@ -254,8 +249,8 @@ export const verifyMetaLeadWebhook = async (req: Request, res: Response) => {
     })
     logId = log.id
 
-    const apps = await Promise.all([getMetaLeadAppConfig(1), getMetaLeadAppConfig(2)])
-    const verifyTokens = apps.map(app => app.verifyToken).filter(Boolean)
+    const app = await getMetaLeadAppConfig()
+    const verifyTokens = [app.verifyToken].filter(Boolean)
     if (!verifyTokens.length) {
       await updateWebhookLog(log.id, { status: 'FAILED', error: 'Webhook verify token is not configured' })
       return res.sendStatus(503)
@@ -305,8 +300,8 @@ export const receiveMetaLeadWebhook = async (req: Request, res: Response) => {
     }
 
     const signature = req.get('x-hub-signature-256') || ''
-    const apps = await Promise.all([getMetaLeadAppConfig(1), getMetaLeadAppConfig(2)])
-    const matchedApp = matchMetaLeadAppSignature(rawBody, signature, apps.filter(app => app.appSecret))
+    const app = await getMetaLeadAppConfig()
+    const matchedApp = matchMetaLeadAppSignature(rawBody, signature, app.appSecret ? [app] : [])
     if (!matchedApp) {
       await updateWebhookLog(log.id, { status: 'REJECTED', signatureValid: false, error: 'Missing or invalid X-Hub-Signature-256' })
       return res.sendStatus(401)
@@ -376,9 +371,9 @@ export const receiveMetaLeadWebhook = async (req: Request, res: Response) => {
   }
 }
 
-export const checkMetaPageToken = async (req: Request, res: Response) => {
+export const checkMetaPageToken = async (_req: Request, res: Response) => {
   try {
-    const { appId, appSecret, accessToken: pageToken, slot } = await getMetaLeadAppConfig(getMetaLeadAppSlot(req))
+    const { appId, appSecret, accessToken: pageToken, slot } = await getMetaLeadAppConfig()
     if (!appId || !appSecret || !pageToken) {
       return res.status(400).json({ success: false, message: `Meta App ${slot} ID, App Secret, and Lead Page Access Token must be saved first.` })
     }
@@ -403,9 +398,9 @@ export const checkMetaPageToken = async (req: Request, res: Response) => {
   }
 }
 
-export const subscribeMetaPage = async (req: Request, res: Response) => {
+export const subscribeMetaPage = async (_req: Request, res: Response) => {
   try {
-    const { accessToken: pageToken, slot } = await getMetaLeadAppConfig(getMetaLeadAppSlot(req))
+    const { accessToken: pageToken, slot } = await getMetaLeadAppConfig()
     if (!pageToken) return res.status(400).json({ success: false, message: `Lead Page Access Token for Meta app ${slot} is not configured.` })
 
     const page = await axios.get(`${graphBase}/me`, {
@@ -471,8 +466,8 @@ export const runMetaLeadBackfill = async (req: Request, res: Response) => {
     logId = log.id
 
     let imported = 0
-    const apps = await Promise.all([getMetaLeadAppConfig(1), getMetaLeadAppConfig(2)])
-    const appsWithTokens = apps.filter(app => app.accessToken)
+    const app = await getMetaLeadAppConfig()
+    const appsWithTokens = app.accessToken ? [app] : []
     if (!appsWithTokens.length) throw new Error('No Meta Lead Ads Page Access Token is configured')
     const failedApps: number[] = []
 
