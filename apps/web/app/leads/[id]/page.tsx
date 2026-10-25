@@ -255,6 +255,7 @@ export default function LeadDetailPage() {
                   { icon: <Banknote className="w-3.5 h-3.5" />, label: 'Budget', value: lead.budget ? formatCurrency(lead.budget) : '—' },
                   { icon: <Building2 className="w-3.5 h-3.5" />, label: 'Property Type', value: lead.propertyType || '—' },
                   { icon: <User className="w-3.5 h-3.5" />, label: 'Source', value: getSourceLabel(lead.source) },
+                  { icon: <Clock className="w-3.5 h-3.5" />, label: 'Received', value: new Intl.DateTimeFormat('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'Asia/Kolkata' }).format(new Date(lead.createdAt)).replace(/\b(am|pm)\b/i, period => period.toUpperCase()) },
                 ].map(item => (
                   <div key={item.label} className="flex items-center gap-2.5">
                     <div className="text-slate flex-shrink-0">{item.icon}</div>

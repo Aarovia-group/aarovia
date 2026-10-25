@@ -346,10 +346,11 @@ export default function LeadsPage() {
       const response = await leadApi.exportAll({ search: search || undefined, status: statusFilter || undefined, source: sourceFilter || undefined, projectId: projectFilter || undefined })
       const exportLeads = response.data?.data || []
       if (!exportLeads.length) { toast.error('No leads to export'); return }
-      const headers = ['Name', 'Mobile', 'Email', 'City', 'Budget', 'Source', 'Status', 'Project', 'Assigned To', 'Next Followup']
+      const headers = ['Name', 'Mobile', 'Email', 'City', 'Budget', 'Source', 'Status', 'Project', 'Assigned To', 'Next Followup', 'Received (date & time)']
       const rows = exportLeads.map((lead: any) => [
         lead.name, lead.mobile, lead.email, lead.city, lead.budget, lead.source, lead.status,
         lead.project?.name, lead.assignedTo?.name, lead.nextFollowupDate,
+        new Intl.DateTimeFormat('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'Asia/Kolkata' }).format(new Date(lead.createdAt)).replace(/\b(am|pm)\b/i, period => period.toUpperCase()),
       ].map(value => {
         const text = value == null ? '' : String(value)
         return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text
@@ -498,11 +499,11 @@ export default function LeadsPage() {
 
       {view === 'list' ? (
         <Card>
-          <Table headers={[...(isAdmin ? [<input key="select-all" type="checkbox" checked={allVisibleSelected} onChange={toggleVisibleLeads} aria-label="Select all visible leads" className="h-4 w-4 accent-[#b27a16]" />] : []), 'Lead', 'Project', 'Mobile', 'Budget', 'Source', 'Status', 'Assigned To', 'Next Followup', 'Actions']}>
+          <Table headers={[...(isAdmin ? [<input key="select-all" type="checkbox" checked={allVisibleSelected} onChange={toggleVisibleLeads} aria-label="Select all visible leads" className="h-4 w-4 accent-[#b27a16]" />] : []), 'Lead', 'Project', 'Mobile', 'Budget', 'Source', 'Received', 'Status', 'Assigned To', 'Next Followup', 'Actions']}>
             {isLoading ? (
-              <tr><td colSpan={isAdmin ? 10 : 9} className="py-12 text-center text-slate text-sm">Loading leads...</td></tr>
+              <tr><td colSpan={isAdmin ? 11 : 10} className="py-12 text-center text-slate text-sm">Loading leads...</td></tr>
             ) : leads.length === 0 ? (
-              <tr><td colSpan={isAdmin ? 10 : 9}><EmptyState icon={<Users className="w-10 h-10" />} title="No leads found" description="Start by adding your first lead or adjust your filters." /></td></tr>
+              <tr><td colSpan={isAdmin ? 11 : 10}><EmptyState icon={<Users className="w-10 h-10" />} title="No leads found" description="Start by adding your first lead or adjust your filters." /></td></tr>
             ) : leads.map((lead: any) => (
               <Tr key={lead.id}>
                 {isAdmin && <Td><input type="checkbox" checked={selectedLeadIds.includes(lead.id)} onChange={() => setSelectedLeadIds(current => current.includes(lead.id) ? current.filter(id => id !== lead.id) : [...current, lead.id])} className="h-4 w-4 accent-[#b27a16]" /></Td>}
@@ -525,6 +526,9 @@ export default function LeadsPage() {
                 </Td>
                 <Td className="text-gold font-medium">{lead.budget ? formatCurrency(lead.budget) : '—'}</Td>
                 <Td><span className="text-xs text-slate">{getSourceLabel(lead.source)}</span></Td>
+                <Td className="text-xs text-slate-light">
+                  {new Intl.DateTimeFormat('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'Asia/Kolkata' }).format(new Date(lead.createdAt)).replace(/\b(am|pm)\b/i, period => period.toUpperCase())}
+                </Td>
                 <Td>
                   <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${getLeadStatusColor(lead.status)}`}>
                     {getLeadStatusLabel(lead.status)}
