@@ -8,6 +8,7 @@ import rateLimit from 'express-rate-limit'
 import authRoutes from './routes/auth.routes'
 import leadRoutes from './routes/lead.routes'
 import publicLeadRoutes from './routes/public-lead.routes'
+import premiaWebsiteRoutes from './routes/premia-website.routes'
 import customerRoutes from './routes/customer.routes'
 import inventoryRoutes from './routes/inventory.routes'
 import quotationRoutes from './routes/quotation.routes'
@@ -45,6 +46,7 @@ app.set('trust proxy', 1)
 // Security middleware
 app.use(helmet())
 app.use('/api/public/leads', require('./routes/lake-estate-website.routes').default)
+app.use('/api/public/leads/premia', premiaWebsiteRoutes)
 const frontendOrigins = process.env.NODE_ENV === 'production'
   ? [
       ...(process.env.FRONTEND_URL ? process.env.FRONTEND_URL.split(',').map((url) => url.trim()) : ['https://aarovia.co.in', 'https://www.aarovia.co.in']),
