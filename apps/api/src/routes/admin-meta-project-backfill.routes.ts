@@ -60,6 +60,7 @@ router.post('/', authenticate, authorize('SUPER_ADMIN', 'ADMIN'), async (req: Re
         where: { source: 'META_ADS', projectId: null },
         select: {
           id: true,
+          name: true,
           metaLeadId: true,
           activities: {
             where: { type: 'LEAD_CREATED' },
@@ -77,6 +78,9 @@ router.post('/', authenticate, authorize('SUPER_ADMIN', 'ADMIN'), async (req: Re
     const counts = Object.fromEntries(
       Object.values(META_FORM_PROJECT_MAP).map(({ projectKey }) => [projectKey, 0]),
     ) as Record<string, number>
+    const affectedLeads = Object.fromEntries(
+      Object.values(META_FORM_PROJECT_MAP).map(({ projectKey }) => [projectKey, []]),
+    ) as Record<string, Array<{ id: string; name: string; formId: string; proposedProject: string }>>
     let unmatched = 0
     let failedLookups = 0
     const unresolvedProjects = new Set<string>()
@@ -138,6 +142,14 @@ router.post('/', authenticate, authorize('SUPER_ADMIN', 'ADMIN'), async (req: Re
         if (result.count === 0) continue
       }
       counts[match.mapping.projectKey] += 1
+      if (dryRun) {
+        affectedLeads[match.mapping.projectKey].push({
+          id: lead.id,
+          name: lead.name,
+          formId,
+          proposedProject: match.project.name,
+        })
+      }
     }
 
     console.info(`[Meta Project Backfill] ${dryRun ? 'Dry run' : 'Completed'} counts`, counts)
@@ -145,6 +157,7 @@ router.post('/', authenticate, authorize('SUPER_ADMIN', 'ADMIN'), async (req: Re
       success: failedLookups === 0,
       dryRun,
       counts,
+      ...(dryRun ? { affectedLeads } : {}),
       unmatched,
       failedLookups,
     })
