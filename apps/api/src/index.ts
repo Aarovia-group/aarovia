@@ -27,6 +27,7 @@ import whatsappRoutes from './routes/whatsapp.routes'
 import whatsappWebhookRoutes from './routes/whatsapp-webhook.routes'
 import metaLeadRoutes from './routes/meta-leads.routes'
 import metaLeadCronRoutes from './routes/meta-lead-cron.routes'
+import adminMetaProjectBackfillRoutes from './routes/admin-meta-project-backfill.routes'
 import documentRoutes from './routes/document.routes'
 import postSalesRoutes from './routes/postSales.routes'
 import uploadRoutes from './routes/upload.routes'
@@ -80,6 +81,7 @@ app.use('/api/whatsapp/webhook', whatsappWebhookRoutes)
 app.use('/api/meta/leadgen-webhook', metaLeadRoutes)
 app.use('/api/ad-integrations/meta/webhook', metaLeadRoutes)
 app.use('/api/cron/meta-leads', metaLeadCronRoutes)
+app.use('/api/admin/backfill-meta-projects', adminMetaProjectBackfillRoutes)
 
 // Body parsing
 app.use(express.json({ limit: '10mb' }))

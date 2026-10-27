@@ -4,6 +4,7 @@ import axios, { AxiosResponse } from 'axios'
 import { Prisma } from '@prisma/client'
 import prisma from '../utils/prisma'
 import { notifyManagersOfNewLeads } from '../services/notification.service'
+import { resolveMetaFormProject } from '../lib/metaFormProjectMap'
 
 type MetaLeadField = { name?: string; values?: string[] }
 export type MetaLeadDetails = {
@@ -160,6 +161,22 @@ export const storeMetaLead = async (
   }
 
   const mobile = normalizeMetaPhone(fields.phone)
+  let projectId: string | undefined
+  try {
+    const formId = details.form_id || context.formId
+    if (formId) {
+      const projects = await prisma.project.findMany({ select: { id: true, name: true } })
+      const match = resolveMetaFormProject(formId, projects)
+      if (match?.project) {
+        projectId = match.project.id
+      } else if (match) {
+        console.warn(`[Meta Lead] No unique Project match for form ${formId} (${match.mapping.projectKey}); leaving lead Unassigned`)
+      }
+    }
+  } catch (error) {
+    console.error('[Meta Lead] Project assignment failed; continuing lead creation', error instanceof Error ? error.name : 'unknown error')
+  }
+
   try {
     const lead = await prisma.$transaction(async transaction => {
       const created = await transaction.lead.create({
@@ -171,6 +188,7 @@ export const storeMetaLead = async (
           source: 'META_ADS',
           status: 'NEW',
           metaLeadId: details.id,
+          projectId,
           remarks: `Meta Lead Ads form submission${details.form_id || context.formId ? ` (form ${details.form_id || context.formId})` : ''}`,
         },
         select: { id: true },
