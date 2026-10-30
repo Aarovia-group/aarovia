@@ -19,6 +19,10 @@ assert.deepEqual(
   ]),
   { id: 'quest-estate', name: 'Quest Estate' },
 )
+assert.deepEqual(
+  findQuietEstateProject([{ id: 'quest-estate', name: '  QUEST ESTATE  ' }]),
+  { id: 'quest-estate', name: '  QUEST ESTATE  ' },
+)
 assert.equal(findQuietEstateProject([{ id: 'other', name: 'Quiet Estate' }]), undefined)
 
 console.log('Quiet Estate website lead validation tests passed.')

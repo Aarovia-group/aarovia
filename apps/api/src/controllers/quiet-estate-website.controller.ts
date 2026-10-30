@@ -34,7 +34,7 @@ export const captureQuietEstateWebsiteLead = async (req: Request, res: Response)
 
   try {
     const projects = await prisma.project.findMany({
-      where: { name: { equals: 'Quest Estate', mode: 'insensitive' }, isActive: true },
+      where: { name: { contains: 'Estate', mode: 'insensitive' }, isActive: true },
       select: { id: true, name: true },
     })
     const project = findQuietEstateProject(projects)
