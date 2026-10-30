@@ -20,9 +20,16 @@ assert.deepEqual(
   { id: 'quest-estate', name: 'Quest Estate' },
 )
 assert.deepEqual(
-  findQuietEstateProject([{ id: 'quest-estate', name: '\u200B QUEST\u00A0  ESTATE \u2060' }]),
-  { id: 'quest-estate', name: '\u200B QUEST\u00A0  ESTATE \u2060' },
+  findQuietEstateProject([{ id: 'quiet-estate', name: '\u200B QUIET\u00A0  ESTATE \u2060' }]),
+  { id: 'quiet-estate', name: '\u200B QUIET\u00A0  ESTATE \u2060' },
 )
-assert.equal(findQuietEstateProject([{ id: 'other', name: 'Quiet Estate' }]), undefined)
+assert.deepEqual(
+  findQuietEstateProject([
+    { id: 'quest-estate', name: 'Quest Estate' },
+    { id: 'quiet-estate', name: 'Quiet Estate' },
+  ]),
+  { id: 'quiet-estate', name: 'Quiet Estate' },
+)
+assert.equal(findQuietEstateProject([{ id: 'other', name: 'Other Project' }]), undefined)
 
 console.log('Quiet Estate website lead validation tests passed.')
