@@ -1,6 +1,26 @@
 import { Request, Response } from 'express'
+import { z } from 'zod'
 import prisma from '../utils/prisma'
 import { AuthRequest } from '../middleware/auth.middleware'
+
+export const projectUpdateSchema = z.object({
+  name: z.string().trim().min(1).optional(),
+  description: z.string().nullable().optional(),
+  location: z.string().trim().min(1).optional(),
+  city: z.string().trim().min(1).optional(),
+  state: z.string().trim().min(1).optional(),
+  reraNumber: z.string().nullable().optional(),
+  totalUnits: z.number().int().optional(),
+  availableUnits: z.number().int().optional(),
+  minPrice: z.number().nullable().optional(),
+  maxPrice: z.number().nullable().optional(),
+  propertyTypes: z.array(z.string()).optional(),
+  amenities: z.array(z.string()).optional(),
+  brochureUrl: z.string().nullable().optional(),
+  sitemapUrl: z.string().nullable().optional(),
+  images: z.array(z.string()).optional(),
+  isActive: z.boolean().optional(),
+}).refine(data => Object.keys(data).length > 0, 'At least one project field is required.')
 
 export const getProjects = async (req: Request, res: Response) => {
   try {
@@ -63,8 +83,13 @@ export const createProject = async (req: AuthRequest, res: Response) => {
 }
 
 export const updateProject = async (req: AuthRequest, res: Response) => {
+  const parsed = projectUpdateSchema.safeParse(req.body)
+  if (!parsed.success) {
+    return res.status(400).json({ success: false, message: parsed.error.issues[0]?.message || 'Invalid project fields' })
+  }
+
   try {
-    const project = await prisma.project.update({ where: { id: req.params.id }, data: req.body })
+    const project = await prisma.project.update({ where: { id: req.params.id }, data: parsed.data })
     res.json({ success: true, message: 'Project updated', data: project })
   } catch (error) {
     res.status(500).json({ success: false, message: 'Failed to update project', error })
