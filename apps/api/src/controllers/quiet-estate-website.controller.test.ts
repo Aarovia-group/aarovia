@@ -15,10 +15,10 @@ assert.equal(quietEstateLeadCaptureSchema.safeParse({ ...validLead, source: 'oth
 assert.deepEqual(
   findQuietEstateProject([
     { id: 'other', name: 'Other Project' },
-    { id: 'quiet-estate', name: 'Quiet Estate' },
+    { id: 'quest-estate', name: 'Quest Estate' },
   ]),
-  { id: 'quiet-estate', name: 'Quiet Estate' },
+  { id: 'quest-estate', name: 'Quest Estate' },
 )
-assert.equal(findQuietEstateProject([{ id: 'other', name: 'Quest Estate' }]), undefined)
+assert.equal(findQuietEstateProject([{ id: 'other', name: 'Quiet Estate' }]), undefined)
 
 console.log('Quiet Estate website lead validation tests passed.')
