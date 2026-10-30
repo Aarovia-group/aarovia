@@ -13,7 +13,7 @@ export const quietEstateLeadCaptureSchema = z.object({
 })
 
 export const findQuietEstateProject = <T extends { id: string; name: string }>(projects: T[]) =>
-  projects.find(project => project.name.trim().toLowerCase() === 'quiet estate')
+  projects.find(project => project.name.trim().toLowerCase() === 'quest estate')
 
 export const captureQuietEstateWebsiteLead = async (req: Request, res: Response) => {
   const parsed = quietEstateLeadCaptureSchema.safeParse(req.body)
@@ -34,7 +34,7 @@ export const captureQuietEstateWebsiteLead = async (req: Request, res: Response)
 
   try {
     const projects = await prisma.project.findMany({
-      where: { name: { equals: 'Quiet Estate', mode: 'insensitive' }, isActive: true },
+      where: { name: { equals: 'Quest Estate', mode: 'insensitive' }, isActive: true },
       select: { id: true, name: true },
     })
     const project = findQuietEstateProject(projects)
