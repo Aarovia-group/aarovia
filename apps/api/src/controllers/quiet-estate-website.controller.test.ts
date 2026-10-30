@@ -20,8 +20,8 @@ assert.deepEqual(
   { id: 'quest-estate', name: 'Quest Estate' },
 )
 assert.deepEqual(
-  findQuietEstateProject([{ id: 'quest-estate', name: '  QUEST ESTATE  ' }]),
-  { id: 'quest-estate', name: '  QUEST ESTATE  ' },
+  findQuietEstateProject([{ id: 'quest-estate', name: '\u200B QUEST\u00A0  ESTATE \u2060' }]),
+  { id: 'quest-estate', name: '\u200B QUEST\u00A0  ESTATE \u2060' },
 )
 assert.equal(findQuietEstateProject([{ id: 'other', name: 'Quiet Estate' }]), undefined)
 
