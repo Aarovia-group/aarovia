@@ -232,7 +232,14 @@ export default function SettingsPage() {
     onError: (error: any) => toast.error(error.response?.data?.message || 'Failed to create project'),
   })
   const updateProjectMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: ProjectFormValues }) => projectApi.update(id, data),
+    mutationFn: ({ id, data }: { id: string; data: ProjectFormValues }) => projectApi.update(id, {
+      name: data.name,
+      location: data.location,
+      city: data.city,
+      state: data.state,
+      description: data.description,
+      reraNumber: data.reraNumber,
+    }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['projects'] })
       setShowProjectForm(false)
