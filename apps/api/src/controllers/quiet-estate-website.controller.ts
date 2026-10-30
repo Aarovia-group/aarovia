@@ -19,6 +19,14 @@ export const findQuietEstateProject = <T extends { id: string; name: string }>(p
       .replace(/[\u200B-\u200D\uFEFF\u2060]/g, '')
       .replace(/[^a-z0-9]+/gi, ' ')
       .trim()
+      .toLowerCase() === 'quiet estate',
+  ) ??
+  projects.find(project =>
+    project.name
+      .normalize('NFKC')
+      .replace(/[\u200B-\u200D\uFEFF\u2060]/g, '')
+      .replace(/[^a-z0-9]+/gi, ' ')
+      .trim()
       .toLowerCase() === 'quest estate',
   )
 
@@ -47,7 +55,7 @@ export const captureQuietEstateWebsiteLead = async (req: Request, res: Response)
     const project = findQuietEstateProject(projects)
 
     if (!project) {
-      console.error('[Quiet Estate Website Lead] Active Quest Estate project was not found')
+      console.error('[Quiet Estate Website Lead] Active Quiet Estate project was not found')
       return res.status(503).json({
         success: false,
         message: 'Lead submission is temporarily unavailable. Please try again later.',
