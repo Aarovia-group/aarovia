@@ -10,6 +10,7 @@ import leadRoutes from './routes/lead.routes'
 import publicLeadRoutes from './routes/public-lead.routes'
 import premiaWebsiteRoutes from './routes/premia-website.routes'
 import vedaVilasaWebsiteRoutes from './routes/veda-vilasa-website.routes'
+import quietEstateWebsiteRoutes from './routes/quiet-estate-website.routes'
 import customerRoutes from './routes/customer.routes'
 import inventoryRoutes from './routes/inventory.routes'
 import quotationRoutes from './routes/quotation.routes'
@@ -50,6 +51,7 @@ app.use(helmet())
 app.use('/api/public/leads', require('./routes/lake-estate-website.routes').default)
 app.use('/api/public/leads/premia', premiaWebsiteRoutes)
 app.use('/api/public/leads/veda-vilasa', vedaVilasaWebsiteRoutes)
+app.use('/api/public/leads/quiet-estate', quietEstateWebsiteRoutes)
 const frontendOrigins = process.env.NODE_ENV === 'production'
   ? [
       ...(process.env.FRONTEND_URL ? process.env.FRONTEND_URL.split(',').map((url) => url.trim()) : ['https://aarovia.co.in', 'https://www.aarovia.co.in']),
