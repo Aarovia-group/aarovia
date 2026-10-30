@@ -7,7 +7,7 @@ import { captureQuietEstateWebsiteLead } from '../controllers/quiet-estate-websi
 const router = Router()
 const parseJsonBody = json()
 const websiteCors = cors({
-  origin: 'https://questestate.aaroviagroup.com',
+  origin: ['https://quietestate.aaroviagroup.com', 'https://questestate.aaroviagroup.com'],
   methods: ['POST', 'OPTIONS'],
   allowedHeaders: ['Content-Type'],
   optionsSuccessStatus: 204,
