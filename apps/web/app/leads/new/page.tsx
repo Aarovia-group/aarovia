@@ -180,7 +180,7 @@ export default function NewLeadPage() {
                   <div>
                     <label className={labelClass}>Assign To</label>
                     <select {...register('assignedToId')} className={selectClass}>
-                      <option value="">Auto-assign / Me</option>
+                      <option value="">Auto-assign project-wise</option>
                       {users.map((u: any) => <option key={u.id} value={u.id}>{u.name} ({u.role?.replace(/_/g, ' ')})</option>)}
                     </select>
                   </div>
