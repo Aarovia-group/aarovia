@@ -3,6 +3,7 @@ import { LeadSource, LeadStatus, PropertyType } from '@prisma/client'
 import prisma from '../utils/prisma'
 import { AuthRequest } from '../middleware/auth.middleware'
 import { notifyManagersOfNewLeads } from '../services/notification.service'
+import { assignProjectLeadRoundRobin } from '../services/project-lead-routing'
 
 export const getLeads = async (req: AuthRequest, res: Response) => {
   try {
@@ -133,19 +134,24 @@ export const createLead = async (req: AuthRequest, res: Response) => {
       where: { mobile, isActive: true },
     })
 
-    const lead = await prisma.lead.create({
-      data: {
-        name, mobile, email, budget: budget ? parseFloat(budget) : null,
-        city, source, status: status || 'NEW', propertyType,
-        projectId, assignedToId: assignedToId || req.user?.id,
-        createdById: req.user?.id, remarks, tags: tags || [],
-        nextFollowupDate: nextFollowupDate ? new Date(nextFollowupDate) : null,
-        isDuplicate: !!duplicate,
-      },
-      include: {
-        assignedTo: { select: { id: true, name: true } },
-        project: { select: { id: true, name: true } },
-      },
+    const lead = await prisma.$transaction(async transaction => {
+      const roundRobinAssignedToId = assignedToId
+        ? null
+        : await assignProjectLeadRoundRobin(transaction, projectId)
+      return transaction.lead.create({
+        data: {
+          name, mobile, email, budget: budget ? parseFloat(budget) : null,
+          city, source, status: status || 'NEW', propertyType,
+          projectId, assignedToId: assignedToId || roundRobinAssignedToId || req.user?.id,
+          createdById: req.user?.id, remarks, tags: tags || [],
+          nextFollowupDate: nextFollowupDate ? new Date(nextFollowupDate) : null,
+          isDuplicate: !!duplicate,
+        },
+        include: {
+          assignedTo: { select: { id: true, name: true } },
+          project: { select: { id: true, name: true } },
+        },
+      })
     })
 
     // Log activity
@@ -741,24 +747,32 @@ export const bulkImportLeads = async (req: AuthRequest, res: Response) => {
 
       try {
         const duplicate = await prisma.lead.findFirst({ where: { mobile, isActive: true } })
-        const createdLead = await prisma.lead.create({
-          data: {
-            name,
-            mobile,
-            email: typeof leadData.email === 'string' && leadData.email.trim() ? leadData.email.trim() : null,
-            budget,
-            city: typeof leadData.city === 'string' && leadData.city.trim() ? leadData.city.trim() : null,
-            source: source as LeadSource,
-            status: status as LeadStatus,
-            propertyType: propertyType as PropertyType | null,
-            remarks: typeof leadData.remarks === 'string' && leadData.remarks.trim() ? leadData.remarks.trim() : null,
-            nextFollowupDate,
-            projectId: typeof leadData.projectId === 'string' && leadData.projectId ? leadData.projectId : null,
-            assignedToId: typeof leadData.assignedToId === 'string' && leadData.assignedToId ? leadData.assignedToId : req.user?.id,
-            createdById: req.user?.id,
-            isDuplicate: !!duplicate,
-          },
-          select: { id: true, name: true, mobile: true, source: true },
+        const createdLead = await prisma.$transaction(async transaction => {
+          const projectId = typeof leadData.projectId === 'string' && leadData.projectId ? leadData.projectId : null
+          const roundRobinAssignedToId = leadData.assignedToId
+            ? null
+            : await assignProjectLeadRoundRobin(transaction, projectId)
+          return transaction.lead.create({
+            data: {
+              name,
+              mobile,
+              email: typeof leadData.email === 'string' && leadData.email.trim() ? leadData.email.trim() : null,
+              budget,
+              city: typeof leadData.city === 'string' && leadData.city.trim() ? leadData.city.trim() : null,
+              source: source as LeadSource,
+              status: status as LeadStatus,
+              propertyType: propertyType as PropertyType | null,
+              remarks: typeof leadData.remarks === 'string' && leadData.remarks.trim() ? leadData.remarks.trim() : null,
+              nextFollowupDate,
+              projectId,
+              assignedToId: typeof leadData.assignedToId === 'string' && leadData.assignedToId
+                ? leadData.assignedToId
+                : roundRobinAssignedToId || req.user?.id,
+              createdById: req.user?.id,
+              isDuplicate: !!duplicate,
+            },
+            select: { id: true, name: true, mobile: true, source: true },
+          })
         })
         createdLeadsForNotification.push(createdLead)
         duplicate ? results.duplicates++ : results.created++

@@ -157,6 +157,7 @@ model Project {
   city            String
   state           String
   reraNumber      String?
+  leadRoundRobinCursor Int @default(0)
   totalUnits      Int       @default(0)
   availableUnits  Int       @default(0)
   minPrice        Float?
