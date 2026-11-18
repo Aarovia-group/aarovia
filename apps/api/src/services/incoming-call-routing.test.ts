@@ -34,8 +34,9 @@ try {
   assert.equal(getMcubeExecutiveNumber('Maruthi'), '9187980598')
   assert.equal(getMcubeExecutiveNumber('Vinod'), '9187980594')
   assert.equal(getMcubeExecutiveNumber('Amar'), '9448825051')
+  assert.equal(getMcubeExecutiveNumber('Santhosh'), '9187980597')
   assert.equal(getMcubeExecutiveNumber('Unknown Agent', '9000000000'), '9000000000')
-  assert.equal(Object.keys(DEFAULT_MCUBE_EXECUTIVE_NUMBERS).length, 9)
+  assert.equal(Object.keys(DEFAULT_MCUBE_EXECUTIVE_NUMBERS).length, 10)
 
   const routes = parseOutgoingDidRoutes()
   assert.equal(findOutgoingDidForAgent(routes, 'Amar', 'SALES_EXECUTIVE', 0, 'SA Global-Primia-Digital'), '8071439585')
@@ -43,6 +44,7 @@ try {
   assert.equal(findOutgoingDidForAgent(routes, 'Amar', 'SALES_EXECUTIVE', 0, 'Lake Estate-Digital'), '8071439584')
   assert.equal(findOutgoingDidForAgent(routes, 'Amar', 'SALES_EXECUTIVE'), '8071439584')
   assert.equal(findOutgoingDidForAgent(routes, 'Chirag', 'SALES_EXECUTIVE', 0, 'Lake Estate-Digital'), '8071439584')
+  assert.equal(findOutgoingDidForAgent(routes, 'Santhosh', 'SALES_EXECUTIVE', 0, 'Lake Estate-Digital'), '8071439584')
   assert.equal(findOutgoingDidForAgent(routes, 'Vinod', 'SALES_EXECUTIVE', 0, 'SA Global-Primia-Digital'), '8071439585')
   assert.equal(
     findOutgoingDidForAgent(DEFAULT_OUTGOING_DID_ROUTES, 'Nithin', 'SALES_EXECUTIVE', 0),
