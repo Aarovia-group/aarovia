@@ -5,6 +5,7 @@ import { Prisma } from '@prisma/client'
 import prisma from '../utils/prisma'
 import { notifyManagersOfNewLeads } from '../services/notification.service'
 import { resolveMetaFormProject } from '../lib/metaFormProjectMap'
+import { assignProjectLeadRoundRobin } from '../services/project-lead-routing'
 
 type MetaLeadField = { name?: string; values?: string[] }
 export type MetaLeadDetails = {
@@ -179,6 +180,7 @@ export const storeMetaLead = async (
 
   try {
     const lead = await prisma.$transaction(async transaction => {
+      const assignedToId = await assignProjectLeadRoundRobin(transaction, projectId)
       const created = await transaction.lead.create({
         data: {
           name: fields.name,
@@ -189,6 +191,7 @@ export const storeMetaLead = async (
           status: 'NEW',
           metaLeadId: details.id,
           projectId,
+          assignedToId,
           remarks: `Meta Lead Ads form submission${details.form_id || context.formId ? ` (form ${details.form_id || context.formId})` : ''}`,
         },
         select: { id: true },

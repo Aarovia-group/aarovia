@@ -1,4 +1,5 @@
 import assert from 'node:assert'
+import { chooseProjectLeadAgent } from './project-lead-routing'
 import {
   DEFAULT_OUTGOING_DID_ROUTES,
   DEFAULT_INCOMING_CALL_ROUTES,
@@ -11,6 +12,10 @@ import {
 } from './incoming-call-routing'
 
 try {
+  assert.equal(chooseProjectLeadAgent(['chirag', 'amar', 'santhosh'], 0), 'chirag')
+  assert.equal(chooseProjectLeadAgent(['chirag', 'amar', 'santhosh'], 1), 'amar')
+  assert.equal(chooseProjectLeadAgent(['chirag', 'amar', 'santhosh'], 3), 'chirag')
+  assert.equal(chooseProjectLeadAgent([], 0), null)
   assert.equal(
     findIncomingCallRoute(DEFAULT_INCOMING_CALL_ROUTES, ['+91 9071126875'])?.agentName,
     'maruthi',

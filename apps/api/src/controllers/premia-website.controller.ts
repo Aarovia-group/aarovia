@@ -3,6 +3,7 @@ import { z } from 'zod'
 import prisma from '../utils/prisma'
 import { notifyManagersOfNewLeads } from '../services/notification.service'
 import { normalizeIndianMobile } from './public-lead.controller'
+import { assignProjectLeadRoundRobin } from '../services/project-lead-routing'
 
 export const premiaLeadCaptureSchema = z.object({
   fullName: z.string().trim().min(2, 'Enter your full name.').max(120, 'Name is too long.'),
@@ -65,6 +66,7 @@ export const capturePremiaWebsiteLead = async (req: Request, res: Response) => {
     const email = parsed.data.emailAddress?.trim()
 
     const lead = await prisma.$transaction(async transaction => {
+      const assignedToId = await assignProjectLeadRoundRobin(transaction, project.id)
       const createdLead = await transaction.lead.create({
         data: {
           name: parsed.data.fullName,
@@ -73,6 +75,7 @@ export const capturePremiaWebsiteLead = async (req: Request, res: Response) => {
           source: 'WEBSITE',
           status: 'NEW',
           projectId: project.id,
+          assignedToId,
           isDuplicate: Boolean(duplicate),
           remarks: `Website lead submitted from premia.aaroviagroup.com (${parsed.data.formType} form)`,
         },

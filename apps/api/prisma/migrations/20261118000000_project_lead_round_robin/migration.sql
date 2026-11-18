@@ -1,0 +1,2 @@
+ALTER TABLE "projects"
+  ADD COLUMN "leadRoundRobinCursor" INTEGER NOT NULL DEFAULT 0;
