@@ -57,6 +57,8 @@ const frontendOrigins = process.env.NODE_ENV === 'production'
       ...(process.env.FRONTEND_URL ? process.env.FRONTEND_URL.split(',').map((url) => url.trim()) : ['https://aarovia.co.in', 'https://www.aarovia.co.in']),
       'https://hararassai.aaroviagroup.com',
       'https://www.hararassai.aaroviagroup.com',
+      'https://aaroviagroup.com',
+      'https://www.aaroviagroup.com',
       'https://web-aarovia.vercel.app',
       'https://aarovia-crm-light.vercel.app',
     ]
@@ -108,6 +110,7 @@ app.get('/api/health', (req, res) => {
 
 // API Routes
 app.use('/api/auth', authRoutes)
+app.use('/api/leads/public', require('./routes/aarovia-contact.routes').default)
 app.use('/api/public/leads', publicLeadRoutes)
 app.use('/api/leads', leadRoutes)
 app.use('/api/customers', customerRoutes)

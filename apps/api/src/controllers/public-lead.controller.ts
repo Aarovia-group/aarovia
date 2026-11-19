@@ -11,6 +11,20 @@ const leadCaptureSchema = z.object({
   website: z.string().optional(),
 })
 
+const aaroviaContactLeadSchema = z.object({
+  name: z.string().trim().min(2).max(120),
+  mobile: z.string().trim().min(10).max(20),
+  email: z.union([
+    z.string().trim().email().max(254),
+    z.literal(''),
+    z.null(),
+  ]).optional(),
+  remarks: z.string().trim().max(4000).nullable().optional(),
+  formType: z.string().trim().max(50).optional(),
+  consent: z.literal(true),
+  consentText: z.string().trim().max(1000).optional(),
+})
+
 export const normalizeIndianMobile = (value: string) => {
   let digits = value.replace(/\D/g, '')
   if (digits.length === 11 && digits.startsWith('0')) digits = digits.slice(1)
@@ -19,13 +33,20 @@ export const normalizeIndianMobile = (value: string) => {
 }
 
 const HARA_PROJECT_NAMES = ['Hara Rassai Vijayam', 'Hara Vijayam'] as const
+const AAROVIA_WEBSITE_PROJECT_NAMES = ['Aarovia Group Website'] as const
 
-export const findHaraProject = <T extends { id: string; name: string }>(projects: T[]) =>
-  HARA_PROJECT_NAMES
+export const findProjectByNames = <T extends { id: string; name: string }>(
+  projects: T[],
+  names: readonly string[],
+) =>
+  names
     .map(name => projects.find(project => project.name.trim().toLowerCase() === name.toLowerCase()))
     .find(Boolean)
 
-export const captureWebsiteLead = async (req: Request, res: Response) => {
+const captureWebsiteLeadForProject = (
+  projectNames: readonly string[],
+  details: { projectLabel: string; remarks: string; activityDescription: string },
+) => async (req: Request, res: Response) => {
   const parsed = leadCaptureSchema.safeParse(req.body)
   if (!parsed.success) {
     return res.status(400).json({
@@ -45,13 +66,13 @@ export const captureWebsiteLead = async (req: Request, res: Response) => {
 
   try {
     const projects = await prisma.project.findMany({
-      where: { name: { in: [...HARA_PROJECT_NAMES], mode: 'insensitive' }, isActive: true },
+      where: { name: { in: [...projectNames], mode: 'insensitive' }, isActive: true },
       select: { id: true, name: true },
     })
-    const project = findHaraProject(projects)
+    const project = findProjectByNames(projects, projectNames)
 
     if (!project) {
-      console.error('[Public Lead] Hara Rassai Vijayam project is not configured')
+      console.error(`[Public Lead] ${details.projectLabel} project is not configured or active`)
       return res.status(503).json({ success: false, message: 'Lead capture is temporarily unavailable.' })
     }
 
@@ -72,7 +93,7 @@ export const captureWebsiteLead = async (req: Request, res: Response) => {
           projectId: project.id,
           assignedToId,
           isDuplicate: Boolean(duplicate),
-          remarks: 'Callback request submitted from www.hararassai.aaroviagroup.com',
+          remarks: details.remarks,
         },
         select: { id: true },
       })
@@ -81,7 +102,7 @@ export const captureWebsiteLead = async (req: Request, res: Response) => {
         data: {
           leadId: createdLead.id,
           type: 'LEAD_CREATED',
-          description: 'Lead captured from Hara Rassai website form',
+          description: details.activityDescription,
           metadata: { source: 'WEBSITE', projectId: project.id },
         },
       })
@@ -98,5 +119,98 @@ export const captureWebsiteLead = async (req: Request, res: Response) => {
   } catch (error) {
     console.error('[Public Lead] Failed to capture website lead', error)
     return res.status(500).json({ success: false, message: 'Unable to submit your request. Please try again.' })
+  }
+}
+
+export const captureWebsiteLead = captureWebsiteLeadForProject(HARA_PROJECT_NAMES, {
+  projectLabel: 'Hara Rassai Vijayam',
+  remarks: 'Callback request submitted from www.hararassai.aaroviagroup.com',
+  activityDescription: 'Lead captured from Hara Rassai website form',
+})
+
+export const captureAaroviaGroupWebsiteLead = captureWebsiteLeadForProject(AAROVIA_WEBSITE_PROJECT_NAMES, {
+  projectLabel: 'Aarovia Group Website',
+  remarks: 'Contact request submitted from www.aaroviagroup.com',
+  activityDescription: 'Lead captured from Aarovia Group contact form',
+})
+
+export const captureAaroviaContactLead = async (req: Request, res: Response) => {
+  const parsed = aaroviaContactLeadSchema.safeParse(req.body)
+  if (!parsed.success) {
+    return res.status(400).json({
+      success: false,
+      message: 'Enter a valid name and Indian mobile number, and accept the consent checkbox.',
+    })
+  }
+
+  const mobile = normalizeIndianMobile(parsed.data.mobile)
+  if (!mobile) {
+    return res.status(400).json({ success: false, message: 'Enter a valid 10-digit Indian mobile number.' })
+  }
+
+  try {
+    const project = (await prisma.project.findMany({
+      where: { name: { in: [...AAROVIA_WEBSITE_PROJECT_NAMES], mode: 'insensitive' }, isActive: true },
+      select: { id: true, name: true },
+    })).find(candidate => candidate.name.trim().toLowerCase() === 'aarovia group website')
+
+    if (!project) {
+      console.error('[Aarovia Contact Lead] Aarovia Group Website project is not configured or active')
+      return res.status(503).json({ success: false, message: 'Lead capture is temporarily unavailable.' })
+    }
+
+    const duplicate = await prisma.lead.findFirst({
+      where: { mobile, isActive: true },
+      select: { id: true },
+    })
+    const lead = await prisma.$transaction(async transaction => {
+      const assignedToId = await assignProjectLeadRoundRobin(transaction, project.id)
+      const createdLead = await transaction.lead.create({
+        data: {
+          name: parsed.data.name,
+          mobile,
+          email: parsed.data.email?.trim().toLowerCase() || null,
+          source: 'WEBSITE',
+          status: 'NEW',
+          projectId: project.id,
+          assignedToId,
+          isDuplicate: Boolean(duplicate),
+          remarks: parsed.data.remarks || 'Contact request submitted from www.aaroviagroup.com',
+        },
+        select: { id: true },
+      })
+
+      await transaction.activity.create({
+        data: {
+          leadId: createdLead.id,
+          type: 'LEAD_CREATED',
+          description: 'Lead captured from Aarovia Group contact form',
+          metadata: {
+            source: 'WEBSITE',
+            projectId: project.id,
+            formType: parsed.data.formType || 'contact',
+            consent: parsed.data.consent,
+            consentText: parsed.data.consentText || null,
+          },
+        },
+      })
+      return createdLead
+    })
+
+    await notifyManagersOfNewLeads([{
+      id: lead.id,
+      name: parsed.data.name,
+      mobile,
+      source: 'WEBSITE',
+    }])
+
+    return res.status(201).json({
+      success: true,
+      message: 'Thank you! Your enquiry was received. Our team will contact you shortly.',
+      data: { id: lead.id },
+    })
+  } catch (error) {
+    console.error('[Aarovia Contact Lead] Failed to capture contact form lead', error)
+    return res.status(500).json({ success: false, message: 'Unable to submit your enquiry. Please try again.' })
   }
 }
