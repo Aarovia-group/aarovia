@@ -110,7 +110,6 @@ app.get('/api/health', (req, res) => {
 
 // API Routes
 app.use('/api/auth', authRoutes)
-app.use('/api/leads/public', require('./routes/aarovia-contact.routes').default)
 app.use('/api/public/leads', publicLeadRoutes)
 app.use('/api/leads', leadRoutes)
 app.use('/api/customers', customerRoutes)

@@ -33,20 +33,13 @@ export const normalizeIndianMobile = (value: string) => {
 }
 
 const HARA_PROJECT_NAMES = ['Hara Rassai Vijayam', 'Hara Vijayam'] as const
-const AAROVIA_WEBSITE_PROJECT_NAMES = ['Aarovia Group Website'] as const
 
-export const findProjectByNames = <T extends { id: string; name: string }>(
-  projects: T[],
-  names: readonly string[],
-) =>
-  names
+export const findHaraProject = <T extends { id: string; name: string }>(projects: T[]) =>
+  HARA_PROJECT_NAMES
     .map(name => projects.find(project => project.name.trim().toLowerCase() === name.toLowerCase()))
     .find(Boolean)
 
-const captureWebsiteLeadForProject = (
-  projectNames: readonly string[],
-  details: { projectLabel: string; remarks: string; activityDescription: string },
-) => async (req: Request, res: Response) => {
+export const captureWebsiteLead = async (req: Request, res: Response) => {
   const parsed = leadCaptureSchema.safeParse(req.body)
   if (!parsed.success) {
     return res.status(400).json({
@@ -66,13 +59,13 @@ const captureWebsiteLeadForProject = (
 
   try {
     const projects = await prisma.project.findMany({
-      where: { name: { in: [...projectNames], mode: 'insensitive' }, isActive: true },
+      where: { name: { in: [...HARA_PROJECT_NAMES], mode: 'insensitive' }, isActive: true },
       select: { id: true, name: true },
     })
-    const project = findProjectByNames(projects, projectNames)
+    const project = findHaraProject(projects)
 
     if (!project) {
-      console.error(`[Public Lead] ${details.projectLabel} project is not configured or active`)
+      console.error('[Public Lead] Hara Rassai Vijayam project is not configured')
       return res.status(503).json({ success: false, message: 'Lead capture is temporarily unavailable.' })
     }
 
@@ -93,7 +86,7 @@ const captureWebsiteLeadForProject = (
           projectId: project.id,
           assignedToId,
           isDuplicate: Boolean(duplicate),
-          remarks: details.remarks,
+          remarks: 'Callback request submitted from www.hararassai.aaroviagroup.com',
         },
         select: { id: true },
       })
@@ -102,7 +95,7 @@ const captureWebsiteLeadForProject = (
         data: {
           leadId: createdLead.id,
           type: 'LEAD_CREATED',
-          description: details.activityDescription,
+          description: 'Lead captured from Hara Rassai website form',
           metadata: { source: 'WEBSITE', projectId: project.id },
         },
       })
@@ -122,18 +115,6 @@ const captureWebsiteLeadForProject = (
   }
 }
 
-export const captureWebsiteLead = captureWebsiteLeadForProject(HARA_PROJECT_NAMES, {
-  projectLabel: 'Hara Rassai Vijayam',
-  remarks: 'Callback request submitted from www.hararassai.aaroviagroup.com',
-  activityDescription: 'Lead captured from Hara Rassai website form',
-})
-
-export const captureAaroviaGroupWebsiteLead = captureWebsiteLeadForProject(AAROVIA_WEBSITE_PROJECT_NAMES, {
-  projectLabel: 'Aarovia Group Website',
-  remarks: 'Contact request submitted from www.aaroviagroup.com',
-  activityDescription: 'Lead captured from Aarovia Group contact form',
-})
-
 export const captureAaroviaContactLead = async (req: Request, res: Response) => {
   const parsed = aaroviaContactLeadSchema.safeParse(req.body)
   if (!parsed.success) {
@@ -149,10 +130,11 @@ export const captureAaroviaContactLead = async (req: Request, res: Response) => 
   }
 
   try {
-    const project = (await prisma.project.findMany({
-      where: { name: { in: [...AAROVIA_WEBSITE_PROJECT_NAMES], mode: 'insensitive' }, isActive: true },
+    const projects = await prisma.project.findMany({
+      where: { name: { in: ['Aarovia Group Website'], mode: 'insensitive' }, isActive: true },
       select: { id: true, name: true },
-    })).find(candidate => candidate.name.trim().toLowerCase() === 'aarovia group website')
+    })
+    const project = projects.find(candidate => candidate.name.trim().toLowerCase() === 'aarovia group website')
 
     if (!project) {
       console.error('[Aarovia Contact Lead] Aarovia Group Website project is not configured or active')

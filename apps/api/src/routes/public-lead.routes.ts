@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import rateLimit from 'express-rate-limit'
-import { captureAaroviaContactLead, captureAaroviaGroupWebsiteLead, captureWebsiteLead } from '../controllers/public-lead.controller'
+import { captureAaroviaContactLead, captureWebsiteLead } from '../controllers/public-lead.controller'
 
 const router = Router()
 
