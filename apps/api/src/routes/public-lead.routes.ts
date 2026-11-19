@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import rateLimit from 'express-rate-limit'
-import { captureWebsiteLead } from '../controllers/public-lead.controller'
+import { captureAaroviaContactLead, captureWebsiteLead } from '../controllers/public-lead.controller'
 
 const router = Router()
 
@@ -13,5 +13,6 @@ const leadCaptureLimiter = rateLimit({
 })
 
 router.post('/', leadCaptureLimiter, captureWebsiteLead)
+router.post('/aarovia-website', leadCaptureLimiter, captureAaroviaContactLead)
 
 export default router
