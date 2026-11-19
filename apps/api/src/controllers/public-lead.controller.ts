@@ -13,17 +13,31 @@ const leadCaptureSchema = z.object({
 
 const aaroviaContactLeadSchema = z.object({
   name: z.string().trim().min(2).max(120),
-  mobile: z.string().trim().min(10).max(20),
+  mobile: z.string().trim().min(10).max(20).optional(),
+  phone: z.string().trim().min(10).max(20).optional(),
   email: z.union([
     z.string().trim().email().max(254),
     z.literal(''),
     z.null(),
   ]).optional(),
   remarks: z.string().trim().max(4000).nullable().optional(),
+  message: z.string().trim().max(4000).nullable().optional(),
   formType: z.string().trim().max(50).optional(),
+  source: z.string().trim().max(50).optional(),
   consent: z.literal(true),
   consentText: z.string().trim().max(1000).optional(),
-})
+}).refine(data => Boolean(data.mobile || data.phone), { path: ['mobile'] })
+  .transform(data => ({
+    name: data.name,
+    mobile: data.mobile ?? data.phone ?? '',
+    email: data.email,
+    remarks: data.remarks ?? data.message,
+    formType: data.formType ?? data.source,
+    consent: data.consent,
+    consentText: data.consentText,
+  }))
+
+export const parseAaroviaContactLead = (body: unknown) => aaroviaContactLeadSchema.safeParse(body)
 
 export const normalizeIndianMobile = (value: string) => {
   let digits = value.replace(/\D/g, '')
@@ -116,7 +130,7 @@ export const captureWebsiteLead = async (req: Request, res: Response) => {
 }
 
 export const captureAaroviaContactLead = async (req: Request, res: Response) => {
-  const parsed = aaroviaContactLeadSchema.safeParse(req.body)
+  const parsed = parseAaroviaContactLead(req.body)
   if (!parsed.success) {
     return res.status(400).json({
       success: false,
